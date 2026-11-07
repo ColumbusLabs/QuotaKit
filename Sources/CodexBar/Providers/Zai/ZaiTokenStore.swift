@@ -49,18 +49,11 @@ struct KeychainZaiTokenStore: ZaiTokenStoring {
             return cached
         }
         Self.cacheLock.unlock()
-        var result: CFTypeRef?
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.service,
-            kSecAttrAccount as String: self.account,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
-
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound || status == errSecInteractionNotAllowed {
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .zaiToken)
+        if status == errSecItemNotFound {
             // Cache the nil result
             Self.cacheLock.lock()
             Self.cachedToken = nil

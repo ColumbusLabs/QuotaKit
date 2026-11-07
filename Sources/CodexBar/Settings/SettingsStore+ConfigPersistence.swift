@@ -26,6 +26,7 @@ extension SettingsStore {
         guard !self.configLoading else { return }
         var config = self.config
         mutate(&config)
+        self.retireChangedLegacyCredentialSources(from: self.config, to: config)
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
@@ -174,6 +175,7 @@ extension SettingsStore {
         let currentData = Self.orderIndependentConfigData(normalized)
         let inferredBackgroundWorkChange = previousData == nil || currentData == nil || previousData != currentData
         let resolvedBackgroundWorkChange = (affectsBackgroundWork ?? false) || inferredBackgroundWorkChange
+        self.retireChangedLegacyCredentialSources(from: self.config, to: normalized)
         self.configLoading = true
         self.config = normalized
         self.updateProviderState(config: normalized)

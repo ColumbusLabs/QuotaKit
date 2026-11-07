@@ -273,6 +273,8 @@ struct ProviderRegistryTests {
             [.claude, .claudeplatform],
             // X API and LithosAI retain their upstream neutral gray accents.
             [.xapi, .lithosai],
+            // SiliconFlow's official #6E29F5 logo and Munito's #702CF6 accent are nearly identical.
+            [.siliconflow, .munito],
             // New providers retain upstream palettes that intentionally overlap.
             // Abliteration's neutral brand gray is excluded from iOS's quota-color distinctness set.
             [.grok, .abliteration],
@@ -295,6 +297,9 @@ struct ProviderRegistryTests {
             [.deepseek, .traecn]: 0.06,
             [.chatbox, .stepfun]: 0.095,
         ]
+
+        #expect(SiliconFlowProviderDescriptor.descriptor.branding.color.hexString == "#6E29F5")
+        #expect(MunitoProviderDescriptor.descriptor.branding.color.hexString == "#702CF6")
 
         let claudeBrandColor = ClaudeProviderDescriptor.descriptor.branding.color
         #expect(ClaudePlatformProviderDescriptor.descriptor.branding.color == claudeBrandColor)

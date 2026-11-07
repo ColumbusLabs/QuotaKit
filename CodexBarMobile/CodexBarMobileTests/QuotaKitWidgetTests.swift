@@ -175,6 +175,44 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(bothWindows.map(\.window), [window])
     }
 
+    func testCursorSevenDayBillingWindowDoesNotBecomeWeeklyInWidget() throws {
+        let window = SyncRateWindow(
+            label: "Plan",
+            usedPercent: 67,
+            windowMinutes: 10080,
+            resetsAt: Date(timeIntervalSince1970: 1_803_604_800),
+            resetDescription: nil)
+        let cursor = try self.makeWidgetProvider(providerID: "cursor", window: window)
+        XCTAssertNil(cursor.primaryWindow?.identity)
+        XCTAssertNotNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session))
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .weekly))
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both).map(\.mode),
+            [.session])
+
+        let other = try self.makeWidgetProvider(providerID: "other", window: window)
+        XCTAssertNotNil(QuotaKitWidgetPresentation.primaryWindow(for: other, displayMode: .weekly))
+    }
+
+    func testCursorBillingLanesDoNotBecomeWeeklyFallbacks() {
+        let windows: [QuotaKitWidgetSnapshot.Provider.Window] = [
+            .init(title: "Auto", usedPercent: 20, remainingPercent: 80, resetsAt: nil, pace: nil),
+            .init(title: "API", usedPercent: 40, remainingPercent: 60, resetsAt: nil, pace: nil),
+        ]
+        let cursor = QuotaKitWidgetSnapshot.Provider(
+            id: "cursor",
+            providerName: "Cursor",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: windows)
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .weekly))
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session), windows.first)
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.displayWindows(for: cursor, displayMode: .both).map(\.mode),
+            [.session])
+    }
+
     func testWeeklyOnlyClaudeAndSyntheticSnapshotsHaveNoWidgetSession() throws {
         let reset = Date(timeIntervalSince1970: 1_803_604_800)
         for providerID in ["claude", "synthetic"] {

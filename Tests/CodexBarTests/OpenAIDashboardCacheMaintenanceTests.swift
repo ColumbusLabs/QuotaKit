@@ -12,6 +12,39 @@ struct OpenAIDashboardCacheMaintenanceTests {
     }
 
     @Test
+    func `cold enumeration initializes before listing named stores`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var calls: [String] = []
+        let identifier = UUID()
+        func identifiers() async -> [UUID] {
+            await OpenAIDashboardWebsiteDataStore.existingIdentifiers(
+                in: directory,
+                initialize: { calls.append("initialize") },
+                enumerate: {
+                    calls.append("enumerate")
+                    return [identifier]
+                })
+        }
+        #expect(await identifiers().isEmpty)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        #expect(await identifiers().isEmpty)
+        #expect(calls.isEmpty)
+        try FileManager.default.createDirectory(
+            at: directory.appendingPathComponent(identifier.uuidString), withIntermediateDirectories: true)
+        #expect(await identifiers() == [identifier])
+        #expect(calls == ["initialize", "enumerate"])
+    }
+
+    @Test
+    func `daily sweep waits a full day`() {
+        let start = Date(timeIntervalSince1970: 0)
+        #expect(OpenAIDashboardWebsiteDataStore.sweepIsDue(lastSweep: nil, now: start))
+        #expect(!OpenAIDashboardWebsiteDataStore.sweepIsDue(lastSweep: start, now: start.addingTimeInterval(86399)))
+        #expect(OpenAIDashboardWebsiteDataStore.sweepIsDue(lastSweep: start, now: start.addingTimeInterval(86400)))
+    }
+
+    @Test
     func `daily maintenance bounds cache growth and retains session data`() async {
         let maintenance = OpenAIDashboardCacheMaintenance()
         let store = FakeStore()

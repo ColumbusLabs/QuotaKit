@@ -161,9 +161,8 @@ extension CostUsageScanner {
                 ?? projectPathResolver.canonicalProjectPath(for: usage.projectPath)
                 ?? ""
             let sourceKey = usage.projectPath ?? ""
-            var accumulator = accumulatorsByProjectPath[projectKey] ?? CodexProjectBreakdownAccumulator()
-            accumulator.add(filePath: filePath, usage: usage, report: report, sourcePath: sourceKey)
-            accumulatorsByProjectPath[projectKey] = accumulator
+            accumulatorsByProjectPath[projectKey, default: .init()]
+                .add(filePath: filePath, usage: usage, report: report, sourcePath: sourceKey)
         }
 
         return accumulatorsByProjectPath.map { projectPath, accumulator in

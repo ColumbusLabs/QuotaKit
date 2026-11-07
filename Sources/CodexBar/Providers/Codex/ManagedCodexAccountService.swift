@@ -21,6 +21,7 @@ protocol ManagedCodexWorkspaceSelecting: Sendable {
 enum ManagedCodexAccountServiceError: Error, Equatable {
     case loginFailed(CLILoginRunner.Result)
     case missingEmail
+    case savedAccountConflict
     case workspaceSelectionCancelled
     case accountChangedWhileAuthenticating
     case unsafeManagedHome(String)
@@ -33,6 +34,8 @@ extension ManagedCodexAccountServiceError {
             CodexLoginAlertPresentation.managedLoginFailureMessage(for: result)
         case .missingEmail:
             L("managed_login_missing_email")
+        case .savedAccountConflict:
+            L("QuotaKit could not update managed account storage.")
         case .workspaceSelectionCancelled:
             L("workspace_selection_cancelled")
         case .accountChangedWhileAuthenticating:
@@ -270,11 +273,22 @@ final class ManagedCodexAccountService {
                           Self.matchesExpectedAccount(current, expected: expectedExistingAccount)
                     else { throw ManagedCodexAccountServiceError.accountChangedWhileAuthenticating }
                 }
+                let replacementSnapshot = try ManagedCodexAccountSet(
+                    version: snapshot.version,
+                    accounts: snapshot.accounts.filter {
+                        guard $0.email == Self.normalizeEmail(rawEmail), $0.effectiveWorkspaceAccountID == nil
+                        else { return true }
+                        let canReplace = self.canReplaceLegacyAccount($0, providerAccountID: providerAccountID)
+                        guard canReplace || providerAccountID != nil else {
+                            throw ManagedCodexAccountServiceError.savedAccountConflict
+                        }
+                        return canReplace
+                    })
                 let existing = self.reconciledExistingAccount(
                     authenticatedEmail: rawEmail,
                     providerAccountID: providerAccountID,
                     existingAccountID: existingAccountID,
-                    snapshot: snapshot)
+                    snapshot: replacementSnapshot)
                 let persistedMetadata = self.persistedProviderMetadata(
                     authenticatedProviderAccountID: providerAccountID,
                     resolvedWorkspaceIdentity: workspaceIdentity,
@@ -296,9 +310,8 @@ final class ManagedCodexAccountService {
                 let replacedAccountIDs = self.replacedAccountIDs(
                     authenticatedEmail: rawEmail,
                     providerAccountID: providerAccountID,
-                    existingAccountID: existingAccountID,
                     matchedAccountID: existing?.id,
-                    snapshot: snapshot)
+                    snapshot: replacementSnapshot)
                 let existingHomePathsToDelete = snapshot.accounts
                     .filter { replacedAccountIDs.contains($0.id) }
                     .map(\.managedHomePath)
@@ -447,7 +460,6 @@ final class ManagedCodexAccountService {
     private func replacedAccountIDs(
         authenticatedEmail: String,
         providerAccountID: String?,
-        existingAccountID: UUID?,
         matchedAccountID: UUID?,
         snapshot: ManagedCodexAccountSet) -> Set<UUID>
     {
@@ -468,20 +480,29 @@ final class ManagedCodexAccountService {
             ids.formUnion(legacySameEmailIDs)
         }
 
-        guard let existingAccountID,
-              existingAccountID != matchedAccountID,
-              let existingByID = snapshot.account(id: existingAccountID)
-        else {
-            return ids
-        }
-
-        if existingByID.effectiveWorkspaceAccountID == nil,
-           existingByID.email == normalizedEmail,
-           providerAccountID != nil
-        {
-            ids.insert(existingAccountID)
-        }
         return ids
+    }
+
+    private func canReplaceLegacyAccount(_ account: ManagedCodexAccount, providerAccountID: String?) -> Bool {
+        do {
+            let data = try CodexCredentialFileAccess.read(at: CodexAuthFingerprint.authFileURL(
+                homePath: account.managedHomePath))
+            let identity = try PreparedPromotionContextBuilder.runtimeAccount(from: data)
+            // Email-only metadata cannot authorize deleting another workspace or owner's credentials.
+            guard identity.email == nil || identity.email == account.email else { return false }
+            switch identity.identity {
+            case let .providerAccount(id):
+                return id == providerAccountID
+            case let .emailOnly(normalizedEmail):
+                return providerAccountID == nil && normalizedEmail == account.email
+            case .unresolved:
+                return false
+            }
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return true
+        } catch {
+            return false
+        }
     }
 
     private static func normalizeEmail(_ email: String) -> String {

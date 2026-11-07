@@ -59,7 +59,7 @@ Manual option:
 - Paste the `Cookie:` header from a cursor.com request.
 
 ## Add and switch account
-- **Add Account** opens `https://authenticator.cursor.sh/` in a supported browser.
+- **Add Account** opens `https://cursor.com/login` in a supported browser.
 - Aside, Opera, Opera Neon, and Ego Lite cookies can be imported with SweetCookieKit 0.5.6. Add/Switch Account only offers browsers with a verified, unambiguous bundle-identifier mapping; Ego Lite remains unavailable for interactive login until that mapping is verified.
 - QuotaKit maps the selected app's bundle identifier to its cookie store; unknown or ambiguous identifiers fail closed.
 - **Switch Account** opens the same authenticator and waits for a different stable account ID when available, falling back to normalized email when IDs are unavailable.
@@ -187,3 +187,5 @@ fifty members. It requires consistent page-count metadata, full intermediate pag
 matching member. Missing completion metadata, duplicate matches, or unavailable, invalid, or incomplete responses
 preserve usage-summary behavior. Billing dates and extra/on-demand charges remain sourced from usage-summary;
 team response dates and other members' details are not retained. Caller cancellation still stops the fetch.
+
+Manual credentials remain authoritative for quota and cost reads. Local CSV cost fallback applies only in automatic mode because CSV files carry no account identity. Unified weekly pools retain an explicit classification in snapshots and caches.

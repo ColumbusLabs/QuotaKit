@@ -69,10 +69,83 @@ extension UsageStore {
         }
         self.codexAccountSnapshots = records
         guard let store = self.codexAccountUsageSnapshotStore else {
+            self.scheduleCodexWeeklyResetFollowUp(for: account, candidate: candidate)
             return self.recordCodexWeeklyResetPersistenceDecision(.storeUnavailable)
         }
         store.store(records)
+        self.scheduleCodexWeeklyResetFollowUp(for: account, candidate: candidate)
         return self.recordCodexWeeklyResetPersistenceDecision(.storeRequested)
+    }
+
+    func scheduleCodexWeeklyResetFollowUp(
+        for account: CodexVisibleAccount,
+        candidate: CodexWeeklyResetPublicationCandidate?)
+    {
+        // One autonomous attempt per candidate; a follow-up must not start another retry chain.
+        guard CodexWeeklyResetConfirmation.followUpAccount == nil else { return }
+        for (id, pending) in self.codexWeeklyResetFollowUps {
+            let current = self.codexAccountSnapshots.first { $0.id == id }?.weeklyResetCandidate
+            guard current?.createdAt != pending.createdAt else { continue }
+            pending.task.cancel()
+            self.codexWeeklyResetFollowUps.removeValue(forKey: id)
+        }
+        let now = CodexWeeklyResetConfirmation.observationDate
+        guard let candidate, self.codexWeeklyResetFollowUps[account.id] == nil,
+              CodexWeeklyResetConfirmation.delayedCandidateRejection(candidate, observedAt: now) == nil
+        else { return }
+        let age = now.timeIntervalSince(candidate.createdAt)
+        let delay = max(0, CodexWeeklyResetConfirmation.delayedCandidateMinimumAge - age)
+        #if DEBUG
+        let sleep = CodexWeeklyResetConfirmation.followUpSleepOverride ?? { try await Task.sleep(for: $0) }
+        #else
+        let sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        #endif
+        let task = Task { @MainActor [weak self] in
+            var attempted = false
+            defer {
+                if self?.codexWeeklyResetFollowUps[account.id]?.createdAt == candidate.createdAt,
+                   Task.isCancelled || !attempted ||
+                   self?.codexAccountSnapshots.first(where: { $0.id == account.id })?
+                   .weeklyResetCandidate?.createdAt != candidate.createdAt
+                {
+                    self?.codexWeeklyResetFollowUps.removeValue(forKey: account.id)
+                }
+            }
+            do { try await sleep(.seconds(delay)) } catch { return }
+            // Do not replace another account's in-flight request or retain the store while waiting.
+            while let pending = self?.providerRefreshCoordinator.coalescingState(for: .codex) {
+                await pending.waitForTaskCompletion()
+                guard !Task.isCancelled else { return }
+            }
+            guard !Task.isCancelled, let self,
+                  self.codexAccountSnapshots.first(where: { $0.id == account.id })?
+                      .weeklyResetCandidate?.createdAt == candidate.createdAt,
+                      CodexWeeklyResetConfirmation.delayedCandidateRejection(
+                          candidate, observedAt: CodexWeeklyResetConfirmation.observationDate) == nil,
+                      self.codexWeeklyResetFollowUpMatchesCurrentScope(
+                          account, projection: self.freshCodexVisibleAccountProjectionForAccountRefresh())
+            else { return }
+            attempted = true
+            await ProviderInteractionContext.$current.withValue(.background) {
+                await CodexWeeklyResetConfirmation.$followUpAccount.withValue(account) {
+                    await self.refreshProvider(.codex, codexAccountIDs: [account.id])
+                }
+            }
+        }
+        self.codexWeeklyResetFollowUps[account.id] = (candidate.createdAt, task)
+    }
+
+    func codexWeeklyResetFollowUpMatchesCurrentScope(
+        _ account: CodexVisibleAccount,
+        projection: CodexVisibleAccountProjection) -> Bool
+    {
+        (self.settings.codexUsageDataSource == .auto || self.settings.codexUsageDataSource == .oauth)
+            && self.providerSpecs[.codex]?.isEnabled() == true
+            && !self.shouldUseAmbientCodexPATForUsage()
+            && Self.currentCodexVisibleAccount(
+                matching: account,
+                projection: projection,
+                allowProviderAccountAuthFingerprintMismatch: false) != nil
     }
 
     private func recordCodexWeeklyResetPersistenceDecision(

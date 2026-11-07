@@ -258,6 +258,8 @@ to another credential source.
     successful prepaid credits response has no balance, while a failed refresh keeps the last snapshot and its balance.
   - Account email + inferred plan.
 
+The provider switcher uses Claude's monthly spend cap when no real session or weekly quota is available.
+
 ### Recovering an existing browser session
 
 If Claude works in Chrome but QuotaKit cannot read its Web usage:

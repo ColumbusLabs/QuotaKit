@@ -6,7 +6,7 @@ import Testing
 extension StatusMenuTests.Overview {
     @Test
     func `overview spend uses the configured dashboard bucket calendar`() throws {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = true
@@ -67,15 +67,12 @@ extension StatusMenuTests.Overview {
 
     @Test
     func `shared overview keeps Codex local ledger when global cost tracking is off`() async {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = false
         settings.codexLocalSessionCostLedgerEnabled = true
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-        }
+        enableTestProviders([.codex], settings: settings)
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
         let configuration = SpendDashboardSource.configuration(settings: settings, store: store)
@@ -137,14 +134,11 @@ extension StatusMenuTests.Overview {
 
     @Test(arguments: ["codex", "codex:account", "claude:hidden"])
     func `initial overview waits for source filtering before sharing`(hiddenSource: String) {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = true
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-        }
+        enableTestProviders([.codex], settings: settings)
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
         store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
@@ -181,14 +175,11 @@ extension StatusMenuTests.Overview {
 
     @Test
     func `cold closed dashboard share waits for its overview projection`() async throws {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = true
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
-        }
+        enableTestProviders([.codex], settings: settings)
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
         let input = SpendDashboardModel.ProviderInput(
@@ -253,15 +244,12 @@ extension StatusMenuTests.Overview {
 
     @Test
     func `overview consumes shared publication without starting a loader`() throws {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = true
         let providers: [UsageProvider] = [.codex, .claude]
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: providers.contains(provider))
-        }
+        enableTestProviders(Set(providers), settings: settings)
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
         func input(id: String, provider: UsageProvider, cost: Double) -> SpendDashboardModel.ProviderInput {
@@ -345,7 +333,7 @@ extension StatusMenuTests.Overview {
 
     @Test
     func `overview fallback excludes pi local history from subscription count`() {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.costUsageEnabled = true
@@ -365,7 +353,7 @@ extension StatusMenuTests.Overview {
 
     @Test
     func `overview accounts for all six selected providers while summing only available spend`() {
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -373,13 +361,7 @@ extension StatusMenuTests.Overview {
         settings.costSummaryDisplayStyle = .both
         let selected: [ProviderInstanceID] = [.openai, .claude, .gemini, .antigravity, .openrouter, .grok]
         settings.mergedOverviewSelectedProviders = selected
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(
-                provider: provider,
-                metadata: metadata,
-                enabled: selected.contains(provider.instanceID))
-        }
+        enableTestProviders(Set(selected.compactMap(\.firstPartyProvider)), settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date(timeIntervalSince1970: 1_787_079_600)
@@ -433,7 +415,7 @@ extension StatusMenuTests.Overview {
     @Test
     func `overview keeps six visible providers while accounting for all seven connected providers`() throws {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -450,10 +432,7 @@ extension StatusMenuTests.Overview {
             .grok,
             .codex,
         ]
-        for provider in UsageProvider.allCases {
-            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: connected.contains(provider))
-        }
+        enableTestProviders(Set(connected), settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let enabledRoster = store.enabledFirstPartyProvidersForDisplay()
@@ -564,7 +543,7 @@ extension StatusMenuTests.Overview {
         costUsageEnabled: Bool) throws -> Bool
     {
         self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
+        let settings = self.makeOverviewSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -573,12 +552,7 @@ extension StatusMenuTests.Overview {
         settings.costSummaryDisplayStyle = style
         settings.costUsageEnabled = costUsageEnabled
 
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .codex || provider == .claude
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
+        enableTestProviders([.codex, .claude], settings: settings)
 
         let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
         let now = Date()

@@ -12,7 +12,9 @@ read_when:
 - Quota headlines include the localized quota name, percentage, and used/left label. Reset text moves below the headline when a translation does not fit on one line.
 - On macOS 15+, snapshot ages and reset references use live SwiftUI date text with minute precision. WidgetKit advances those labels without extra timeline reloads; reset references reach “now” at expiration and identify elapsed resets afterward. macOS 14 keeps native relative-date text.
 - `WidgetSnapshotStore` writes compact JSON snapshots to the app-group container.
-- Widgets read the snapshot and render usage/credits/history states.
+- Widgets read the snapshot and render usage/credits/history states. Pinned timelines decode only their provider payload while preserving availability and all account records. The Switcher and configuration pickers read the full snapshot.
+- Provider headers use bundled logos where available and fall back to monograms. Low-quota bars use red in full-color widgets and strong neutral ink in tinted or clear appearances.
+- The app skips unchanged publications only when the saved bytes still match its last successful write. Measurement timestamps and changes to quota, accounts, or settings trigger a write and reload.
 - Usage and Switcher tiles emphasize the most constrained general quota, preserve other allowances as detail rows, and show full provider names. Code-review and model-specific allowances do not replace a provider's general quota headline. Providers without quota bars keep credits or local-cost information useful.
 - WidgetKit owns the outer margins. Small, medium, and large tiles share the same rendering and quota-selection rules; overflow labels disclose omitted detail rows. Snapshot and reset dates remain live relative text between timeline updates.
 - Snapshot age labels advance between timeline reloads. Stale token-cost rows track their own saved timestamp once they lag quota data by more than ten minutes. Fetching new usage still depends on app refresh and WidgetKit accepting a timeline.
@@ -46,6 +48,8 @@ read_when:
 - **QuotaKit Metric** (`CodexBarCompactWidget`): compact credits/today-cost/30-day-cost widget, small only.
 - **QuotaKit Burn Down** (`CodexBarBurnDownWidget`): configurable quota burn-down chart, medium only.
 - **QuotaKit Burn Down (Combined)** (`CodexBarCombinedBurnDownWidget`): two quota burn-down charts, medium only.
+
+Switching providers saves the selection and requests a reload of the Switcher widget kind.
 
 Switcher widgets share one remembered provider selection, so switching one updates all Switcher widgets. To keep
 Claude and Codex visible side by side, add two **QuotaKit Usage** widgets and configure each **Provider** separately.

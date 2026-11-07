@@ -191,6 +191,12 @@ enum QuotaKitWidgetSnapshotBuilder {
         if let identity = window.identity {
             return identity
         }
+        if providerID == "cursor",
+           let label = window.label?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           ["plan", "auto", "api", "requests", "total"].contains(label)
+        {
+            return nil
+        }
         if window.windowMinutes == 10080 {
             return .weekly
         }

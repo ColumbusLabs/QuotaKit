@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-07)
+
+- Add SiliconFlow and Tripo prepaid balances to QuotaKit on Mac and iPhone.
+- Preserve saved Codex accounts on same-email sign-ins and confirm delayed weekly resets after idle periods.
+- Keep Cursor usage and cost within the selected account. Improve Alibaba Team quotas, Ollama balances, Mistral session recovery, and Devin desktop sign-in.
+- Show model rankings in the Spend Dashboard, improve share cards, and add provider marks and clearer low-quota text to Mac widgets.
+- Reduce startup and local cost processing work, preserve daily reset times across daylight saving, and list provider setup options in the CLI.
+
 ## Unreleased upstream integration (2026-11-06)
 
 - Show weekly-only Claude quotas without a duplicate session and wait for Claude CLI quota redraws.

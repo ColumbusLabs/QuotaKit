@@ -124,6 +124,7 @@ struct SyncCoordinatorCursorRateWindowTests {
                 secondary: nil,
                 tertiary: nil,
                 cursorRateWindowLayout: .plan,
+                cursorHasUnifiedWeeklyPool: true,
                 updatedAt: Date()),
             provider: .cursor)
 
@@ -138,5 +139,34 @@ struct SyncCoordinatorCursorRateWindowTests {
         #expect(provider.primary?.resetsAt == reset)
         #expect(provider.primary?.identity == .weekly)
         #expect(provider.primary?.pace != nil)
+    }
+
+    @Test
+    func `push keeps seven day Cursor billing cycle distinct from weekly pool`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-independent-week")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .cursor,
+            metadata: #require(ProviderDefaults.metadata[.cursor]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 10080,
+                    resetsAt: Date().addingTimeInterval(4 * 24 * 60 * 60),
+                    resetDescription: nil),
+                secondary: nil,
+                cursorRateWindowLayout: .plan,
+                updatedAt: Date()),
+            provider: .cursor)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.cursor.rawValue }))
+        #expect(provider.primary?.label == "Plan")
+        #expect(provider.primary?.identity == nil)
     }
 }

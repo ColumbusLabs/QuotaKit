@@ -32,6 +32,8 @@ enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(
+                            localized: "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota."),
+                        String(
                             localized: "OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts."),
                         String(localized: "Kimi monthly usage breakdown now syncs from Mac to iPhone."),
                         String(localized: "Vercel personal budgets now sync from Mac to iPhone."),

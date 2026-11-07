@@ -232,6 +232,14 @@ public enum BrowserCookieAccessGate {
         try self.$stateForTesting.withValue(
             self.stateForTesting ?? OSAllocatedUnfairLock(initialState: State(loaded: true)), operation: operation)
     }
+
+    static func withIsolatedStateForTesting<T>(
+        isolation _: isolated (any Actor)? = #isolation,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$stateForTesting.withValue(
+            self.stateForTesting ?? OSAllocatedUnfairLock(initialState: State(loaded: true)), operation: operation)
+    }
     #endif
 
     static func operationPreservingAccessContext<T: Sendable>(

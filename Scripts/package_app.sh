@@ -357,6 +357,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>${CODEXBAR_MACOS_MINIMUM_VERSION}</string>
     <key>LSUIElement</key><true/>
+    <key>LSEnvironment</key>
+    <dict>
+        <key>MallocLargeCache</key><string>0</string>
+    </dict>
     <key>CFBundleIconFile</key><string>Icon</string>
     <key>NSHumanReadableCopyright</key><string>QuotaKit includes upstream CodexBar code. MIT License notices are preserved.</string>
     <key>SUFeedURL</key><string>${FEED_URL}</string>

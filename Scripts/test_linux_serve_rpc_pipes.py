@@ -73,6 +73,12 @@ for line in sys.stdin:
                     assert response.status == 200
                     return json.load(response)
 
+            def fetch_usage():
+                payload = get("/usage?provider=codex")
+                assert len(payload) == 1 and payload[0]["provider"] == "codex"
+                assert payload[0].get("usage", {}).get("primary", {}).get("usedPercent") == 12, \
+                    "synthetic RPC usage was not returned"
+
             def pipes():
                 values = set()
                 for descriptor in pathlib.Path(f"/proc/{child.pid}/fd").iterdir():
@@ -93,12 +99,17 @@ for line in sys.stdin:
                     except OSError:
                         assert child.poll() is None and time.monotonic() < deadline
                         time.sleep(0.1)
+                ready = pipes()
+                # Foundation allocates process-wide pipes on the first RPC child launch.
+                fetch_usage()
+                deadline = time.monotonic() + 10
                 initial = pipes()
+                while len(initial - ready) > 2 and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                    initial = pipes()
+                assert len(initial - ready) <= 2, "first RPC retained more than the process-wide pipes"
                 for _ in range(60):
-                    payload = get("/usage?provider=codex")
-                    assert len(payload) == 1 and payload[0]["provider"] == "codex"
-                    assert payload[0].get("usage", {}).get("primary", {}).get("usedPercent") == 12, \
-                        "synthetic RPC usage was not returned"
+                    fetch_usage()
                 deadline = time.monotonic() + 10
                 remaining = pipes() - initial
                 while remaining and time.monotonic() < deadline:
@@ -107,6 +118,7 @@ for line in sys.stdin:
                 assert get("/health")["status"] == "ok"
                 print(json.dumps({
                     "rpc_fetches": 60,
+                    "ready_pipes": len(ready),
                     "initial_pipes": len(initial),
                     "retained_pipe_growth": len(remaining),
                     "health": 200,

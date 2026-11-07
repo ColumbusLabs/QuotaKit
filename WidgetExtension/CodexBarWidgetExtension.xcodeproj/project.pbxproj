@@ -13,6 +13,7 @@
 		175A7C99A91EF7F8A1CE1D1D /* ProviderPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC67679EC16B9F4CFA4F655E /* ProviderPager.swift */; };
 		2ECED44F30B8E37A810D9E85 /* WidgetTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E08AC49025047573DE3C02D /* WidgetTiles.swift */; };
 		309CF206BD2410BDE81AA129 /* WidgetTilePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2927E99B587AD27CAD8C4F62 /* WidgetTilePlan.swift */; };
+		C0DEBA12A1B2C3D4E5F60718 /* ProviderMarks in Resources */ = {isa = PBXBuildFile; fileRef = C0DEBA12A1B2C3D4E5F60719 /* ProviderMarks */; };
 		49DB3749D8E8748409CDC4FE /* CodexBarWidgetProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549C61629C144C190B18EAD9 /* CodexBarWidgetProvider.swift */; };
 		6AE8A91F50B5CE058EC3F7C3 /* BurnDownWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A57F0B3D6EEDEFD75EE3F3A0 /* BurnDownWidgetViews.swift */; };
 		6F12082A467310EEDD1F3439 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E430B27E4F28973A5E77EA3F /* WidgetKit.framework */; };
@@ -66,6 +67,7 @@
 		F3AEAC3959EE7A8CF962EF27 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F660CA270A83A7FB48F37E28 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F6F266867F255030458E505E /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C0DEBA12A1B2C3D4E5F60719 /* ProviderMarks */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ProviderMarks; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				140DCD0BF126397855B6FA71 /* Localizable.strings */,
+				C0DEBA12A1B2C3D4E5F60719 /* ProviderMarks */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -230,6 +233,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1318F3B98C1103A136997F08 /* Localizable.strings in Resources */,
+				C0DEBA12A1B2C3D4E5F60718 /* ProviderMarks in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

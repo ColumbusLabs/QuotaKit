@@ -172,6 +172,11 @@ extension UsageStore {
         requestedAccountIDs: Set<String>? = nil) async
     {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
+        if let followUpAccount = CodexWeeklyResetConfirmation.followUpAccount,
+           !self.codexWeeklyResetFollowUpMatchesCurrentScope(followUpAccount, projection: projection)
+        {
+            return
+        }
         let accounts = self.limitedCodexVisibleAccounts(
             projection.visibleAccounts.filter { requestedAccountIDs?.contains($0.id) ?? true },
             snapshots: self.codexAccountSnapshots,
@@ -263,36 +268,27 @@ extension UsageStore {
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
         self.consumePendingCodexBoundaryDetectorCorrections()
+        for row in currentSnapshots where fetchedIDs.contains(row.id) {
+            self.scheduleCodexWeeklyResetFollowUp(for: row.account, candidate: row.weeklyResetCandidate)
+        }
 
         // A view-only refresh of a sibling owns its row, not the globally followed presentation.
         if requestedAccountIDs != nil, !accounts.contains(where: \.isActive) { return }
 
-        let selectionStillMatches = self.codexVisibleSelectionStillMatches(
+        guard self.codexVisibleSelectionStillMatches(
             originalVisibleAccountID: originalVisibleAccountID,
             originalSelectionSource: originalSelectionSource,
             originalAccount: originalVisibleAccount,
             currentProjection: currentProjection)
-        guard let selectedOutcome, let selectedAccount else {
-            if selectionStillMatches, selectedWithheldSuccess {
-                self.recordCodexWithheldFetchSuccess()
-            }
-            if selectionStillMatches,
-               let selectedID = currentProjection.activeVisibleAccountID,
-               let preserved = currentSnapshots.first(where: { $0.id == selectedID }),
-               let snapshot = preserved.snapshot
-            {
-                self.snapshots[.codex] = snapshot
-                self.lastKnownResetSnapshots[.codex] = snapshot
-                let publicationGuard = Self.codexScopedRefreshGuard(for: preserved.account)
-                self.lastCodexUsagePublicationGuard = publicationGuard
-                self.lastCodexAccountScopedRefreshGuard = publicationGuard
-            } else if !selectionStillMatches {
-                self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
-            }
+        else {
+            self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
             return
         }
-        guard selectionStillMatches else {
-            self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
+        guard let selectedOutcome, let selectedAccount else {
+            self.publishRetainedCodexSelection(
+                currentSnapshots,
+                activeVisibleAccountID: currentProjection.activeVisibleAccountID,
+                withheldSuccess: selectedWithheldSuccess)
             return
         }
 
@@ -327,6 +323,26 @@ extension UsageStore {
             }
         } else {
             self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
+        }
+    }
+
+    private func publishRetainedCodexSelection(
+        _ snapshots: [CodexAccountUsageSnapshot],
+        activeVisibleAccountID: String?,
+        withheldSuccess: Bool)
+    {
+        if withheldSuccess {
+            self.recordCodexWithheldFetchSuccess()
+        }
+        if let selectedID = activeVisibleAccountID,
+           let preserved = snapshots.first(where: { $0.id == selectedID }),
+           let snapshot = preserved.snapshot
+        {
+            self.snapshots[.codex] = snapshot
+            self.lastKnownResetSnapshots[.codex] = snapshot
+            let publicationGuard = Self.codexScopedRefreshGuard(for: preserved.account)
+            self.lastCodexUsagePublicationGuard = publicationGuard
+            self.lastCodexAccountScopedRefreshGuard = publicationGuard
         }
     }
 

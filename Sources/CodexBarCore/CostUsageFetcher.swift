@@ -754,7 +754,8 @@ public struct CostUsageFetcher: Sendable {
             if error is CancellationError || Task.isCancelled {
                 throw error
             }
-            if provider != .cursor, provider != .antigravity {
+            // Local CSVs have no account identity and cannot replace an explicitly selected credential.
+            if provider != .antigravity, provider != .cursor || cursorCookieHeaderOverride != nil {
                 throw error
             }
             remoteError = error

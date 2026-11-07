@@ -19,7 +19,7 @@ struct CodexBarConfigMigrator {
         let tokenAccountStore: any ProviderTokenAccountStoring
     }
 
-    private static let legacyMigrationCompletedKey = "codexbar.legacySecretsMigrationCompleted"
+    static let legacyMigrationCompletedKey = "codexbar.legacySecretsMigrationCompleted"
 
     private struct MigrationState {
         var didUpdate = false
@@ -116,6 +116,30 @@ struct CodexBarConfigMigrator {
             config = self.applyProviderToggles(toggles, config: config)
             state.didUpdate = true
         }
+    }
+
+    static func legacySecretSources(stores: LegacyStores)
+        -> [(
+            provider: UsageProvider,
+            store: String,
+            load: () throws -> String?,
+            field: WritableKeyPath<ProviderConfig, String?>)]
+    {
+        [
+            (.zai, "zai-token", stores.zaiTokenStore.loadToken, \.apiKey),
+            (.synthetic, "synthetic-token", stores.syntheticTokenStore.loadToken, \.apiKey),
+            (.copilot, "copilot-token", stores.copilotTokenStore.loadToken, \.apiKey),
+            (.codex, "codex-cookie", stores.codexCookieStore.loadCookieHeader, \.cookieHeader),
+            (.claude, "claude-cookie", stores.claudeCookieStore.loadCookieHeader, \.cookieHeader),
+            (.cursor, "cursor-cookie", stores.cursorCookieStore.loadCookieHeader, \.cookieHeader),
+            (.factory, "factory-cookie", stores.factoryCookieStore.loadCookieHeader, \.cookieHeader),
+            (.augment, "augment-cookie", stores.augmentCookieStore.loadCookieHeader, \.cookieHeader),
+            (.amp, "amp-cookie", stores.ampCookieStore.loadCookieHeader, \.cookieHeader),
+            (.minimax, "minimax-api-token", stores.minimaxAPITokenStore.loadToken, \.apiKey),
+            (.minimax, "minimax-cookie", stores.minimaxCookieStore.loadCookieHeader, \.cookieHeader),
+            (.kimi, "kimi-token", stores.kimiTokenStore.loadToken, \.cookieHeader),
+            (.opencode, "opencode-cookie", stores.opencodeCookieStore.loadCookieHeader, \.cookieHeader),
+        ]
     }
 
     private static func migrateLegacySecrets(

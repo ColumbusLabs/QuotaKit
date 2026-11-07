@@ -757,6 +757,8 @@ final class SyncCoordinator {
                 window: extra.window,
                 role: .other,
                 dataConfidence: snapshot?.dataConfidence ?? .unknown,
+                identityOverride: provider == .cursor && extra.id == CursorSandUsageStatus.extraWindowID &&
+                    extra.window.windowMinutes == 10080 ? .weekly : nil,
                 now: paceNow))
         }
 
@@ -1094,6 +1096,7 @@ final class SyncCoordinator {
         window: RateWindow,
         role: SyncPaceWindowRole,
         dataConfidence: UsageDataConfidence,
+        identityOverride: SyncRateWindowIdentity? = nil,
         now: Date) -> SyncRateWindow
     {
         SyncRateWindow(
@@ -1105,14 +1108,16 @@ final class SyncCoordinator {
             pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
                 ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
                 : nil,
-            identity: Self.syncRateWindowIdentity(label: label, window: window))
+            identity: identityOverride ?? Self.syncRateWindowIdentity(provider: provider, label: label, window: window))
     }
 
     private static func syncRateWindowIdentity(
+        provider: UsageProvider,
         label: String?,
         window: RateWindow) -> SyncRateWindowIdentity?
     {
-        if window.windowMinutes == 10080 {
+        // Provider-specific by design: Cursor's weekly-window identity requires its matching named lane.
+        if window.windowMinutes == 10080, provider != .cursor || label == "Weekly" {
             return .weekly
         }
         guard let label else { return nil }
@@ -2013,7 +2018,7 @@ final class SyncCoordinator {
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe, .atlascloud, .vercel, .llmman,
              .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi, .soniox, .traecn,
-             .chatbox, .abliteration, .opendesign,
+             .chatbox, .abliteration, .opendesign, .siliconflow, .tripo,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,

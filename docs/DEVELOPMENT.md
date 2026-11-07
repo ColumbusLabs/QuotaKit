@@ -222,6 +222,16 @@ this repository does not currently install or run the upstream TypeScript, Oxlin
 
 ## Distribution
 
+### Allocator policy
+
+The packaged Mac app sets `LSEnvironment.MallocLargeCache=0` before LaunchServices starts it.
+At entry, QuotaKit clears the variable so child processes use their normal allocator policy.
+Direct executable launches bypass the LaunchServices environment.
+
+The variable is an undocumented allocator control with OS-dependent behavior. In upstream
+synthetic runs on macOS 27, it reduced memory retained after cost refreshes. Recheck the
+policy when changing the SDK or supported macOS baseline.
+
 Mac release defaults live in `.mac-release.env`. Public release targets should use:
 
 - Repository: `ColumbusLabs/QuotaKit`

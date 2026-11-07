@@ -1563,7 +1563,7 @@
 "5-hour usage" = "5 小时用量";
 "7-day usage" = "7 天用量";
 "Total usage" = "总用量";
-"claude_oauth_keychain_access_revoked" = "Claude Code 轮换令牌后撤销了对 Claude 钥匙串的访问权限。点击“刷新”以重新授权，或将 Claude 用量来源切换为 CLI/Web。";
+"claude_oauth_keychain_access_revoked" = "QuotaKit 目前无法访问 Claude OAuth 凭据。点击“刷新”以重试访问，或将 Claude 用量来源切换为 CLI/Web。";
 "claude_showing_last_known_usage" = "正在显示 %@ 采集的最后已知用量。";
 
 "menu_bar_layout_token_conditional" = "条件";
@@ -2897,3 +2897,33 @@
 "TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "无法读取 TypeSafe 账单概览。请打开 https://console.typesafe.ai/billing 检查访问权限；如果页面可以打开，请报告集成故障。";
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "未找到 TypeSafe 会话 Cookie。请在 console.typesafe.ai/billing 登录或粘贴 Cookie 请求头。";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "授权 GitHub 设备代码以保存 Copilot 令牌账户。";
+"Supply a GitHub token accepted by the Copilot usage API." = "提供 Copilot 用量 API 接受的 GitHub 令牌。";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "仅为公共 github.com 提供可选的预算查询，不保证成功。在 macOS 应用中启用预算附加功能；浏览器会话必须与令牌账户匹配。配额查询不需要 Cookie。";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "在 macOS 应用中选择手动 Cookie 来源，并提供匹配的 GitHub Cookie 请求头。";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "在受支持的浏览器中登录 GitHub，并在 macOS 应用中选择自动导入 Cookie。";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "使用组织的 Admin API 密钥查询组织费用和用量。项目或服务账户密钥无法读取这些端点。";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "普通 API 密钥仅支持尽力查询旧版余额，不支持组织用量。配置了项目范围的密钥不会使用此回退方式。";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "提供密钥、HTTPS 资源端点和部署名称。API 版本为可选项。刷新会发送可能计费的验证请求，而不是用量历史查询。";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "自动从 Devin 应用或 Chromium 浏览器导入 app.devin.ai 会话。";
+
+"Mistral session expired or invalid." = "Mistral 会话已过期或无效。";
+
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "默认是中国区（人民币）。国际账号使用 https://api.siliconflow.com（美元）。";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "SiliconFlow API 源必须是 https://api.siliconflow.cn 或 https://api.siliconflow.com。";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow 拒绝了余额查询。请在 SiliconFlow 控制台中查看余额。";
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "显示 SiliconFlow 用量";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow 正在限制请求频率。请稍后重试。";
+"SiliconFlow request failed. Try refreshing later." = "SiliconFlow 请求失败。请稍后尝试刷新。";
+"SiliconFlow returned an unrecognized response. Update QuotaKit and try again." = "SiliconFlow 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "显示 Tripo 用量";
+"Tripo is rate limiting requests. Try again later." = "Tripo 正在限制请求频率。请稍后重试。";
+"Tripo request failed. Try refreshing later." = "Tripo 请求失败。请稍后尝试刷新。";
+"Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo 返回了无法识别的响应。请更新 QuotaKit 后重试。";

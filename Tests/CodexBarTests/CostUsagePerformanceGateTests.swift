@@ -816,7 +816,7 @@ struct CostUsagePerformanceGateTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
-        _ = try Self.writeSyntheticCodexCorpus(env: env, day: day, files: 3, turnsPerFile: 4)
+        _ = try Self.writeSyntheticCodexCorpus(env: env, day: day, files: 12, turnsPerFile: 4)
 
         var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
@@ -824,7 +824,7 @@ struct CostUsagePerformanceGateTests {
             cacheRoot: env.cacheRoot,
             codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
         options.refreshMinIntervalSeconds = 0
-        _ = CostUsageScanner.loadDailyReport(
+        let daily = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
@@ -842,7 +842,10 @@ struct CostUsagePerformanceGateTests {
                 return ModelsDevCatalog(providers: [:])
             })
 
-        #expect(!projects.isEmpty)
+        #expect(projects.count == 1)
+        #expect(projects.first?.sources.count == 1)
+        #expect(projects.first?.totalTokens == daily.summary?.totalTokens)
+        #expect(projects.first?.sources.first?.totalTokens == daily.summary?.totalTokens)
         #expect(catalogLoadCount == 1)
     }
 

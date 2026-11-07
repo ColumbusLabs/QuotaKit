@@ -90,8 +90,15 @@ enum SyncProviderBillingDetails {
                 ("Credit balance", .dollars(allowNegative: false)),
                 ("Monthly credits used", .dollars(allowNegative: false)),
             ])]
+        default:
+            self.additionalRules(for: provider)
+        }
+    }
+
+    private static func additionalRules(for provider: UsageProvider) -> [SectionRule]? {
         // Provider-specific by design: typed display-only rows retain JetBrains top-up, xAI's estimate,
         // fal/FLORA and Parallel billing fields, and Claude Console's monthly spend details.
+        switch provider {
         case .jetbrains:
             [.init(title: "Top-up credits", rows: [("Remaining", .credits)])]
         case .xai:
@@ -139,6 +146,15 @@ enum SyncProviderBillingDetails {
                 ("Balance", .dollars(allowNegative: false)), ("Credits used", .dollars(allowNegative: false)),
                 ("Credits", .dollars(allowNegative: false)),
             ])]
+        // Provider-specific by design: sync only validated display balances and no account status or credentials.
+        case .siliconflow:
+            [.init(title: "Balance", rows: [
+                ("Balance", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+                ("Purchased", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+                ("Bonus", .currencyAmount(allowNegative: true, allowUnavailable: false)),
+            ])]
+        case .tripo:
+            [.init(title: "Credits", rows: [("Balance", .number), ("Reserved", .number)])]
         default:
             nil
         }

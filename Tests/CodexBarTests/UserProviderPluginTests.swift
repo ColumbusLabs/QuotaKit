@@ -609,7 +609,7 @@ struct UserProviderPluginTests {
         let historyURL = fixture.history.appendingPathComponent("delete-me.json")
         try Data("history".utf8).write(to: historyURL)
         let staleCacheURL = fixture.cache.appendingPathComponent(
-            "delete-me-oldhash-sucrase-\(UserProviderPluginLoader.sucraseVersion).js")
+            "delete-me-\(String(repeating: "a", count: 64))-sucrase-\(UserProviderPluginLoader.sucraseVersion).js")
         try Data("stale".utf8).write(to: staleCacheURL)
 
         try UserProviderPluginManager.delete(
@@ -836,6 +836,7 @@ struct UserProviderPluginTests {
     }
 }
 
+@MainActor
 extension UserProviderPluginTests {
     @Test(arguments: [false, true])
     func `recovered plugin settings retain secrets without duplicating the opaque record`(opaqueNumber: Bool) throws {
@@ -894,7 +895,7 @@ extension UserProviderPluginTests {
             #expect(ProviderPluginIconSVG.isValid(open + shape + "</svg>"), "rejected: \(paint)")
         }
         #expect(plugin.manifest.icon.monogram == "SV")
-        let image = try #require(StatusItemController.userPluginSVGImage(plugin))
+        let image = try #require(ProviderBrandIcon.image(for: plugin))
         #expect(image.isTemplate)
         #expect(image.size == NSSize(width: 16, height: 16))
         let bitmap = try #require(image.representations.first as? NSBitmapImageRep)

@@ -155,9 +155,12 @@ public enum CursorProviderDescriptor {
         self.sharedWeeklyPool(snapshot: snapshot) == nil ? nil : "Weekly"
     }
 
-    /// Monthly Cursor billing cycles do not span exactly seven days, so this identifies the shared pool.
+    /// A weekly shape alone cannot distinguish legacy allowances from a unified pool.
     public static func sharedWeeklyPool(snapshot: UsageSnapshot) -> RateWindow? {
-        guard let primary = snapshot.primary, primary.windowMinutes == 10080, snapshot.secondary == nil,
+        // The private CLI cache redacts identity but retains this non-identifying Cursor classification.
+        guard snapshot.cursorHasUnifiedWeeklyPool,
+              snapshot.identity?.providerID == nil || snapshot.identity?.providerID == .cursor,
+              let primary = snapshot.primary, primary.windowMinutes == 10080, snapshot.secondary == nil,
               snapshot.detailRow(label: "Request quota") == nil
         else {
             return nil
@@ -306,6 +309,6 @@ struct CursorStatusFetchStrategy: ProviderFetchStrategy {
 
     private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
         guard context.settings?.cursor?.cookieSource == .manual else { return nil }
-        return CookieHeaderNormalizer.normalize(context.settings?.cursor?.manualCookieHeader)
+        return context.settings?.cursor?.manualCookieHeader ?? ""
     }
 }

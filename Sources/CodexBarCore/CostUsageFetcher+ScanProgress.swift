@@ -14,6 +14,7 @@ extension CostUsageFetcher {
             progressHasher.combine(usage.codexScanFileId)
             progressHasher.combine(usage.codexScanComplete)
             if usage.codexScanComplete == false {
+                progressHasher.combine(usage.codexScanTargetSize)
                 progressHasher.combine(usage.parsedBytes)
                 progressHasher.combine(usage.size)
                 progressHasher.combine(usage.codexJSONLResumeState?.offset)

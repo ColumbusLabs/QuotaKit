@@ -12,6 +12,7 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
     @TaskLocal static var beforeManifestForTesting: (@Sendable () throws -> Void)?
     @TaskLocal static var afterShardReadForTesting: (@Sendable (URL) throws -> Void)?
     @TaskLocal static var afterManifestWriteForTesting: (@Sendable (URL) throws -> Void)?
+    @TaskLocal static var encodedHeaderStorageForTesting: (@Sendable (Data) -> Data)?
     #else
     static let shared = CostUsageClaudeFragments()
     #endif
@@ -29,14 +30,29 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
 
     private struct Snapshot {
         let stamp: CostUsageClaudeFileStamp
-        let manifest: Manifest
+        let headerDigest: SHA256.Digest
+        let shards: [String: Shard]
         let values: Any
         let header: Any
-        var cost: Int {
-            self.manifest.header.count + self.manifest.shards.values.reduce(0) { $0 + $1.bytes }
-        }
-
+        let cost: Int
         let contentID: UUID?
+
+        init(
+            stamp: CostUsageClaudeFileStamp,
+            manifest: Manifest,
+            headerDigest: SHA256.Digest,
+            values: Any,
+            header: Any,
+            contentID: UUID?)
+        {
+            self.stamp = stamp
+            self.headerDigest = headerDigest
+            self.shards = manifest.shards
+            self.values = values
+            self.header = header
+            self.cost = manifest.header.count + manifest.shards.values.reduce(0) { $0 + $1.bytes }
+            self.contentID = contentID
+        }
     }
 
     private let lock = NSLock()
@@ -112,6 +128,7 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                         Snapshot(
                             stamp: stamp,
                             manifest: manifest,
+                            headerDigest: SHA256.hash(data: manifest.header),
                             values: values,
                             header: header,
                             contentID: (header as? CostUsageClaudeCacheArtifact)?.contentID))
@@ -149,7 +166,11 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                 for path in values.keys {
                     groups[parent(path), default: []].append(path)
                 }
-                var manifest = try Manifest(header: encoder.encode(header), shards: [:])
+                var headerData = try encoder.encode(header)
+                #if DEBUG
+                headerData = Self.encodedHeaderStorageForTesting?(headerData) ?? headerData
+                #endif
+                var manifest = Manifest(header: headerData, shards: [:])
                 for (parent, paths) in groups {
                     let key = Self.digest(parent)
                     let same = oldCounts[parent] == paths.count && paths.allSatisfy { path in
@@ -157,14 +178,14 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                         return oldValues[index].key.utf8.elementsEqual(path.utf8)
                             && oldValues[index].value == values[path]
                     }
-                    if same, let reference = current?.manifest.shards[key] {
+                    if same, let reference = current?.shards[key] {
                         manifest.shards[key] = reference
                     } else {
                         let group = paths.reduce(into: [String: Value]()) { $0[$1] = values[$1] }
                         let data = try encoder.encode(group)
                         let reference = Self.digest(data)
                         let target = Self.directory(at: url).appendingPathComponent(reference + ".json")
-                        let old = (current?.manifest.shards[key]).map {
+                        let old = (current?.shards[key]).map {
                             Self.directory(at: url).appendingPathComponent($0.digest + ".json")
                         }
                         _ = try Self.write(data, at: target, replacing: old)
@@ -181,8 +202,9 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                 #if DEBUG
                 try Self.beforeManifestForTesting?()
                 #endif
+                let headerDigest = SHA256.hash(data: manifest.header)
                 let authoredStamp: CostUsageClaudeFileStamp?
-                if current?.manifest.header != manifest.header || current?.manifest.shards != manifest.shards {
+                if current?.headerDigest != headerDigest || current?.shards != manifest.shards {
                     authoredStamp = try Self.write(data, at: url)
                     #if DEBUG
                     CostUsageScanner.recordClaudeScanWork(.artifactWrite)
@@ -194,7 +216,12 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
                 guard let stamp = authoredStamp else { return nil }
                 if CostUsageClaudeFileStamp.read(at: url) == stamp {
                     self.remember(url, Snapshot(
-                        stamp: stamp, manifest: manifest, values: values, header: header, contentID: contentID))
+                        stamp: stamp,
+                        manifest: manifest,
+                        headerDigest: headerDigest,
+                        values: values,
+                        header: header,
+                        contentID: contentID))
                     // Readers hold the same lock, so no reader can still need the previous manifest's shards.
                     let retained = Set(manifest.shards.values.map { $0.digest + ".json" })
                     let directory = Self.directory(at: url)

@@ -798,9 +798,11 @@ extension LocalizationLanguageCatalogTests {
             "OpenCodex",
             "Output",
             "Pro",
+            "SiliconFlow",
             "SuperGrok OAuth",
             "Token",
             "Trae CN",
+            "Tripo",
             "User-Agent",
             "ZeroGPU",
             "__raycast_session=…; csrf_token=…",
@@ -826,6 +828,7 @@ extension LocalizationLanguageCatalogTests {
             "hooks_threshold_placeholder",
             "http_server_dashboard",
             "https://api.aixy-gateway.com",
+            "https://api.siliconflow.cn",
             "https://bifrost.example.com",
             "https://litellm.example.com",
             "https://openrouter.ai/api/v1",
@@ -878,6 +881,10 @@ extension LocalizationLanguageCatalogTests {
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)
 
+        try Self.verifyItalianQuotaWarningFormats(italian)
+    }
+
+    private static func verifyItalianQuotaWarningFormats(_ italian: [String: String]) throws {
         let warningFormat = try #require(italian["quota_warning_notification_body"])
         let warning = String(
             format: warningFormat,

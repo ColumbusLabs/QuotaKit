@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 struct CursorLoginBrowserRoutingTests {
-    private static let authURL = URL(string: "https://authenticator.cursor.sh/")!
+    private static let authURL = URL(string: "https://cursor.com/login")!
     private static let cometApplicationURL = URL(fileURLWithPath: "/Applications/Comet.app")
     private static let chromeApplicationURL = URL(fileURLWithPath: "/Applications/Google Chrome.app")
     private static let handlerApplicationURL = URL(fileURLWithPath: "/Applications/Link Router.app")

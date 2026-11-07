@@ -26,7 +26,9 @@ extension ProviderUsageSnapshot {
                               let rateWindow = windows.first,
                               rateWindow.windowMinutes == 10080,
                               rateWindow.identity != .session,
-                              rateWindow.label != "Requests"
+                              rateWindow.label != "Requests",
+                              !(rateWindow.identity == nil && ["plan", "auto", "api", "total"].contains(
+                                  rateWindow.label?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""))
         {
             1
         } else {

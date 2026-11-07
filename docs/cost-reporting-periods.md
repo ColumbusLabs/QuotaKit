@@ -1,5 +1,11 @@
 # Cost reporting periods
 
+Usage & Spend builds chart, ledger, and activity views as they approach the visible part of the pane. Its dashboard capture retains summaries and conversation details while releasing obsolete quota-window events.
+
+The **Models** view ranks models within each displayed currency. It shows estimated-spend shares when pricing is complete, or tracked-token shares for a single provider. Partial model history and unpriced models from different providers remain visible without percentages.
+
+Share-card previews and exports follow the app's light or dark appearance.
+
 ## Conversation usage details
 
 In a cost-history menu, click a conversation to open its session inspector in Usage & Spend. The

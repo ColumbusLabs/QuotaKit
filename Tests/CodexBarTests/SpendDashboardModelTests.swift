@@ -979,6 +979,107 @@ struct SpendDashboardModelTests {
 
 extension SpendDashboardModelTests {
     @Test
+    func `models lens ranks fully attributed unpriced Claude currency group by tokens`() throws {
+        let claude = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-15", cost: nil, tokens: 2_800_000, model: "claude-sonnet-4-5"),
+                Self.entry(day: "2026-07-16", cost: nil, tokens: 920_000, model: "claude-opus-4-5"),
+            ]))
+        let group = try #require(Self.model(inputs: [claude], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(group.currencyCode == "USD")
+        #expect(group.totalCost == nil)
+        #expect(group.modelHistoryCompleteness == .incomplete) // Pricing is still incomplete.
+        #expect(ranking.basis == .tokens)
+        #expect(!ranking.isPartial)
+        #expect(ranking.rows.map(\.model.modelName) == ["claude-sonnet-4-5", "claude-opus-4-5"])
+        #expect(ranking.rows.map(\.value) == [2_800_000, 920_000])
+        #expect(ranking.rows.map(\.share) == [2_800_000.0 / 3_720_000, 920_000.0 / 3_720_000])
+    }
+
+    @Test
+    func `models lens withholds token shares for unattributed currency group history`() throws {
+        let named = SpendDashboardModel.ProviderInput(
+            id: "named",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-15", cost: nil, tokens: 40, model: "example-unpriced-model"),
+            ]))
+        let unattributed = SpendDashboardModel.ProviderInput(
+            id: "unattributed",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-16", cost: 3, tokens: 60, model: nil),
+            ]))
+        let group = try #require(Self.model(inputs: [named, unattributed], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(group.totalTokens == 100)
+        #expect(ranking.basis == .tokens)
+        #expect(ranking.isPartial)
+        #expect(ranking.rows.map(\.value) == [40])
+        #expect(ranking.rows.allSatisfy { $0.share == nil })
+    }
+
+    @Test
+    func `models lens withholds shares when model history is partial`() throws {
+        let codex = SpendDashboardModel.ProviderInput(
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [
+                    Self.entry(day: "2026-07-15", cost: 2, model: "gpt-5.2-codex"),
+                    Self.entry(day: "2026-07-16", cost: 3, model: nil),
+                ]))
+        let group = try #require(Self.model(
+            inputs: [codex],
+            requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        // $3 of the $5 has no model, so the one named model must not claim 100%.
+        #expect(ranking.isPartial)
+        #expect(ranking.rows.map(\.model.modelName) == ["gpt-5.2-codex"])
+        #expect(ranking.rows.allSatisfy { $0.share == nil })
+        #expect(ranking.rows.map(\.value) == [2])
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func `models lens suppresses shares for incomplete requests`(priced: Bool, incomplete: Bool) throws {
+        let entries = [CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 100,
+            costUSD: priced ? 4 : nil,
+            modelsUsed: nil,
+            modelBreakdowns: [
+                .init(
+                    modelName: "model-a",
+                    costUSD: priced ? 1 : nil,
+                    totalTokens: 25,
+                    incompleteRequestCount: incomplete ? 1 : nil),
+                .init(modelName: "model-b", costUSD: priced ? 3 : nil, totalTokens: 75),
+            ])]
+        let input = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(currency: "USD", entries: entries))
+        let group = try #require(Self.model(inputs: [input], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(ranking.basis == (priced ? .cost : .tokens))
+        #expect(ranking.rows.count == 2)
+        #expect(ranking.isPartial == incomplete)
+        #expect(ranking.rows.map(\.share) == (incomplete ? [nil, nil] : [0.75, 0.25]))
+    }
+
+    @Test
     func `project rows aggregate windowed entries and rank by cost`() throws {
         let model = SpendDashboardModel.build(
             inputs: [
@@ -1239,6 +1340,10 @@ extension SpendDashboardModelTests {
             provider: provider,
             displayName: provider.rawValue,
             snapshot: self.snapshot(currency: currency, entries: [self.entry(day: "2026-07-16", cost: cost)]))
+    }
+
+    static func model(inputs: [SpendDashboardModel.ProviderInput], requestedDays: Int) -> SpendDashboardModel {
+        SpendDashboardModel.build(inputs: inputs, requestedDays: requestedDays, now: self.now, calendar: self.calendar)
     }
 
     static func snapshot(

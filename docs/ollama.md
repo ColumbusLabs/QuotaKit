@@ -18,6 +18,7 @@ Older settings pages that report monthly included usage, session/hourly, or week
 - **Plan badge**: Reads the plan tier (Free/Pro/Max) from the Cloud Usage header.
 - **Included usage**: Parses the monthly credits meter labeled `Monthly usage` on paid plans or `Free usage` on free plans.
 - **Legacy session + weekly usage**: Parses older session, hourly, and weekly meters when present.
+- **Legacy API usage**: Parses session and weekly remaining percentages into quota windows.
 - **Reset timestamps**: Uses the `data-time` attribute on the “Resets in …” elements.
 - **API key auth**: Reads `https://ollama.com/api/balance` with `OLLAMA_API_KEY` or a configured key. Included usage
   supplies the primary **Monthly** bar; purchased credits appear as **Credit balance** in the existing **Credits**
@@ -50,6 +51,7 @@ Ollama API keys currently do not expire, but they can be revoked from the key se
 - `purchased.balance_usd` supplies **Credit balance** and is never added to the included allowance. Numeric and
   decimal-string amounts are supported; absent purchased credits stay absent. Purchased-only accounts show balance
   details without a quota bar, and a zero allowance does not create a percentage.
+- Legacy API session and weekly windows use remaining percentages and matching reset timestamps. When both API shapes are present, these windows take precedence over monthly credits.
 - HTTP 401 and 403 invalidate the API key. Malformed balances fail parsing without exposing the response body;
   missing reset timestamps remain unavailable.
 - Cookie mode fetches `https://ollama.com/settings` using browser cookies.

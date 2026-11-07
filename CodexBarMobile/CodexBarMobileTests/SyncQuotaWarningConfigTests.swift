@@ -254,6 +254,32 @@ struct SyncQuotaWarningConfigTests {
     }
 
     @Test
+    func `quotaWarning keeps seven day Cursor billing on session slot`() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "cursor",
+            providerName: "Cursor",
+            primary: SyncRateWindow(
+                label: "Plan",
+                usedPercent: 45,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(
+                sessionThresholds: [80, 40],
+                weeklyThresholds: [70, 30]))
+
+        let result = snapshot.quotaWarning(forWindowIndex: 0)
+        #expect(result.thresholds == [80, 40])
+        #expect(result.enabled)
+    }
+
+    @Test
     func `quotaWarning preserves Kimi config slots when typed identities disagree`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "kimi",

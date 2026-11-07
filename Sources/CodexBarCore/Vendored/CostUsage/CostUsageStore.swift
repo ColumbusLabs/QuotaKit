@@ -223,6 +223,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "1a32d8d0c63060d2", // Symlink-root discovery preserves existing parsed rows and reports.
         "7d66d60c44b88609", // Resumed tier correction preserves parsed rows and checkpoints.
         "8d37b5425fe86c2a", // Selected-session inspection preserves existing parsed rows and checkpoints.
         "c939f17d29a7e29d", // Claude-only pricing preserves native Codex rows, checkpoints, and reports.
@@ -290,6 +291,7 @@ actor CostUsageStore {
     ]
     // All earlier reports may contain estimates made before the Fast pricing correction.
     static let incompatibleRetainedReportPredecessorParserHashes = CostUsageStore.compatiblePredecessorParserHashes
+        .subtracting(["1a32d8d0c63060d2"])
 
     nonisolated static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
