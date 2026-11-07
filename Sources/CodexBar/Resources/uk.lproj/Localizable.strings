@@ -2896,3 +2896,13 @@
 "TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "Не вдалося прочитати огляд платежів TypeSafe. Відкрийте https://console.typesafe.ai/billing, щоб перевірити доступ. Якщо сторінка відкривається, повідомте про помилку інтеграції.";
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Файли cookie сеансу TypeSafe не знайдено. Увійдіть на console.typesafe.ai/billing або вставте заголовок Cookie.";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "Підтвердьте код пристрою GitHub, щоб зберегти обліковий запис із токеном Copilot.";
+"Supply a GitHub token accepted by the Copilot usage API." = "Укажіть токен GitHub, який приймає API використання Copilot.";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "Необов’язкові бюджети без гарантій, лише для публічного github.com. Увімкніть доповнення бюджету в застосунку macOS; сеанс браузера має відповідати обліковому запису токена. Для квот cookie не потрібні.";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "У застосунку macOS виберіть ручне джерело cookie та вкажіть відповідний заголовок Cookie GitHub.";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "Увійдіть у GitHub у підтримуваному браузері та виберіть автоматичний імпорт cookie в застосунку macOS.";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Використовуйте ключ Admin API організації для її витрат і використання. Ключі проєктів і службових облікових записів не можуть читати ці кінцеві точки.";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Звичайний ключ API підтримує лише резервне отримання старого балансу без гарантій, а не використання організації. Налаштовані ключі з обмеженням за проєктом не використовують цей варіант.";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Укажіть ключ, HTTPS-адресу ресурсу та назву розгортання. Версія API необов’язкова. Оновлення надсилає потенційно платний запит перевірки, а не запит історії використання.";

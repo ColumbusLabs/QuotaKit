@@ -47,6 +47,28 @@ for registered sources and setup guides. The [provider ID list](provider-ids.md)
 
 JSON output includes built-in provider authentication metadata: supported source modes, config API-key and cookie-header support, and names (never values) of projected environment variables. Optional login commands and token-account setup hints describe supported inputs, not credential health or a complete setup checklist. User-plugin entries omit this metadata; listing it performs no credential reads or provider requests.
 
+`setup` separately describes provider-owned setup routes. Copilot declares device login and token routes,
+OpenAI API distinguishes Admin access from legacy balance access, and Azure OpenAI requires a key, endpoint,
+and deployment. Other providers and user plugins report `status: "unknown"`, when the provider has yet to declare setup guidance. The existing `authentication` fields remain available.
+
+Routes are alternatives; all `requiredInputs` in one route are required together. Each input lists alternative
+config fields and environment variable names, never values or precedence. Config paths are relative to a provider
+entry; `tokenAccounts.accounts[].token` denotes a selected token account. `platforms` describes where the route
+works and is not filtered by the machine printing the inventory. Optional `command` describes an existing action;
+listing a route never executes it. An interactive route can obtain its credential during that action.
+
+`optionalCapabilities` lists enhancements beyond primary usage. Copilot budgets require an explicit
+opt-in in the macOS app, a matching public GitHub browser account, and cookies; quota usage needs no cookies.
+OpenAI organization usage needs an Admin API key, whereas ordinary keys provide only best-effort legacy balance;
+configured project scoping suppresses that fallback. Azure refresh performs a potentially billable deployment
+validation request. The inventory displays setup requirements without checking account readiness.
+
+For example, an undeclared provider returns:
+
+```json
+{"status":"unknown","routes":[],"optionalCapabilities":[]}
+```
+
 For Claude Platform setup or renewal, pipe a Console Cookie header containing `sessionKey` privately into `quotakit config login --provider claudeplatform --stdin --json` (`claude-platform` also works). It validates the candidate before replacing a saved cookie. See [validated session import](cli-configuration.md#claude-platform-session-import).
 
 ## Command

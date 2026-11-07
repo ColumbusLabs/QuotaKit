@@ -2909,3 +2909,13 @@
 "TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "خواندن نمای کلی صورتحساب TypeSafe ممکن نشد. برای بررسی دسترسی، https://console.typesafe.ai/billing را باز کنید؛ اگر صفحه باز شد، خطای یکپارچه‌سازی را گزارش کنید.";
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "هیچ کوکی نشست TypeSafe پیدا نشد. در console.typesafe.ai/billing وارد شوید یا یک سرآیند Cookie جای‌گذاری کنید.";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "کد دستگاه GitHub را تأیید کنید تا حساب توکن Copilot ذخیره شود.";
+"Supply a GitHub token accepted by the Copilot usage API." = "توکن GitHub مورد پذیرش API مصرف Copilot را وارد کنید.";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "بودجه‌های اختیاری بدون تضمین، فقط برای github.com عمومی. افزونه‌های بودجه را در برنامهٔ macOS فعال کنید؛ نشست مرورگر باید با حساب توکن یکسان باشد. سهمیه‌ها به کوکی نیاز ندارند.";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "در برنامهٔ macOS منبع دستی کوکی را انتخاب کنید و سرآیند Cookie متناظر GitHub را وارد کنید.";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "در مرورگر پشتیبانی‌شده وارد GitHub شوید و در برنامهٔ macOS واردکردن خودکار کوکی را انتخاب کنید.";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "برای هزینه و مصرف سازمان از کلید Admin API سازمان استفاده کنید. کلیدهای پروژه یا حساب سرویس نمی‌توانند این نقطه‌های پایانی را بخوانند.";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "کلید API معمولی فقط بازیابی جایگزین موجودی قدیمی را بدون تضمین پشتیبانی می‌کند، نه مصرف سازمان را. کلیدهای تنظیم‌شده با محدودهٔ پروژه از این جایگزین استفاده نمی‌کنند.";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "کلید، نقطهٔ پایانی منبع HTTPS و نام استقرار را وارد کنید. نسخهٔ API اختیاری است. تازه‌سازی درخواست اعتبارسنجی با هزینهٔ احتمالی می‌فرستد، نه پرس‌وجوی سابقهٔ مصرف.";
