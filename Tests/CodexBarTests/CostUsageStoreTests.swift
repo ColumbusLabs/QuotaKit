@@ -1691,16 +1691,31 @@ extension CostUsageStoreTests {
         let reloaded = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         #expect(reloaded.lastScanUnixMs == 2000)
 
-        // Repeating the unchanged scan checkpoints at most the prior metadata frame, then emits
-        // exactly one new metadata-row change. Both files are measured using SQLite's real `-wal`
-        // path; no claim of zero physical writes is made.
+        // A legacy nil completion marker is equivalent to the persisted complete marker.
+        // With automatic checkpoints disabled, the freshness update appends a WAL frame.
         var repeated = reloaded
         repeated.lastScanUnixMs = 2500
+        repeated.files[path]?.codexScanComplete = nil
         let repeatBefore = footprint()
         let repeatCountersBefore = await store.persistenceWriteMetricsForTesting()
-        save(repeated)
+        let normalizations = CostUsageScanExecutor.LockedState(0)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.codexScanCompleteNormalizationVisit = { normalizations.withLock { $0 += 1 } }
+        let repeatResult = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            store.syncSaveCodexCache(
+                repeated,
+                calendar: calendar,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                skipIdenticalContent: true)
+        }
         let repeatAfter = footprint()
         let repeatCountersAfter = await store.persistenceWriteMetricsForTesting(resetPageCounter: true)
+        var expectedRepeatedSnapshot = expectedSnapshot
+        expectedRepeatedSnapshot.metadata.lastScanUnixMs = 2500
+        #expect(!repeatResult.catchUpRequired)
+        #expect(await store.readSnapshot() == expectedRepeatedSnapshot)
+        // Three semantic comparisons each normalize the incoming file once.
+        #expect(normalizations.withLock { $0 } == 3)
         #expect(repeatCountersAfter.rows - repeatCountersBefore.rows == 1)
         #expect(repeatCountersAfter.pages <= 2)
         #expect(repeatAfter[dbURL]?.size == repeatBefore[dbURL]?.size)
@@ -1712,6 +1727,7 @@ extension CostUsageStoreTests {
 
         // A real content change still uses the full all-or-nothing save.
         var changed = repeated
+        changed.files[path]?.codexScanComplete = true
         changed.lastScanUnixMs = 3000
         changed.files[path]?.parsedBytes = 201
         changed.files[path]?.codexTokenSnapshots = [token(0), token(1), token(2)]
