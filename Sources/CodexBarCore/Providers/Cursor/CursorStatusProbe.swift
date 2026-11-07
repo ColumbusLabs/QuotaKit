@@ -1,8 +1,8 @@
 import Foundation
+import SweetCookieKit
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import SweetCookieKit
 
 #if os(macOS) || os(Linux)
 
@@ -604,6 +604,7 @@ public struct CursorStatusSnapshot: Sendable {
             } ?? [],
             cursorRequests: cursorRequests,
             cursorRateWindowLayout: cursorRateWindowLayout,
+            cursorHasUnifiedWeeklyPool: weeklyProjection.hasUnifiedWeeklyPool,
             updatedAt: now,
             identity: identity)
     }

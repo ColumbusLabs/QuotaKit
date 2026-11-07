@@ -237,6 +237,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
     /// Retains an observed zero when a metered Copilot seat has no visible credit row.
     public let copilotMeteredZeroCredits: Bool
+    /// Cursor API explicitly designated the primary window as the unified weekly pool.
+    public let cursorHasUnifiedWeeklyPool: Bool
     /// Live-only marker for optional Command Code subscription lookup failure.
     public let commandCodeSubscriptionEnrichmentUnavailable: Bool
     /// Live-only marker that Command Code returned a recognized subscription plan.
@@ -288,6 +290,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case cursorRateWindowLayout
         case xaiUsage
         case copilotMeteredZeroCredits
+        case cursorHasUnifiedWeeklyPool
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case subscriptionRenewsAtIsDateOnly
@@ -351,6 +354,7 @@ public struct UsageSnapshot: Codable, Sendable {
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
         copilotMeteredZeroCredits: Bool = false,
+        cursorHasUnifiedWeeklyPool: Bool = false,
         commandCodeSubscriptionEnrichmentUnavailable: Bool = false,
         commandCodeHasSubscriptionPlan: Bool = false,
         commandCodeMonthlyGrantDepleted: Bool = false,
@@ -416,6 +420,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
         self.copilotMeteredZeroCredits = copilotMeteredZeroCredits
+        self.cursorHasUnifiedWeeklyPool = cursorHasUnifiedWeeklyPool
         self.commandCodeSubscriptionEnrichmentUnavailable = commandCodeSubscriptionEnrichmentUnavailable
         self.commandCodeHasSubscriptionPlan = commandCodeHasSubscriptionPlan
         self.commandCodeMonthlyGrantDepleted = commandCodeMonthlyGrantDepleted
@@ -553,6 +558,8 @@ public struct UsageSnapshot: Codable, Sendable {
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
         self.copilotMeteredZeroCredits = try container
             .decodeIfPresent(Bool.self, forKey: .copilotMeteredZeroCredits) ?? false
+        self.cursorHasUnifiedWeeklyPool = try container
+            .decodeIfPresent(Bool.self, forKey: .cursorHasUnifiedWeeklyPool) ?? false
         self.commandCodeSubscriptionEnrichmentUnavailable = false // Live-only fetch state
         self.commandCodeHasSubscriptionPlan = false // Live-only fetch state
         self.commandCodeMonthlyGrantDepleted = false // Live-only fetch state
@@ -646,6 +653,9 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.xaiUsage, forKey: .xaiUsage)
         if self.copilotMeteredZeroCredits {
             try container.encode(true, forKey: .copilotMeteredZeroCredits)
+        }
+        if self.cursorHasUnifiedWeeklyPool {
+            try container.encode(true, forKey: .cursorHasUnifiedWeeklyPool)
         }
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
@@ -869,6 +879,7 @@ public struct UsageSnapshot: Codable, Sendable {
             azureOpenAIUsage: self.azureOpenAIUsage,
             alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
             copilotMeteredZeroCredits: self.copilotMeteredZeroCredits,
+            cursorHasUnifiedWeeklyPool: self.cursorHasUnifiedWeeklyPool,
             commandCodeSubscriptionEnrichmentUnavailable: self.commandCodeSubscriptionEnrichmentUnavailable,
             commandCodeHasSubscriptionPlan: self.commandCodeHasSubscriptionPlan,
             commandCodeMonthlyGrantDepleted: self.commandCodeMonthlyGrantDepleted,
@@ -1765,8 +1776,8 @@ public struct UsageFetcher: Sendable {
         from snapshot: RPCRateLimitSnapshot,
         updatedAt: Date) -> CodexCreditLimitSnapshot?
     {
-        guard let individualLimit = snapshot.individualLimit else { return nil }
-        guard let limit = individualLimit.limit, limit > 0 else { return nil }
+        guard let individualLimit = snapshot.individualLimit, let limit = individualLimit.limit,
+              limit > 0 else { return nil }
         let used: Double = if let used = individualLimit.used {
             used
         } else if let remainingPercent = individualLimit.remainingPercent {
@@ -1841,15 +1852,15 @@ public struct UsageFetcher: Sendable {
     }
 
     private static func recoverCreditsFromRPCError(_ error: Error) -> CreditsSnapshot? {
-        guard let credits = self.decodeRateLimitsErrorBody(from: error)?.credits else { return nil }
-        guard let remaining = credits.balance else { return nil }
+        guard let credits = self.decodeRateLimitsErrorBody(from: error)?.credits,
+              let remaining = credits.balance else { return nil }
         return CreditsSnapshot(remaining: remaining, events: [], updatedAt: Date())
     }
 
     private static func decodeRateLimitsErrorBody(from error: Error) -> RPCRateLimitsErrorBody? {
-        guard case let RPCWireError.requestFailed(message) = error else { return nil }
-        guard let json = self.extractJSONObject(after: "body=", in: message) else { return nil }
-        guard let data = json.data(using: .utf8) else { return nil }
+        guard case let RPCWireError.requestFailed(message) = error, let json = self.extractJSONObject(
+            after: "body=",
+            in: message), let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(RPCRateLimitsErrorBody.self, from: data)
     }
 
@@ -1912,8 +1923,8 @@ public struct UsageFetcher: Sendable {
         while padded.count % 4 != 0 {
             padded.append("=")
         }
-        guard let data = Data(base64Encoded: padded) else { return nil }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        guard let data = Data(base64Encoded: padded),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return json
     }
 }

@@ -2,6 +2,7 @@
 import Foundation
 
 struct CursorWeeklyPoolProjection {
+    let hasUnifiedWeeklyPool: Bool
     let primary: RateWindow?
     let secondary: RateWindow?
     let extraRateWindows: [NamedRateWindow]?
@@ -25,6 +26,7 @@ extension CursorStatusSnapshot {
             sandWindow.map { [$0] }
         }
         return CursorWeeklyPoolProjection(
+            hasUnifiedWeeklyPool: sharedWeeklyPool != nil,
             primary: sharedWeeklyPool ?? standardWindows.primary,
             secondary: hidesMonthlyBreakdown ? nil : standardWindows.secondary,
             extraRateWindows: extraRateWindows)
