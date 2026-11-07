@@ -80,14 +80,14 @@ struct DevinAppSessionImporter {
         secretBlobs: [Data],
         logger: @escaping (String) -> Void) -> [String]
     {
-        guard !secretBlobs.isEmpty else { return [] }
-        // Keep legacy ACL preflight while refusing escalation even during explicit refreshes.
-        guard let password = BrowserCookieKeychainAccessGate.withUserInteractionDisallowed({
-            ChromiumSafeStorage.password(
+        guard !secretBlobs.isEmpty, !KeychainAccessGate.isDisabled else { return [] }
+        // A legacy ACL can require consent even for a query configured to suppress UI.
+        guard case .allowed = KeychainAccessPreflight.checkGenericPassword(
+            service: Self.safeStorageService,
+            account: Self.safeStorageAccount),
+            let password = ChromiumSafeStorage.password(
                 service: Self.safeStorageService,
-                account: Self.safeStorageAccount,
-                allowPrompt: true)
-        })
+                account: Self.safeStorageAccount)
         else {
             logger("Devin app session found but its Safe Storage key is unavailable")
             return []
