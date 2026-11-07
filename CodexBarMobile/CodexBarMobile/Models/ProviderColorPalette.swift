@@ -98,6 +98,8 @@ enum ProviderColorPalette {
             (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
             (["munito"], RawColor(red: 112 / 255, green: 44 / 255, blue: 246 / 255)),
             (["neuralwatt"], RawColor(red: 0.12, green: 0.72, blue: 0.38)),
+            (["siliconflow"], RawColor(red: 110 / 255, green: 41 / 255, blue: 245 / 255)),
+            (["tripo"], RawColor(red: 248 / 255, green: 207 / 255, blue: 0)),
             (["soniox"], RawColor(red: 37 / 255, green: 55 / 255, blue: 114 / 255)),
             (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
             (["traecn"], RawColor(red: 77 / 255, green: 124 / 255, blue: 254 / 255)),
@@ -230,6 +232,8 @@ enum ProviderColorPalette {
             (["parallel"], RawColor(red: 29 / 255, green: 28 / 255, blue: 26 / 255)),
             (["futureagi"], RawColor(red: 120 / 255, green: 87 / 255, blue: 252 / 255)),
             (["munito"], RawColor(red: 112 / 255, green: 44 / 255, blue: 246 / 255)),
+            (["siliconflow"], RawColor(red: 110 / 255, green: 41 / 255, blue: 245 / 255)),
+            (["tripo"], RawColor(red: 248 / 255, green: 207 / 255, blue: 0)),
             (["soniox"], RawColor(red: 37 / 255, green: 55 / 255, blue: 114 / 255)),
             (["traecn"], RawColor(red: 77 / 255, green: 124 / 255, blue: 254 / 255)),
         ]

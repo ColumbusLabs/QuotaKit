@@ -2918,3 +2918,19 @@
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Importa automaticamente a sesión app.devin.ai da app Devin ou dos navegadores Chromium.";
 
 "Mistral session expired or invalid." = "A sesión de Mistral caducou ou non é válida.";
+
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "China (CNY) é o predeterminado. As contas internacionais usan https://api.siliconflow.com (USD).";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "A orixe da API de SiliconFlow debe ser https://api.siliconflow.cn ou https://api.siliconflow.com.";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow rexeitou a consulta do saldo. Comproba o saldo na consola de SiliconFlow.";
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "Mostrar o uso de SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow está a limitar as solicitudes. Téntao de novo máis tarde.";
+"SiliconFlow request failed. Try refreshing later." = "Fallou a solicitude a SiliconFlow. Tenta actualizar máis tarde.";
+"SiliconFlow returned an unrecognized response. Update QuotaKit and try again." = "SiliconFlow devolveu unha resposta descoñecida. Actualiza QuotaKit e téntao de novo.";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "Mostrar o uso de Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo está a limitar as solicitudes. Téntao de novo máis tarde.";
+"Tripo request failed. Try refreshing later." = "Fallou a solicitude a Tripo. Tenta actualizar máis tarde.";
+"Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo devolveu unha resposta descoñecida. Actualiza QuotaKit e téntao de novo.";

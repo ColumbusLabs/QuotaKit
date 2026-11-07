@@ -110,7 +110,9 @@
     "traecn",
     "chatbox",
     "abliteration",
-    "opendesign"
+    "opendesign",
+    "siliconflow",
+    "tripo"
   ],
   "order": [
     "codex",
@@ -223,7 +225,9 @@
     "traecn",
     "chatbox",
     "abliteration",
-    "opendesign"
+    "opendesign",
+    "siliconflow",
+    "tripo"
   ],
   "providers": [
     {

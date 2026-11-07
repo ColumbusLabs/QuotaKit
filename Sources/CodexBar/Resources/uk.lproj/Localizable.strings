@@ -2910,3 +2910,19 @@
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Автоматично імпортує сеанс app.devin.ai із застосунку Devin або браузерів Chromium.";
 
 "Mistral session expired or invalid." = "Термін дії сеансу Mistral минув або сеанс недійсний.";
+
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "За замовчуванням — Китай (CNY). Міжнародні акаунти використовують https://api.siliconflow.com (USD).";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "Адресою API SiliconFlow має бути https://api.siliconflow.cn або https://api.siliconflow.com.";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow відхилив запит балансу. Перевірте баланс у консолі SiliconFlow.";
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "Показувати використання SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow обмежує частоту запитів. Спробуйте пізніше.";
+"SiliconFlow request failed. Try refreshing later." = "Запит до SiliconFlow не виконано. Спробуйте оновити пізніше.";
+"SiliconFlow returned an unrecognized response. Update QuotaKit and try again." = "SiliconFlow повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "Показувати використання Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo обмежує частоту запитів. Спробуйте пізніше.";
+"Tripo request failed. Try refreshing later." = "Запит до Tripo не виконано. Спробуйте оновити пізніше.";
+"Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";

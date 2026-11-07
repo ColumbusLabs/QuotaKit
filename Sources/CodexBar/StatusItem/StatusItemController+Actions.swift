@@ -430,6 +430,12 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                 sourceLabel: self.store.sourceLabel(for: .qoder))
         }
 
+        if provider == .siliconflow {
+            return SiliconFlowProviderImplementation.dashboardURL(
+                settings: self.settings,
+                environment: environment)
+        }
+
         if provider == .helmcode {
             return HelmcodeProviderDescriptor.dashboardURL(snapshot: self.store.snapshot(for: provider.instanceID))
         }

@@ -289,6 +289,8 @@ struct SettingsStoreAdditionalTests {
             .abliteration: [.automatic, .primary],
             .sailresearch: [.automatic],
             .sofya: [.automatic],
+            .siliconflow: [.automatic],
+            .tripo: [.automatic],
             .traecn: [.automatic, .primary],
         ]
 

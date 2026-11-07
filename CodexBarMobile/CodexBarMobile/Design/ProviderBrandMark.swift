@@ -106,6 +106,8 @@ enum ProviderBrandAsset {
         "flora",
         "futureagi",
         "munito",
+        "siliconflow",
+        "tripo",
         "soniox",
         "traecn",
         "aiand",

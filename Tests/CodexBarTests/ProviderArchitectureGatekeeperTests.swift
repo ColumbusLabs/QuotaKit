@@ -27,7 +27,7 @@ struct ProviderArchitectureGatekeeperTests {
         .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
         .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
         .tavily, .exa, .linkup, .tinyapi, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-        .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign,
+        .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow, .tripo,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -233,7 +233,7 @@ struct ProviderArchitectureGatekeeperTests {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
             .deepseek, .deepinfra, .moonshot, .poe, .hyper, .atlascloud, .vercel, .lithosai, .xapi,
-            .linkup, .tinyapi, .sailresearch, .sofya, .fal, .flora, .parallel,
+            .linkup, .tinyapi, .sailresearch, .sofya, .fal, .flora, .parallel, .siliconflow, .tripo,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .perplexity, .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .chutes,
@@ -1441,13 +1441,13 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "The Claude version detector asks its injected locator for the fixed Claude executable name."),
         SuppressedProviderReference(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 503,
+            line: 507,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This WidgetKit default or preview pins the established Codex sample provider."),
         SuppressedProviderReference(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 534,
+            line: 538,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             reason: "This WidgetKit default or preview pins the established Codex sample provider."),
@@ -2197,13 +2197,13 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
             line: 427,
             anchor: "if provider == .qoder {",
-            expectedProviderIDs: ["claude", "helmcode", "qoder"],
-            expectedReferenceCount: 4,
-            expectedReferenceFingerprint: ["qoder@0", "qoder@3", "helmcode@6", "claude@11"],
+            expectedProviderIDs: ["claude", "helmcode", "qoder", "siliconflow"],
+            expectedReferenceCount: 5,
+            expectedReferenceFingerprint: ["qoder@0", "qoder@3", "siliconflow@6", "helmcode@12", "claude@17"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
-            line: 501,
+            line: 507,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 4,
@@ -2211,7 +2211,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
-            line: 522,
+            line: 528,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 4,
@@ -2219,7 +2219,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
-            line: 595,
+            line: 601,
             anchor: "?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2227,7 +2227,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
-            line: 664,
+            line: 670,
             anchor: "self.lazyStatusItem(for: provider ?? .codex)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2235,7 +2235,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItem/StatusItemController+Actions.swift",
-            line: 735,
+            line: 741,
             anchor: "return .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -3596,13 +3596,15 @@ struct ProviderArchitectureGatekeeperTests {
                 "opendesign",
                 "parallel",
                 "sailresearch",
+                "siliconflow",
                 "soniox",
                 "sofya",
                 "tavily",
                 "tinyapi",
                 "traecn",
+                "tripo",
             ],
-            expectedReferenceCount: 19,
+            expectedReferenceCount: 21,
             expectedReferenceFingerprint: [
                 "aerostack@0",
                 "cosmic@0",
@@ -3621,8 +3623,10 @@ struct ProviderArchitectureGatekeeperTests {
                 "futureagi@1",
                 "munito@1",
                 "opendesign@1",
+                "siliconflow@1",
                 "soniox@1",
                 "traecn@1",
+                "tripo@1",
             ],
             reason: "These added providers remain non-Tier-A until iOS supports stable identity rendering and a cross-Mac merge need."),
         AllowedProviderConstruct(
@@ -4573,12 +4577,14 @@ struct ProviderArchitectureGatekeeperTests {
                 "raycast",
                 "replicate",
                 "sakana",
+                "siliconflow",
                 "soniox",
                 "stepfun",
                 "sub2api",
                 "synthetic",
                 "t3chat",
                 "traecn",
+                "tripo",
                 "typesafe",
                 "v0",
                 "venice",
@@ -4596,7 +4602,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 97,
+            expectedReferenceCount: 99,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4695,6 +4701,8 @@ struct ProviderArchitectureGatekeeperTests {
                 "abliteration@39",
                 "chatbox@39",
                 "opendesign@39",
+                "siliconflow@39",
+                "tripo@39",
             ],
             reason: "Cost-estimation badges follow provider-specific model-family knowledge; these provider-native and balance-only additions never use local model pricing."),
         AllowedProviderConstruct(
@@ -5446,7 +5454,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 206,
+            line: 208,
             anchor: "// Provider-specific by design: AppIntents requires literal catalog titles; snapshot data gates eligibility.",
             expectedProviderIDs: [
                 "abliteration",
@@ -5471,17 +5479,19 @@ struct ProviderArchitectureGatekeeperTests {
                 "opendesign",
                 "parallel",
                 "sailresearch",
+                "siliconflow",
                 "sofya",
                 "tavily",
                 "tinyapi",
                 "traecn",
+                "tripo",
                 "typesafe",
                 "v0",
                 "vercel",
                 "workbuddy",
                 "xkiro",
             ],
-            expectedReferenceCount: 34,
+            expectedReferenceCount: 36,
             expectedReferenceFingerprint: [
                 "v0@0",
                 "v0@0",
@@ -5517,11 +5527,13 @@ struct ProviderArchitectureGatekeeperTests {
                 "chatbox@29",
                 "abliteration@30",
                 "opendesign@31",
+                "siliconflow@32",
+                "tripo@33",
             ],
             reason: "AppIntents needs literal per-provider titles for this widget selector; snapshot data separately decides provider eligibility."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 511,
+            line: 515,
             anchor: "provider: configuration.provider.provider ?? .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -5529,7 +5541,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarWidget/BurnDownWidgetProvider.swift",
-            line: 544,
+            line: 548,
             anchor: "provider: configuration.provider.provider ?? .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
