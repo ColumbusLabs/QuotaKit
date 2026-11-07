@@ -175,6 +175,19 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(bothWindows.map(\.window), [window])
     }
 
+    func testCursorSevenDayBillingWindowDoesNotBecomeWeeklyInWidget() throws {
+        let window = SyncRateWindow(
+            label: "Plan",
+            usedPercent: 67,
+            windowMinutes: 10080,
+            resetsAt: Date(timeIntervalSince1970: 1_803_604_800),
+            resetDescription: nil)
+        let cursor = try self.makeWidgetProvider(providerID: "cursor", window: window)
+        XCTAssertNil(cursor.primaryWindow?.identity)
+        XCTAssertNotNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .session))
+        XCTAssertNil(QuotaKitWidgetPresentation.primaryWindow(for: cursor, displayMode: .weekly))
+    }
+
     func testWeeklyOnlyClaudeAndSyntheticSnapshotsHaveNoWidgetSession() throws {
         let reset = Date(timeIntervalSince1970: 1_803_604_800)
         for providerID in ["claude", "synthetic"] {

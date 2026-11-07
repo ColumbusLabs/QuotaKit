@@ -105,7 +105,7 @@ In manual mode, paste a full `Cookie:` header from an `admin.mistral.ai` request
 
 ### "Mistral session expired or invalid"
 
-Mistral answers an expired `ory_session_*` cookie with a redirect to `auth.mistral.ai/self-service/login`. CodexBar
+Mistral answers an expired `ory_session_*` cookie with a redirect to `auth.mistral.ai/self-service/login`. QuotaKit
 treats that redirect like HTTP 401/403: in Automatic mode it clears the cached cookie and tries the browser sessions
 again. If every browser session is expired too, sign in to Mistral Admin again.
 
