@@ -32,17 +32,7 @@ struct KeychainMiniMaxAPITokenStore: MiniMaxAPITokenStoring {
             Self.log.debug("Keychain access disabled; skipping token load")
             return nil
         }
-        var result: CFTypeRef?
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.service,
-            kSecAttrAccount as String: self.account,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
-
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .minimaxToken)
         if status == errSecItemNotFound {
             return nil
         }

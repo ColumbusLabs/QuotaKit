@@ -128,7 +128,8 @@ extension UsageStore {
         }
     }
 
-    func prepareRefreshState(for provider: UsageProvider? = nil) {
+    func prepareRefreshState(for provider: UsageProvider? = nil, allowDisabled: Bool = false) {
+        self.settings.recoverLegacyCredentials(for: provider, allowDisabled: allowDisabled)
         // Provider-specific by design: Codex active-source correction reconciles managed profile filesystem state.
         guard provider == nil || provider == .codex else { return }
         _ = self.settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
@@ -155,7 +156,7 @@ extension UsageStore {
     {
         // Codex source reconciliation can persist a settings correction. Perform it before
         // capturing the publication revision so the request cannot invalidate itself.
-        self.prepareRefreshState(for: provider)
+        self.prepareRefreshState(for: provider, allowDisabled: allowDisabled)
         while coalesceIfRefreshing,
               let existingState = self.providerRefreshCoordinator.coalescingState(for: provider.instanceID)
         {

@@ -60,17 +60,7 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
             return cached.value
         }
         Self.cacheLock.unlock()
-        var result: CFTypeRef?
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.service,
-            kSecAttrAccount as String: self.account,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
-
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: self.promptKind)
         if status == errSecItemNotFound {
             // Cache the nil result
             Self.cacheLock.lock()
