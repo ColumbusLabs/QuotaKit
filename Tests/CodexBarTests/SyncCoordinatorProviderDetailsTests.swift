@@ -683,6 +683,18 @@ struct SyncCoordinatorProviderBillingDetailsTests {
                     .init(label: "Runs this month", value: "1,234"),
                 ]),
             ]),
+            .init(provider: .siliconflow, expected: [
+                .init(title: "Balance", rows: [
+                    .init(label: "Balance", value: "CN¥12.50"),
+                    .init(label: "Purchased", value: "CN¥10.00"),
+                    .init(label: "Bonus", value: "CN¥2.50"),
+                ]),
+            ]),
+            .init(provider: .tripo, expected: [
+                .init(title: "Credits", rows: [
+                    .init(label: "Balance", value: "1,234"), .init(label: "Reserved", value: "50"),
+                ]),
+            ]),
             .init(provider: .parallel, expected: [
                 .init(title: "Account balance", rows: [
                     .init(label: "Balance", value: "$123.45"),
@@ -822,6 +834,8 @@ struct SyncCoordinatorProviderBillingDetailsTests {
                 "FAL_KEY": "fixture-fal-key",
                 "FLORA_API_KEY": "fixture-flora-key",
                 "FLORA_WORKSPACE_ID": "ws_fixture123",
+                "SILICONFLOW_API_KEY": "fixture-siliconflow-key",
+                "TRIPO_API_KEY": "fixture-tripo-key",
             ])
         for fixture in Self.billingFixtures {
             try settings.setProviderEnabled(
