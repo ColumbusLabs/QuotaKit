@@ -2919,3 +2919,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Anahtar, HTTPS kaynak uç noktası ve dağıtım adı sağlayın. API sürümü isteğe bağlıdır. Yenileme, kullanım geçmişi sorgusu yerine ücret doğurabilecek bir doğrulama isteği gönderir.";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "app.devin.ai oturumunu Devin uygulamasından veya Chromium tarayıcılarından otomatik olarak içe aktarır.";
+
+"Mistral session expired or invalid." = "Mistral oturumunun süresi doldu veya oturum geçersiz.";

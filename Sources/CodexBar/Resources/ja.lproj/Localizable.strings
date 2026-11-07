@@ -2917,3 +2917,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "キー、HTTPSリソースエンドポイント、デプロイ名を指定してください。APIバージョンは任意です。更新では使用履歴の照会ではなく、課金される可能性がある検証リクエストを送信します。";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Devin アプリまたは Chromium ブラウザから app.devin.ai セッションを自動的にインポートします。";
+
+"Mistral session expired or invalid." = "Mistralのセッションが期限切れか無効です。";

@@ -2918,3 +2918,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Cung cấp khóa, điểm cuối tài nguyên HTTPS và tên triển khai. Phiên bản API là tùy chọn. Làm mới gửi yêu cầu xác thực có thể tính phí, không phải truy vấn lịch sử sử dụng.";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Tự động nhập phiên app.devin.ai từ ứng dụng Devin hoặc trình duyệt Chromium.";
+
+"Mistral session expired or invalid." = "Phiên Mistral đã hết hạn hoặc không hợp lệ.";

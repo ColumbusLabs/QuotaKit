@@ -2897,3 +2897,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "提供金鑰、HTTPS 資源端點與部署名稱。API 版本為選填。重新整理會傳送可能計費的驗證請求，而非用量歷史查詢。";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "自動從 Devin 應用程式或 Chromium 瀏覽器匯入 app.devin.ai 會話。";
+
+"Mistral session expired or invalid." = "Mistral 工作階段已過期或無效。";

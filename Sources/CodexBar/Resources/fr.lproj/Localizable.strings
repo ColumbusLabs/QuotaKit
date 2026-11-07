@@ -2916,3 +2916,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Fournissez une clé, un point de terminaison de ressource HTTPS et un nom de déploiement. La version de l’API est facultative. L’actualisation envoie une requête de validation potentiellement facturable, pas une requête d’historique d’utilisation.";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Importe automatiquement la session app.devin.ai depuis l'app Devin ou les navigateurs Chromium.";
+
+"Mistral session expired or invalid." = "La session Mistral a expiré ou n’est pas valide.";

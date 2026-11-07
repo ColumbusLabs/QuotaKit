@@ -2921,3 +2921,5 @@
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "کلید، نقطهٔ پایانی منبع HTTPS و نام استقرار را وارد کنید. نسخهٔ API اختیاری است. تازه‌سازی درخواست اعتبارسنجی با هزینهٔ احتمالی می‌فرستد، نه پرس‌وجوی سابقهٔ مصرف.";
 
 "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "به طور خودکار جلسه app.devin.ai را از برنامه Devin یا مرورگرهای Chromium وارد می کند.";
+
+"Mistral session expired or invalid." = "نشست Mistral منقضی شده یا نامعتبر است.";
