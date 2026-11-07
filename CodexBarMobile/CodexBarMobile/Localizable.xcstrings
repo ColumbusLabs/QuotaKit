@@ -1,6 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SiliconFlow と Tripo のプリペイド残高が QuotaKit Mac から同期されるようになりました。Cursor の週間ウィジェットには共有の週間使用枠が表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SiliconFlow 和 Tripo 的预付余额现可从 QuotaKit Mac 同步。Cursor 每周小组件显示共享的每周配额。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SiliconFlow 和 Tripo 的預付餘額現可從 QuotaKit Mac 同步。Cursor 每週小工具會顯示共用的每週配額。"
+          }
+        }
+      }
+    },
     "OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.": {
       "localizations": {
         "en": {

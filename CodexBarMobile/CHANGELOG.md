@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac to iPhone.
+
 - OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.
 
 - Kimi monthly usage breakdown now syncs from Mac to iPhone as details of the existing quota.
@@ -65,7 +67,7 @@ current Columbus Labs product surface and recent release history.
 
 - Copilot Enterprise accounts on different GitHub hosts remain separate on iPhone, even when their login labels match.
 - Alibaba Token Plan and Qwen Cloud monthly quotas now arrive on iPhone with a Monthly label; Personal plans no longer add an empty duplicate credits card.
-- Cursor's shared weekly quota now keeps its Weekly label and quota alerts; iPhone widgets display it in Weekly mode.
+- Cursor weekly widgets and quota alerts use the shared weekly pool. Billing windows keep their billing labels.
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.
 - A fresh historical rebuild now publishes monotonic partial progress to the
