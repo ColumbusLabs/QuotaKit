@@ -22,6 +22,8 @@ final class MenuCardRefreshMonitor {
     typealias ModelResolver = @MainActor (UsageProvider) -> UsageMenuCardView.Model?
     typealias ProviderRefreshStateResolver = @MainActor (UsageProvider) -> Bool
 
+    var isActive: Bool
+
     private let resolveModel: ModelResolver
     private let isProviderRefreshActive: ProviderRefreshStateResolver
     /// Set while an all-providers refresh is running; individual cards freeze only while their
@@ -42,8 +44,10 @@ final class MenuCardRefreshMonitor {
 
     init(
         resolveModel: @escaping ModelResolver,
-        isProviderRefreshActive: @escaping ProviderRefreshStateResolver)
+        isProviderRefreshActive: @escaping ProviderRefreshStateResolver,
+        isActive: Bool = true)
     {
+        self.isActive = isActive
         self.resolveModel = resolveModel
         self.isProviderRefreshActive = isProviderRefreshActive
     }
@@ -110,6 +114,7 @@ final class MenuCardRefreshMonitor {
         for provider: UsageProvider,
         fallback: UsageMenuCardView.Model) -> UsageMenuCardView.Model
     {
+        guard self.isActive else { return fallback }
         guard !self.isManualRefreshInFlight(for: provider) else {
             guard let frozen = self.frozenManualRefreshModels[provider.instanceID] else {
                 return fallback
@@ -142,6 +147,7 @@ final class MenuCardRefreshMonitor {
         for provider: UsageProvider,
         fallback: MenuCardLiveSubtitle) -> MenuCardLiveSubtitle
     {
+        guard self.isActive else { return fallback }
         if self.isManualRefreshInFlight(for: provider) {
             return MenuCardLiveSubtitle(
                 text: "\(L("Refreshing"))…",
