@@ -1,7 +1,7 @@
 import Foundation
 
 public struct WidgetSnapshot: Codable, Sendable {
-    static let selectedProviderKey = CodingUserInfoKey(rawValue: "CodexBar.widgetProvider")!
+    static let selectedProviderKey = CodingUserInfoKey(rawValue: "QuotaKit.widgetProvider")!
 
     public struct WidgetUsageRowSnapshot: Codable, Equatable, Sendable {
         public let id: String
