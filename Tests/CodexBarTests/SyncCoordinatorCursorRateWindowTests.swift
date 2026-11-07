@@ -157,6 +157,7 @@ struct SyncCoordinatorCursorRateWindowTests {
                     windowMinutes: 10080,
                     resetsAt: Date().addingTimeInterval(4 * 24 * 60 * 60),
                     resetDescription: nil),
+                secondary: nil,
                 cursorRateWindowLayout: .plan,
                 updatedAt: Date()),
             provider: .cursor)

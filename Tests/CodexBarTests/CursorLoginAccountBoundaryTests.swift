@@ -41,7 +41,6 @@ struct CursorLoginAccountBoundaryTests {
                 routedURLs.append(loginURL)
                 return .route(.init(launchURL: loginURL, browserApplicationURL: selectedBrowser ?? browser))
             },
-            conditionalMutationCoordinator: .init(),
             replaceSessionCache: { _ in true })
 
         let result = await runner.run { _ in }

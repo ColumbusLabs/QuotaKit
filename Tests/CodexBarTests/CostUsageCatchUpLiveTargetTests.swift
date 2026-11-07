@@ -54,20 +54,22 @@ struct CostUsageCatchUpLiveTargetTests {
             codexRows: [trustedRow],
             codexScanTargetSize: 1,
             codexScanComplete: true)
-        func status() -> CostUsageFetcher.CodexScanCatchUpStatus {
+        func status() throws -> CostUsageFetcher.CodexScanCatchUpStatus {
+            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+            let targetSize = try #require(attributes[.size] as? NSNumber).int64Value
             let parsed = CostUsageScanner.parseCodexFile(
                 fileURL: file, range: range, inheritedTotalsResolver: { _, _ in .unresolved })
             let usage = CostUsageScanner.makeFileUsage(
                 mtimeUnixMs: 1,
-                size: parsed.scanTargetSize,
+                size: targetSize,
                 days: parsed.days,
                 parsedBytes: parsed.parsedBytes,
                 sessionId: parsed.sessionId,
                 forkedFromId: parsed.forkedFromId,
                 codexRows: parsed.rows,
                 codexScanFileId: "synthetic-child",
-                codexScanTargetSize: parsed.scanTargetSize,
-                codexScanComplete: parsed.parsedBytes == parsed.scanTargetSize,
+                codexScanTargetSize: targetSize,
+                codexScanComplete: parsed.parsedBytes == targetSize,
                 codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             #expect(usage.codexScanComplete == true)
             #expect(usage.hasPendingCodexForkRetry)
@@ -84,7 +86,7 @@ struct CostUsageCatchUpLiveTargetTests {
             encoder.outputFormatting = .sortedKeys
             return try encoder.encode(report)
         }
-        let initial = status()
+        let initial = try status()
         let initialReport = try reportBytes()
         let store = try UsageStoreSpendDashboardCodexCostCatchUpTests.makeStore(suite: "completed-live-target")
         defer { store.cancelSpendDashboardCodexCostCatchUp() }
@@ -94,7 +96,7 @@ struct CostUsageCatchUpLiveTargetTests {
             advances += 1
             // A finite stream bounds a broken worker without a timeout or blocked thread.
             if advances <= 64 { try writer.write(contentsOf: append) }
-            let next = status()
+            let next = try status()
             let report = try reportBytes()
             #expect(report == initialReport)
             return next

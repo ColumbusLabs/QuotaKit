@@ -8,7 +8,7 @@ struct CursorCostAccountBoundaryTests {
     @Test
     func `a rejected nonblank manual cost credential cannot publish ambient CSV history`() async throws {
         // The shared production transport deliberately permits URLProtocol stubs in test processes.
-        try #require(TestProcessSafety.isRunning)
+        try #require(ProviderHTTPClient.isRunningTests)
         let registered = URLProtocol.registerClass(CursorCostManual401Protocol.self)
         try #require(registered)
         defer { URLProtocol.unregisterClass(CursorCostManual401Protocol.self) }

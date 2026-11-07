@@ -184,7 +184,6 @@ struct CursorAccountBoundaryTests {
         struct Calls: Sendable {
             var appLoads = 0
             var performs = 0
-            var persists = 0
             var network = 0
         }
 
@@ -208,10 +207,6 @@ struct CursorAccountBoundaryTests {
 
         func recordPerform() {
             self.lock.withLock { self.calls.performs += 1 }
-        }
-
-        func recordPersistence() {
-            self.lock.withLock { self.calls.persists += 1 }
         }
 
         func recordedCalls() -> Calls {
@@ -244,7 +239,7 @@ struct CursorAccountBoundaryTests {
             urlSession: spy,
             appAuthStore: spy,
             sessionStore: CursorSessionStore(fileURL: root.appendingPathComponent("cursor-session.json")),
-            persistAppAuthSession: { _ in spy.recordPersistence() },
+            persistsAppAuthSession: false,
             conditionalMutationCoordinator: .init())
 
         do {
@@ -265,7 +260,6 @@ struct CursorAccountBoundaryTests {
         let calls = spy.recordedCalls()
         #expect(calls.appLoads == 0)
         #expect(calls.performs == 0)
-        #expect(calls.persists == 0)
         #expect(calls.network == 0)
         #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("cursor-session.json").path))
     }
