@@ -96,7 +96,8 @@ public enum AccountIdentityComputer {
              // Provider-specific by design: these providers remain non-Tier-A until iOS has stable identity support
              // and a cross-Mac merge need.
              .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-             .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow, .tripo:
+             .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow,
+             .tripo:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS uses legacy email or provider-only
             // grouping. If a future provider needs account-specific merging, add

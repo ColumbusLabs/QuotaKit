@@ -60,7 +60,10 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
             return cached.value
         }
         Self.cacheLock.unlock()
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: self.promptKind)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: self.promptKind)
         if status == errSecItemNotFound {
             // Cache the nil result
             Self.cacheLock.lock()

@@ -119,8 +119,11 @@ struct CodexBarConfigMigrator {
     }
 
     static func legacySecretSources(stores: LegacyStores)
-        -> [(provider: UsageProvider, store: String, load: () throws -> String?,
-             field: WritableKeyPath<ProviderConfig, String?>)]
+        -> [(
+            provider: UsageProvider,
+            store: String,
+            load: () throws -> String?,
+            field: WritableKeyPath<ProviderConfig, String?>)]
     {
         [
             (.zai, "zai-token", stores.zaiTokenStore.loadToken, \.apiKey),

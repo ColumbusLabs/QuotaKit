@@ -951,7 +951,8 @@ extension ProviderSettingsDescriptorTests {
         let picker = try #require(DevinProviderImplementation()
             .settingsPickers(context: fixture.settingsContext(provider: .devin)).first)
 
-        #expect(picker.subtitle == "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers.")
+        #expect(picker
+            .subtitle == "Automatically imports the app.devin.ai session from the Devin app or Chromium browsers.")
     }
 }
 

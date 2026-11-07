@@ -425,7 +425,9 @@ final class SettingsStore {
         self.legacyCredentialStores = legacyStores
         self.legacyCredentialRecoverySources = Set(CodexBarConfigMigrator.legacySecretSources(stores: legacyStores)
             .compactMap { source in
-                Self.normalizedConfigField(config.providerConfig(for: source.provider.instanceID)?[keyPath: source.field])
+                Self
+                    .normalizedConfigField(config
+                        .providerConfig(for: source.provider.instanceID)?[keyPath: source.field])
                     == nil ? source.store : nil
             })
         self.config = config

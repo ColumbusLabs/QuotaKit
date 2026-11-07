@@ -49,7 +49,10 @@ struct KeychainZaiTokenStore: ZaiTokenStoring {
             return cached
         }
         Self.cacheLock.unlock()
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .zaiToken)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .zaiToken)
         if status == errSecItemNotFound {
             // Cache the nil result
             Self.cacheLock.lock()

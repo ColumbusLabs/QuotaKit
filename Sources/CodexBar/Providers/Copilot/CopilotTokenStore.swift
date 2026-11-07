@@ -32,7 +32,10 @@ struct KeychainCopilotTokenStore: CopilotTokenStoring {
             Self.log.debug("Keychain access disabled; skipping token load")
             return nil
         }
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .copilotToken)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .copilotToken)
         if status == errSecItemNotFound {
             return nil
         }

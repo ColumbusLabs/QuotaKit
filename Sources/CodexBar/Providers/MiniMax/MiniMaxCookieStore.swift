@@ -32,7 +32,10 @@ struct KeychainMiniMaxCookieStore: MiniMaxCookieStoring {
             Self.log.debug("Keychain access disabled; skipping cookie load")
             return nil
         }
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .minimaxCookie)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .minimaxCookie)
         if status == errSecItemNotFound {
             return nil
         }

@@ -1343,7 +1343,7 @@ extension SpendDashboardModelTests {
     }
 
     static func model(inputs: [SpendDashboardModel.ProviderInput], requestedDays: Int) -> SpendDashboardModel {
-        SpendDashboardModel.build(inputs: inputs, requestedDays: requestedDays, now: Self.now, calendar: Self.calendar)
+        SpendDashboardModel.build(inputs: inputs, requestedDays: requestedDays, now: self.now, calendar: self.calendar)
     }
 
     static func snapshot(

@@ -449,6 +449,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
             self.usage = usage
         }
     }
+
     mutating func updateSourceFileIDs(
         _ sourceFileIDs: [String: String],
         presentIn inventory: [String: CostUsageClaudeFileStamp])

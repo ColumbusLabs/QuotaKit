@@ -32,7 +32,10 @@ struct KeychainKimiTokenStore: KimiTokenStoring {
             Self.log.debug("Keychain access disabled; skipping token load")
             return nil
         }
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .kimiToken)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .kimiToken)
         if status == errSecItemNotFound {
             return nil
         }

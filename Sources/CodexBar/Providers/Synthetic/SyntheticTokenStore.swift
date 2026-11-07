@@ -32,7 +32,10 @@ struct KeychainSyntheticTokenStore: SyntheticTokenStoring {
             Self.log.debug("Keychain access disabled; skipping token load")
             return nil
         }
-        let (status, result) = LegacyCredentialReader.read(service: self.service, account: self.account, kind: .syntheticToken)
+        let (status, result) = LegacyCredentialReader.read(
+            service: self.service,
+            account: self.account,
+            kind: .syntheticToken)
         if status == errSecItemNotFound {
             return nil
         }

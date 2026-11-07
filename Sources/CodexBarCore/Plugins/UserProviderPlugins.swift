@@ -422,8 +422,13 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         }
         try Data(output.utf8).write(to: cacheURL, options: .atomic)
         // External previews can share a basename with an installed plugin.
-        if sourceFileURL.deletingLastPathComponent().standardizedFileURL == self.providersDirectory.standardizedFileURL {
-            try? Self.removeCachedRevisions(sourceFileURL: sourceFileURL, directory: self.cacheDirectory, keeping: cacheURL)
+        if sourceFileURL.deletingLastPathComponent().standardizedFileURL == self.providersDirectory
+            .standardizedFileURL
+        {
+            try? Self.removeCachedRevisions(
+                sourceFileURL: sourceFileURL,
+                directory: self.cacheDirectory,
+                keeping: cacheURL)
         }
         return (output, cacheURL, false)
     }

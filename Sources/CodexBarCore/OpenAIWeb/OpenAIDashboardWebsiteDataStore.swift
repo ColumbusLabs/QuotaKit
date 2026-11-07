@@ -44,7 +44,9 @@ public enum OpenAIDashboardWebsiteDataStore {
     static var namedStoreDirectory: URL {
         FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("WebKit", isDirectory: true)
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName, isDirectory: true)
+            .appendingPathComponent(
+                Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName,
+                isDirectory: true)
             .appendingPathComponent("WebsiteDataStore", isDirectory: true)
     }
 
