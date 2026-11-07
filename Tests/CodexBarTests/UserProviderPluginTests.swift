@@ -895,7 +895,7 @@ extension UserProviderPluginTests {
             #expect(ProviderPluginIconSVG.isValid(open + shape + "</svg>"), "rejected: \(paint)")
         }
         #expect(plugin.manifest.icon.monogram == "SV")
-        let image = try #require(StatusItemController.userPluginSVGImage(plugin))
+        let image = try #require(ProviderBrandIcon.image(for: plugin))
         #expect(image.isTemplate)
         #expect(image.size == NSSize(width: 16, height: 16))
         let bitmap = try #require(image.representations.first as? NSBitmapImageRep)
