@@ -1563,7 +1563,7 @@
 "5-hour usage" = "การใช้งาน 5 ชั่วโมง";
 "7-day usage" = "การใช้งาน 7 วัน";
 "Total usage" = "การใช้งานทั้งหมด";
-"claude_oauth_keychain_access_revoked" = "สิทธิ์เข้าถึงพวงกุญแจ Claude ถูกเพิกถอนจากการหมุนเวียนโทเค็นของ Claude Code คลิกรีเฟรชเพื่อให้สิทธิ์อีกครั้ง หรือเปลี่ยนแหล่งที่มาการใช้งาน Claude เป็น CLI/Web";
+"claude_oauth_keychain_access_revoked" = "ขณะนี้ QuotaKit ไม่สามารถเข้าถึงข้อมูลรับรอง OAuth ของ Claude ได้ คลิกรีเฟรชเพื่อลองเข้าถึงอีกครั้ง หรือเปลี่ยนแหล่งที่มาการใช้งาน Claude เป็น CLI/Web";
 "claude_showing_last_known_usage" = "กำลังแสดงการใช้งานล่าสุดที่ทราบ ซึ่งบันทึกเมื่อ %@";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
@@ -2919,3 +2919,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "ใช้คีย์ Admin API ขององค์กรเพื่อดูค่าใช้จ่ายและการใช้งานขององค์กร คีย์โครงการหรือบัญชีบริการไม่สามารถอ่านเอนด์พอยต์เหล่านี้ได้";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "คีย์ API ทั่วไปรองรับเพียงการอ่านยอดคงเหลือแบบเก่าเป็นทางสำรองโดยไม่รับประกันผล ไม่รองรับการใช้งานขององค์กร คีย์ที่กำหนดขอบเขตโครงการจะไม่ใช้ทางสำรองนี้";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "ระบุคีย์ เอนด์พอยต์ทรัพยากร HTTPS และชื่อการปรับใช้ เวอร์ชัน API เป็นตัวเลือก การรีเฟรชจะส่งคำขอตรวจสอบที่อาจมีค่าใช้จ่าย ไม่ใช่การค้นหาประวัติการใช้งาน";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "นำเข้าเซสชัน app.devin.ai จากแอป Devin หรือเบราว์เซอร์ Chromium โดยอัตโนมัติ";

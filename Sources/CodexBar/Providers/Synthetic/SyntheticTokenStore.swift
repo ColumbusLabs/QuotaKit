@@ -43,7 +43,7 @@ struct KeychainSyntheticTokenStore: SyntheticTokenStoring {
         KeychainNoUIQuery.apply(to: &query)
 
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound || status == errSecInteractionNotAllowed {
+        if status == errSecItemNotFound {
             return nil
         }
         guard status == errSecSuccess else {

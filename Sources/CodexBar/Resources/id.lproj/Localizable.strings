@@ -1563,7 +1563,7 @@
 "5-hour usage" = "Penggunaan 5 jam";
 "7-day usage" = "Penggunaan 7 hari";
 "Total usage" = "Total penggunaan";
-"claude_oauth_keychain_access_revoked" = "Akses Rantai Kunci Claude dicabut akibat rotasi token Claude Code. Klik Segarkan untuk memberikan akses lagi, atau ubah sumber penggunaan Claude ke CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Kredensial OAuth Claude saat ini tidak dapat diakses oleh QuotaKit. Klik Segarkan untuk mencoba mengaksesnya lagi, atau ubah sumber penggunaan Claude ke CLI/Web.";
 "claude_showing_last_known_usage" = "Menampilkan penggunaan terakhir yang diketahui, diambil %@.";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
@@ -2918,3 +2918,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Gunakan kunci API Admin organisasi untuk biaya dan penggunaan organisasi. Kunci proyek atau akun layanan tidak dapat membaca endpoint tersebut.";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Kunci API biasa hanya mendukung cadangan saldo lama tanpa jaminan, bukan penggunaan organisasi. Kunci yang dikonfigurasi dengan cakupan proyek tidak memakai cadangan ini.";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Berikan kunci, endpoint sumber daya HTTPS, dan nama deployment. Versi API opsional. Penyegaran mengirim permintaan validasi yang mungkin dikenakan biaya, bukan kueri riwayat penggunaan.";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Secara otomatis mengimpor sesi app.devin.ai dari aplikasi Devin atau browser Chromium.";

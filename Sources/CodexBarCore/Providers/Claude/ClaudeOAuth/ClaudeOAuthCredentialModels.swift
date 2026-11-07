@@ -272,8 +272,8 @@ public enum ClaudeOAuthCredentialsError: LocalizedError, Sendable {
             return "Claude Code credentials changed (\(UsageFormatter.updatedString(from: date))). "
                 + "Click Refresh to re-grant QuotaKit access."
         case .keychainAccessRevoked:
-            return "Claude Keychain access was revoked by Claude Code's token rotation. "
-                + "Click Refresh to re-grant access, or switch Claude Usage source to CLI/Web."
+            return "Claude OAuth credentials are currently unavailable to QuotaKit. "
+                + "Click Refresh to retry access, or switch Claude Usage source to CLI/Web."
         case let .keychainError(status):
             #if os(macOS)
             if status == Int(errSecUserCanceled)

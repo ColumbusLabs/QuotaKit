@@ -1560,7 +1560,7 @@
 "5-hour usage" = "Mức sử dụng 5 giờ";
 "7-day usage" = "Mức sử dụng 7 ngày";
 "Total usage" = "Tổng mức sử dụng";
-"claude_oauth_keychain_access_revoked" = "Quyền truy cập Chuỗi khóa Claude đã bị thu hồi do Claude Code xoay vòng mã thông báo. Nhấp vào Làm mới để cấp lại quyền truy cập hoặc chuyển nguồn sử dụng Claude sang CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "QuotaKit hiện không thể truy cập thông tin xác thực OAuth của Claude. Nhấp vào Làm mới để thử truy cập lại hoặc chuyển nguồn sử dụng Claude sang CLI/Web.";
 "claude_showing_last_known_usage" = "Đang hiển thị mức sử dụng đã biết gần nhất, được ghi nhận %@.";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
@@ -2916,3 +2916,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Dùng khóa API Admin của tổ chức để xem chi phí và mức sử dụng của tổ chức. Khóa dự án hoặc tài khoản dịch vụ không thể đọc các điểm cuối này.";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Khóa API thông thường chỉ hỗ trợ truy vấn số dư cũ dự phòng, không bảo đảm thành công, không hỗ trợ mức sử dụng của tổ chức. Khóa đã cấu hình phạm vi dự án không dùng cách dự phòng này.";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Cung cấp khóa, điểm cuối tài nguyên HTTPS và tên triển khai. Phiên bản API là tùy chọn. Làm mới gửi yêu cầu xác thực có thể tính phí, không phải truy vấn lịch sử sử dụng.";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Tự động nhập phiên app.devin.ai từ ứng dụng Devin hoặc trình duyệt Chromium.";

@@ -1563,7 +1563,7 @@
 "5-hour usage" = "5 小时用量";
 "7-day usage" = "7 天用量";
 "Total usage" = "总用量";
-"claude_oauth_keychain_access_revoked" = "Claude Code 轮换令牌后撤销了对 Claude 钥匙串的访问权限。点击“刷新”以重新授权，或将 Claude 用量来源切换为 CLI/Web。";
+"claude_oauth_keychain_access_revoked" = "QuotaKit 目前无法访问 Claude OAuth 凭据。点击“刷新”以重试访问，或将 Claude 用量来源切换为 CLI/Web。";
 "claude_showing_last_known_usage" = "正在显示 %@ 采集的最后已知用量。";
 
 "menu_bar_layout_token_conditional" = "条件";
@@ -2907,3 +2907,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "使用组织的 Admin API 密钥查询组织费用和用量。项目或服务账户密钥无法读取这些端点。";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "普通 API 密钥仅支持尽力查询旧版余额，不支持组织用量。配置了项目范围的密钥不会使用此回退方式。";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "提供密钥、HTTPS 资源端点和部署名称。API 版本为可选项。刷新会发送可能计费的验证请求，而不是用量历史查询。";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "自动从 Devin 应用或 Chromium 浏览器导入 app.devin.ai 会话。";

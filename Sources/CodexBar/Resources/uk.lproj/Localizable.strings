@@ -1555,7 +1555,7 @@
 "5-hour usage" = "Використання за 5 годин";
 "7-day usage" = "Використання за 7 днів";
 "Total usage" = "Загальне використання";
-"claude_oauth_keychain_access_revoked" = "Доступ до Keychain для Claude було відкликано через ротацію токена в Claude Code. Натисніть «Оновити», щоб повторно надати доступ, або перемкніть джерело використання Claude на CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Облікові дані OAuth Claude наразі недоступні для QuotaKit. Натисніть «Оновити», щоб повторити спробу доступу, або перемкніть джерело використання Claude на CLI/Web.";
 "claude_showing_last_known_usage" = "Показано останні відомі дані про використання (отримано %@).";
 /* Spend dashboard cost analysis */
 "90d" = "90 дн.";
@@ -2906,3 +2906,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Використовуйте ключ Admin API організації для її витрат і використання. Ключі проєктів і службових облікових записів не можуть читати ці кінцеві точки.";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Звичайний ключ API підтримує лише резервне отримання старого балансу без гарантій, а не використання організації. Налаштовані ключі з обмеженням за проєктом не використовують цей варіант.";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Укажіть ключ, HTTPS-адресу ресурсу та назву розгортання. Версія API необов’язкова. Оновлення надсилає потенційно платний запит перевірки, а не запит історії використання.";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Автоматично імпортує сеанс app.devin.ai із застосунку Devin або браузерів Chromium.";

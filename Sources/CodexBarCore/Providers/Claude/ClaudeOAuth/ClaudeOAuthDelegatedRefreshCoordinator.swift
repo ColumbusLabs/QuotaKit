@@ -9,6 +9,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     private final class AttemptStateStorage: @unchecked Sendable {
         let lock = NSLock()
         let persistsCooldown: Bool
+        let defaults: UserDefaults?
         var loadedCooldownProfiles: Set<String> = []
         var cooldownByProfile: [String: CooldownState] = [:]
         var inFlightAttemptID: UInt64?
@@ -17,8 +18,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         var inFlightTask: Task<AttemptResult, Never>?
         var nextAttemptID: UInt64 = 0
 
-        init(persistsCooldown: Bool) {
+        init(persistsCooldown: Bool, defaults: UserDefaults? = nil) {
             self.persistsCooldown = persistsCooldown
+            self.defaults = defaults
         }
     }
 
@@ -540,7 +542,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         self.loadCooldownIfNeededLocked(profileIdentifier: profileIdentifier, state: state)
         state.cooldownByProfile[profileIdentifier] = CooldownState(lastAttemptAt: now, interval: cooldown)
         guard state.persistsCooldown else { return }
-        let defaults = UserDefaults.standard
+        let defaults = state.defaults ?? .standard
         defaults.set(
             now.timeIntervalSince1970,
             forKey: self.profileKey(self.cooldownDefaultsKey, profileIdentifier: profileIdentifier))
@@ -574,7 +576,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             lastAttemptAt: now,
             interval: self.shortCooldownInterval)
         guard state.persistsCooldown else { return true }
-        let defaults = UserDefaults.standard
+        let defaults = state.defaults ?? .standard
         defaults.set(
             now.timeIntervalSince1970,
             forKey: self.profileKey(self.cooldownDefaultsKey, profileIdentifier: profileIdentifier))
@@ -595,7 +597,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             return
         }
 
-        let defaults = UserDefaults.standard
+        let defaults = state.defaults ?? .standard
         let timestampKey = self.profileKey(self.cooldownDefaultsKey, profileIdentifier: profileIdentifier)
         let intervalKey = self.profileKey(self.cooldownIntervalDefaultsKey, profileIdentifier: profileIdentifier)
         let defaultProfileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(
@@ -712,6 +714,17 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         }
     }
 
+    /// A migration fixture needs persistence semantics without sharing CFPreferences with other workers.
+    static func withIsolatedPersistedStateForTesting<T>(
+        defaults: UserDefaults,
+        operation: () throws -> T) rethrows -> T
+    {
+        let state = AttemptStateStorage(persistsCooldown: true, defaults: defaults)
+        return try self.$stateStorageForTesting.withValue(state) {
+            try operation()
+        }
+    }
+
     static func resetForTesting() {
         let state = self.currentStateStorage
         state.lock.lock()
@@ -724,7 +737,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         state.nextAttemptID = 0
         state.lock.unlock()
         guard state.persistsCooldown else { return }
-        let defaults = UserDefaults.standard
+        let defaults = state.defaults ?? .standard
         defaults.removeObject(forKey: self.cooldownDefaultsKey)
         defaults.removeObject(forKey: self.cooldownIntervalDefaultsKey)
         for key in defaults.dictionaryRepresentation().keys

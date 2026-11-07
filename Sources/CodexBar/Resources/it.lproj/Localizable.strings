@@ -1563,7 +1563,7 @@
 "5-hour usage" = "Utilizzo di 5 ore";
 "7-day usage" = "Utilizzo di 7 giorni";
 "Total usage" = "Utilizzo totale";
-"claude_oauth_keychain_access_revoked" = "L'accesso al portachiavi di Claude è stato revocato dalla rotazione del token di Claude Code. Fai clic su Aggiorna per concedere nuovamente l'accesso oppure imposta la fonte di utilizzo di Claude su CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Le credenziali OAuth di Claude non sono attualmente accessibili a QuotaKit. Fai clic su Aggiorna per riprovare ad accedere oppure imposta la fonte di utilizzo di Claude su CLI/Web.";
 "claude_showing_last_known_usage" = "Visualizzazione dell'ultimo utilizzo noto, acquisito %@.";
 /* Spend dashboard cost analysis */
 "90d" = "90 g";
@@ -2918,3 +2918,5 @@
 "Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Usa una chiave API Admin dell’organizzazione per costi e utilizzo dell’organizzazione. Le chiavi di progetto o account di servizio non possono leggere questi endpoint.";
 "A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Una normale chiave API supporta solo il recupero alternativo del saldo precedente, senza garanzia, non l’utilizzo dell’organizzazione. Le chiavi configurate con ambito di progetto non usano questa alternativa.";
 "Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Fornisci una chiave, un endpoint di risorsa HTTPS e un nome di distribuzione. La versione API è facoltativa. L’aggiornamento invia una richiesta di convalida potenzialmente a pagamento, non una query della cronologia di utilizzo.";
+
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Importa automaticamente la sessione app.devin.ai dall'app Devin o dai browser Chromium.";

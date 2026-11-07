@@ -60,7 +60,7 @@ struct KeychainZaiTokenStore: ZaiTokenStoring {
         KeychainNoUIQuery.apply(to: &query)
 
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound || status == errSecInteractionNotAllowed {
+        if status == errSecItemNotFound {
             // Cache the nil result
             Self.cacheLock.lock()
             Self.cachedToken = nil

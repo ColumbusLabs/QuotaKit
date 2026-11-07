@@ -20,12 +20,44 @@ public enum OpenAIDashboardWebsiteDataStore {
     /// Using the same instance ensures stable object identity for WebView cache lookups.
     private static var cachedStores: [String: WKWebsiteDataStore] = [:]
 
+    private static var sweepInProgress = false
+
     /// Clear disposable HTTP caches without touching persisted account sessions.
     public static func clearNetworkCaches() async {
-        guard !TestProcessSafety.isRunningUnderTests() else { return }
-        for identifier in await WKWebsiteDataStore.allDataStoreIdentifiers {
+        guard !TestProcessSafety.isRunningUnderTests(), !self.sweepInProgress,
+              self.sweepIsDue(lastSweep: UserDefaults.standard.object(forKey: "openAIDashboardLastCacheSweep") as? Date)
+        else { return }
+        self.sweepInProgress = true
+        defer { self.sweepInProgress = false }
+        let identifiers = await self.existingIdentifiers()
+        guard !identifiers.isEmpty else { return }
+        for identifier in identifiers {
             await OpenAIDashboardCacheMaintenance.shared.clearIfNeeded(WKWebsiteDataStore(forIdentifier: identifier))
         }
+        UserDefaults.standard.set(Date(), forKey: "openAIDashboardLastCacheSweep")
+    }
+
+    static func sweepIsDue(lastSweep: Date?, now: Date = Date()) -> Bool {
+        lastSweep.map { now.timeIntervalSince($0) >= 24 * 60 * 60 } ?? true
+    }
+
+    static var namedStoreDirectory: URL {
+        FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("WebKit", isDirectory: true)
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? ProcessInfo.processInfo.processName, isDirectory: true)
+            .appendingPathComponent("WebsiteDataStore", isDirectory: true)
+    }
+
+    static func existingIdentifiers(
+        in directory: URL = Self.namedStoreDirectory,
+        initialize: () -> Void = { _ = WKWebsiteDataStore.default() },
+        enumerate: () async -> [UUID] = { await WKWebsiteDataStore.allDataStoreIdentifiers }) async -> [UUID]
+    {
+        guard let entries = try? FileManager.default.contentsOfDirectory(atPath: directory.path),
+              entries.contains(where: { UUID(uuidString: $0) != nil }) else { return [] }
+        // WebKit enumeration requires the main run loop to be initialized first.
+        initialize()
+        return await enumerate()
     }
 
     public static func store(
