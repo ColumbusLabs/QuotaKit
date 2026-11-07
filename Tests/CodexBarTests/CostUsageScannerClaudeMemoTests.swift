@@ -401,6 +401,8 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(!initial.quotaSlices.isEmpty)
         #expect(restarted.hourly == initial.hourly)
         #expect(restarted.quotaSlices == initial.quotaSlices)
+        // Publication evicts decoded source rows; a memo miss reloads the persisted artifact once.
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(CostUsageClaudeFileStamp.read(at: sourceURL) == sourceStamp)
         let rewritten = try claudeMemoObjectForTesting(at: memoURL)
@@ -425,6 +427,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 30)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -451,6 +454,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 30)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.reconciliations == 1)
         #expect(metrics.cacheEncodes == 1)
@@ -480,6 +484,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 20)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -497,6 +502,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.data.isEmpty)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 1)
     }
@@ -537,6 +543,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 10)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
         #expect(metrics.repricedRows == 1)
@@ -572,6 +579,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (repriced, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(abs((repriced.summary?.totalCostUSD ?? 0) - 0.002) < 0.000000001)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 0)
         #expect(metrics.cacheEncodes == 0)
         #expect(metrics.repricedRows == 1)
@@ -595,6 +603,7 @@ struct CostUsageScannerClaudeMemoTests {
         let (report, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(report.summary?.totalInputTokens == 10)
+        #expect(metrics.cacheDecodes == 1)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.cacheEncodes == 1)
     }

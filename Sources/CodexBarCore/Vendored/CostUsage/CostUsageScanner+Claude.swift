@@ -132,6 +132,7 @@ extension CostUsageScanner {
         providerFilter: ClaudeLogProviderFilter,
         startOffset: Int64 = 0,
         pricingResolver: CostUsagePricing.ClaudeResolver,
+        recordDay: ((String) -> Void)? = nil,
         checkCancellation: CancellationCheck? = nil) throws -> ClaudeParseResult
     {
         func toInt(_ v: Any?) -> Int {
@@ -191,6 +192,7 @@ extension CostUsageScanner {
                         else { return }
                         let timestamp = parsedTimestamp.date
                         let dayKey = parsedTimestamp.dayKey
+                        recordDay?(dayKey)
                         guard CostUsageDayRange.isInRange(
                             dayKey: dayKey,
                             since: range.scanSinceKey,
@@ -634,6 +636,8 @@ extension CostUsageScanner {
     private final class ClaudeScanState {
         var cache: CostUsageCache
         var sourceFileIDs: [String: String]
+        var sourceDayBounds: [String: CostUsageClaudeDayBounds]
+        let previousWindow: (since: String, until: String)?
         let range: CostUsageDayRange
         let providerFilter: ClaudeLogProviderFilter
         let forceFullScan: Bool
@@ -645,6 +649,8 @@ extension CostUsageScanner {
         init(
             cache: CostUsageCache,
             sourceFileIDs: [String: String],
+            sourceDayBounds: [String: CostUsageClaudeDayBounds],
+            previousWindow: (since: String, until: String)?,
             range: CostUsageDayRange,
             providerFilter: ClaudeLogProviderFilter,
             forceFullScan: Bool,
@@ -655,6 +661,8 @@ extension CostUsageScanner {
         {
             self.cache = cache
             self.sourceFileIDs = sourceFileIDs
+            self.sourceDayBounds = sourceDayBounds
+            self.previousWindow = previousWindow
             self.range = range
             self.providerFilter = providerFilter
             self.forceFullScan = forceFullScan
@@ -678,10 +686,21 @@ extension CostUsageScanner {
         if let cached, sameFile,
            cached.mtimeUnixMs == stamp.mtimeUnixMs,
            cached.size == stamp.size,
-           !state.forceFullScan,
            !state.changedPaths.contains(path)
         {
-            return
+            if !state.forceFullScan { return }
+            if let previous = state.previousWindow, let bounds = state.sourceDayBounds[path] {
+                if bounds.isOutside(since: state.range.scanSinceKey, until: state.range.scanUntilKey) {
+                    state.cache.files[path]?.claudeRows = []
+                    return
+                }
+                // A narrower window can uncover discarded duplicates unless both windows selected the whole file.
+                if bounds.isInside(since: previous.since, until: previous.until),
+                   bounds.isInside(since: state.range.scanSinceKey, until: state.range.scanUntilKey)
+                {
+                    return
+                }
+            }
         }
 
         state.pricingResolver.prepareCatalog()
@@ -694,12 +713,14 @@ extension CostUsageScanner {
                 #if DEBUG
                 Self.recordClaudeScanWork(.transcriptParse(startOffset: startOffset))
                 #endif
+                var dayBounds = state.sourceDayBounds[path]
                 let delta = try Self.parseClaudeFileCancellable(
                     fileURL: source.url,
                     range: state.range,
                     providerFilter: state.providerFilter,
                     startOffset: startOffset,
                     pricingResolver: state.pricingResolver,
+                    recordDay: { dayBounds?.include($0) },
                     checkCancellation: state.checkCancellation)
                 let mergedRows = Self.mergeClaudeRows(existing: cached.claudeRows ?? [], delta: delta.rows)
                 state.cache.files[path] = Self.makeClaudeFileUsage(
@@ -708,6 +729,7 @@ extension CostUsageScanner {
                     rows: mergedRows,
                     parsedBytes: delta.parsedBytes)
                 state.sourceFileIDs[path] = stamp.fileID
+                state.sourceDayBounds[path] = delta.parsedBytes == stamp.size ? dayBounds : nil
                 return
             }
         }
@@ -715,11 +737,13 @@ extension CostUsageScanner {
         #if DEBUG
         Self.recordClaudeScanWork(.transcriptParse(startOffset: 0))
         #endif
+        var dayBounds: CostUsageClaudeDayBounds? = CostUsageClaudeDayBounds()
         let parsed = try Self.parseClaudeFileCancellable(
             fileURL: source.url,
             range: state.range,
             providerFilter: state.providerFilter,
             pricingResolver: state.pricingResolver,
+            recordDay: { dayBounds?.include($0) },
             checkCancellation: state.checkCancellation)
         let usage = Self.makeClaudeFileUsage(
             mtimeMs: stamp.mtimeUnixMs,
@@ -728,6 +752,9 @@ extension CostUsageScanner {
             parsedBytes: parsed.parsedBytes)
         state.cache.files[path] = usage
         state.sourceFileIDs[path] = stamp.fileID
+        // Only a complete source scan can certify that no filtered timestamp lies beyond these bounds.
+        let sourceKey = state.sourceFileIDs.index(forKey: path).map { state.sourceFileIDs[$0].key } ?? path
+        state.sourceDayBounds[sourceKey] = parsed.parsedBytes == stamp.size ? dayBounds : nil
     }
 
     private static func inventoryClaudeRoots(
@@ -779,6 +806,7 @@ extension CostUsageScanner {
         return inventory
     }
 
+    // swiftlint:disable:next function_body_length
     static func loadClaudeDaily(
         provider: UsageProvider,
         range: CostUsageDayRange,
@@ -872,12 +900,25 @@ extension CostUsageScanner {
                 // cannot hide exact UTF8 changes in a forced parse. The writer deduplicates identical bytes.
                 artifact.usage = cache
                 artifact.sourceFileIDs = [:]
+                artifact.sourceDayBounds = [:]
             }
             let changedPaths = inventory.changedPaths(comparedWith: priorMemo?.sourceInventory)
             let replacedPaths = inventory.replacedPaths(comparedWith: priorMemo?.sourceInventory)
+            let previousWindow: (since: String, until: String)? = if reportContext != nil, !options.forceRescan,
+                                                                     let priorMemo,
+                                                                     priorMemo.certifiesStoredWindow(
+                                                                         reportKey: reportKey,
+                                                                         cache: cache)
+            {
+                (since: priorMemo.reportKey.scanSinceKey, until: priorMemo.reportKey.scanUntilKey)
+            } else {
+                nil
+            }
             let scanState = ClaudeScanState(
                 cache: cache,
                 sourceFileIDs: artifact.sourceFileIDs,
+                sourceDayBounds: artifact.sourceDayBounds,
+                previousWindow: previousWindow,
                 range: range,
                 providerFilter: providerFilter,
                 forceFullScan: forceFullScan,
@@ -894,6 +935,7 @@ extension CostUsageScanner {
 
             cache = scanState.cache
             artifact.updateSourceFileIDs(scanState.sourceFileIDs, presentIn: sourceInventory)
+            artifact.sourceDayBounds = scanState.sourceDayBounds.filter { sourceInventory[$0.key] != nil }
             cache.roots = nil
 
             for key in cache.files.keys where sourceInventory[key] == nil {

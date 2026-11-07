@@ -487,7 +487,7 @@ extension CostUsageStore {
         return self.withDatabase(default: fallback) { database in
             var result = try Self.inTransaction(database) {
                 let initialRows = try Self.rowCount(database, home: self.home)
-                let initialBytes = Self.fileSize(at: self.databaseURL)
+                let initialBytes = try Self.allocatedFileBytes(database, at: self.databaseURL)
                 let metadata = try Self.readSingleton(
                     CostUsageStoreMetadata.self,
                     database: database,
@@ -587,7 +587,7 @@ extension CostUsageStore {
                     catchUpRequired: catchUpRequired)
             }
             try Self.reclaimFreePages(database)
-            result.fileBytes = Self.fileSize(at: self.databaseURL)
+            result.fileBytes = try Self.allocatedFileBytes(database, at: self.databaseURL)
             return result
         }
     }
@@ -711,6 +711,12 @@ extension CostUsageStore {
             try Self.reclaimFreePages(database)
             return Self.fileSize(at: self.databaseURL)
         }
+    }
+
+    private static func allocatedFileBytes(_ database: OpaquePointer, at url: URL) throws -> Int64 {
+        let pageCount = try self.scalarInt(database, "PRAGMA page_count")
+        let pageSize = try self.scalarInt(database, "PRAGMA page_size")
+        return max(self.fileSize(at: url), pageCount * pageSize)
     }
 
     private static func logicalFileBytes(_ database: OpaquePointer) throws -> Int64 {

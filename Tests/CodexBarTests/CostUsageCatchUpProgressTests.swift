@@ -38,6 +38,7 @@ struct CostUsageCatchUpProgressTests {
             days: [:],
             parsedBytes: 100,
             codexScanFileId: "1:1",
+            codexScanTargetSize: 100,
             codexScanComplete: true)
         let empty = CostUsageFetcher.codexScanProgressKey(
             cache: CostUsageCache(),
@@ -48,6 +49,7 @@ struct CostUsageCatchUpProgressTests {
         var appended = complete
         appended.size = 125
         appended.parsedBytes = 125
+        appended.codexScanTargetSize = 125
         let afterLiveAppend = CostUsageFetcher.codexScanProgressKey(
             cache: CostUsageCache(),
             scopedFiles: [path: appended])
@@ -110,6 +112,7 @@ struct CostUsageCatchUpProgressTests {
             parsedBytes: 100,
             forkedFromId: "missing-parent",
             codexScanFileId: "1:1",
+            codexScanTargetSize: 100,
             codexScanComplete: true,
             codexBufferedUnresolvedForkLines: [line])
         let initial = CostUsageFetcher.codexScanProgressKey(
@@ -119,6 +122,7 @@ struct CostUsageCatchUpProgressTests {
         var appended = buffered
         appended.size = 125
         appended.parsedBytes = 125
+        appended.codexScanTargetSize = 125
         appended.codexBufferedUnresolvedForkLines = [line, line]
         let afterAppend = CostUsageFetcher.codexScanProgressKey(
             cache: CostUsageCache(),

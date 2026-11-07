@@ -33,6 +33,7 @@ struct CostUsageStoreTestHooks: Sendable {
     var tokenSnapshotsRead: (@Sendable (URL) -> Void)?
     var tokenSnapshotPathRead: (@Sendable (URL, String?) -> Void)?
     var codexTokenSnapshotHydrationFailure: (@Sendable (URL, Set<String>) -> Bool)?
+    var codexScanCompleteNormalizationVisit: (@Sendable () -> Void)?
     var codexBaselineReadCheckpoint: (databaseURL: URL, checkpoint: @Sendable () throws -> Void)?
     var codexTokenHydrationCheckpoint: (databaseURL: URL, checkpoint: @Sendable () throws -> Void)?
     var codexCacheReadCheckpoint: (databaseURL: URL, checkpoint: @Sendable () throws -> Void)?
