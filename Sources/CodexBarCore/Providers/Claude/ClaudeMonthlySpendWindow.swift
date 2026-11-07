@@ -3,7 +3,8 @@ import Foundation
 extension UsageSnapshot {
     /// Presentation only: Claude reports no reset for monthly caps, so use the cost observation's UTC month.
     package var claudeMonthlySpendWindow: NamedRateWindow? {
-        guard self.loginMethod(for: .claude) != "Admin API",
+        guard self.identity?.providerID == nil || self.identity?.providerID == .claude,
+              self.loginMethod(for: .claude) != "Admin API",
               let cost = self.providerCost,
               cost.limit.isFinite, cost.limit > 0,
               cost.used.isFinite,
