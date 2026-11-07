@@ -1272,6 +1272,11 @@ struct MenuBarLayoutRendererTests {
         }
         #expect(last.attributedTitle === first.attributedTitle)
         #expect(fastest < .milliseconds(50), "Fastest cached batch used \(fastest) of thread CPU time")
+
+        for _ in 0..<1000 {
+            let rendered = renderer.render(layout: layout, data: data, icon: icon, options: options)
+            #expect(rendered.attributedTitle === first.attributedTitle)
+        }
     }
 
     @Test
