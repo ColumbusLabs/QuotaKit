@@ -1105,14 +1105,15 @@ final class SyncCoordinator {
             pace: ProviderDescriptorRegistry.descriptor(for: provider).pace.allowsPace(dataConfidence: dataConfidence)
                 ? self.syncUsagePace(provider: provider, window: window, role: role, now: now)
                 : nil,
-            identity: Self.syncRateWindowIdentity(label: label, window: window))
+            identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window))
     }
 
     private static func syncRateWindowIdentity(
+        provider: UsageProvider,
         label: String?,
         window: RateWindow) -> SyncRateWindowIdentity?
     {
-        if window.windowMinutes == 10080 {
+        if window.windowMinutes == 10080, provider != .cursor || label == "Weekly" {
             return .weekly
         }
         guard let label else { return nil }

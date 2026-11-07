@@ -1012,16 +1012,14 @@ struct AlibabaTokenPlanCLIUsageTests {
     @Test
     func `maps all provider regions to Bailian CLI argv without a shell`() {
         #expect(AlibabaTokenPlanCLIUsageFetcher.arguments(region: .chinaMainland) == [
-            "usage", "token-plan", "--console-region", "cn-beijing",
-            "--console-site", "domestic", "--output", "json",
+            "token-plan", "list-seats", "--page-no", "1", "--page-size", "10", "--output", "json",
         ])
         #expect(AlibabaTokenPlanCLIUsageFetcher.arguments(region: .chinaMainlandPersonal) == [
             "console", "call", "--api", "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage", "--data", "{}",
             "--console-region", "cn-beijing", "--console-site", "domestic", "--output", "json",
         ])
         #expect(AlibabaTokenPlanCLIUsageFetcher.arguments(region: .international) == [
-            "usage", "token-plan", "--console-region", "ap-southeast-1",
-            "--console-site", "international", "--output", "json",
+            "token-plan", "list-seats", "--page-no", "1", "--page-size", "10", "--output", "json",
         ])
         #expect(AlibabaTokenPlanCLIUsageFetcher.arguments(region: .internationalPersonal) == [
             "console", "call", "--api", "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage", "--data", "{}",
@@ -1200,6 +1198,44 @@ struct AlibabaTokenPlanWebStrategyTests {
             #expect(outcome.attempts.map(\.strategyID) == ["alibaba-token-plan.cli", "alibaba-token-plan.web"])
             #expect(result.sourceLabel == "web")
             #expect(result.usage.secondary?.usedPercent == 42)
+        }
+    }
+
+    @Test
+    func `Auto falls back to browser cookies when the Team CLI has no seats`() async throws {
+        try await self.withIsolatedCookieCache {
+            let region = AlibabaTokenPlanAPIRegion.chinaMainland
+            let now = Date(timeIntervalSince1970: 1_800_000_000)
+            let cli = AlibabaTokenPlanCLIFetchStrategy { _, _ in
+                let page = try AlibabaTokenPlanCLIUsageParser.teamPage(Data(#"""
+                {"Success":true,"Data":{"Items":[],"Total":0,"PageNo":1,"PageSize":10}}
+                """#.utf8), pageNo: 1)
+                return try AlibabaTokenPlanCLIUsageParser.teamUsage([page], now: now)
+            }
+            let web = AlibabaTokenPlanWebFetchStrategy { headers, selectedRegion, _ in
+                #expect(selectedRegion == region)
+                #expect(headers.apiCookieHeader == "login_aliyunid_ticket=fixture")
+                return AlibabaTokenPlanUsageSnapshot(
+                    planName: "Token Plan",
+                    usedQuota: 30,
+                    totalQuota: 100,
+                    remainingQuota: 70,
+                    resetsAt: nil,
+                    updatedAt: now)
+            }
+            let pipeline = ProviderFetchPipeline(resolveStrategies: { _ in [cli, web] })
+            let context = self.context(
+                region: region,
+                sourceMode: .auto,
+                cookieSource: .manual,
+                manualCookieHeader: "login_aliyunid_ticket=fixture")
+
+            let outcome = await pipeline.fetch(context: context, provider: .alibabatokenplan)
+            let result = try outcome.result.get()
+
+            #expect(outcome.attempts.map(\.strategyID) == ["alibaba-token-plan.cli", "alibaba-token-plan.web"])
+            #expect(result.sourceLabel == "web")
+            #expect(result.usage.primary?.usedPercent == 30)
         }
     }
 
