@@ -35,7 +35,8 @@ extension SpendDashboardModel {
 
         func tokenCompleteness(retained: Int, scoped: [InputSummary]) -> ModelHistoryCompleteness {
             retained == scoped.count && self.tokenAttributionCompleteness == .complete &&
-                !scoped.contains(where: \.historyScanIsPartial) ? .complete : .incomplete
+                !scoped.contains(where: { $0.historyScanIsPartial || $0.incompleteRequestCount > 0 })
+                ? .complete : .incomplete
         }
     }
 

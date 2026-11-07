@@ -1049,6 +1049,37 @@ extension SpendDashboardModelTests {
         #expect(ranking.rows.map(\.value) == [2])
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func `models lens suppresses shares for incomplete requests`(priced: Bool, incomplete: Bool) throws {
+        let entries = [CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 100,
+            costUSD: priced ? 4 : nil,
+            modelsUsed: nil,
+            modelBreakdowns: [
+                .init(
+                    modelName: "model-a",
+                    costUSD: priced ? 1 : nil,
+                    totalTokens: 25,
+                    incompleteRequestCount: incomplete ? 1 : nil),
+                .init(modelName: "model-b", costUSD: priced ? 3 : nil, totalTokens: 75),
+            ])]
+        let input = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(currency: "USD", entries: entries))
+        let group = try #require(Self.model(inputs: [input], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(ranking.basis == (priced ? .cost : .tokens))
+        #expect(ranking.rows.count == 2)
+        #expect(ranking.isPartial == incomplete)
+        #expect(ranking.rows.map(\.share) == (incomplete ? [nil, nil] : [0.75, 0.25]))
+    }
+
+    @Test
     func `project rows aggregate windowed entries and rank by cost`() throws {
         let model = SpendDashboardModel.build(
             inputs: [
@@ -1309,6 +1340,10 @@ extension SpendDashboardModelTests {
             provider: provider,
             displayName: provider.rawValue,
             snapshot: self.snapshot(currency: currency, entries: [self.entry(day: "2026-07-16", cost: cost)]))
+    }
+
+    static func model(inputs: [SpendDashboardModel.ProviderInput], requestedDays: Int) -> SpendDashboardModel {
+        SpendDashboardModel.build(inputs: inputs, requestedDays: requestedDays, now: Self.now, calendar: Self.calendar)
     }
 
     static func snapshot(

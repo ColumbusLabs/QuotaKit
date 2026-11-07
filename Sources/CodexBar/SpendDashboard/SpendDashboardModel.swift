@@ -616,7 +616,9 @@ struct SpendDashboardModel: Equatable, Sendable {
         // provider's model ranking when coverage is incomplete.
         let modelSummary = Self.modelSummary(summaries: modelSummaries)
         let modelHistoryCompleteness = modelSummaries.count == scopedSummaries.count &&
-            modelSummary.completeness == .complete && !scopedSummaries.contains(where: \.historyScanIsPartial)
+            modelSummary.completeness == .complete && !scopedSummaries.contains(where: {
+                $0.historyScanIsPartial || $0.incompleteRequestCount > 0
+            })
             ? ModelHistoryCompleteness.complete
             : ModelHistoryCompleteness.incomplete
         let tokenCompleteness = modelSummary.tokenCompleteness(retained: modelSummaries.count, scoped: scopedSummaries)
