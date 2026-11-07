@@ -11,8 +11,8 @@ struct StatusMenuRefreshIdleTests {
     func `idle refresh availability observes activity without resolving provider selection`() {
         let settings = testSettingsStore(
             suiteName: "StatusMenuRefreshIdleTests",
-            userDefaults: InMemoryUserDefaults(),
             config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults(),
             keychainAccessPolicy: .init(setDisabled: { _ in }, isExplicitlyDisabled: { true }))
         settings.providerDetectionCompleted = true
         settings.refreshFrequency = .manual

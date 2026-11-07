@@ -10,8 +10,8 @@ struct MenuCardVisibilityTests {
         _ = NSApplication.shared
         let settings = testSettingsStore(
             suiteName: #function,
-            userDefaults: InMemoryUserDefaults(),
-            config: testConfigWithAllProvidersDisabled())
+            config: testConfigWithAllProvidersDisabled(),
+            userDefaults: InMemoryUserDefaults())
         enableTestProviders([.openai], settings: settings)
         settings.mergeIcons = true
         let store = UsageStore(
