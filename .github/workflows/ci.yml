@@ -154,6 +154,8 @@ jobs:
           echo "Parser lint base: $base"
 
       - name: Install lint tools
+        env:
+          QUOTAKIT_CI_RELEASE_ASSET_API: 1
         run: ./Scripts/install_lint_tools.sh
 
       - name: Lint
@@ -222,6 +224,12 @@ jobs:
           set -euo pipefail
           python3 Scripts/ci_swiftpm_cache.py restore --context "$BUILD_CONTEXT" --clean-fallback
           python3 Scripts/ci_swiftpm_cache.py snapshot --context "$BUILD_CONTEXT"
+
+      - name: Prime pinned Sparkle artifact
+        run: |
+          if ! bash Scripts/ci_prime_sparkle_artifact.sh; then
+            echo "::warning::Sparkle prefetch failed. SwiftPM will resolve the pinned artifact normally."
+          fi
 
       - name: Swift toolchain version
         run: |
@@ -333,10 +341,9 @@ jobs:
           xcodegen_archive="$RUNNER_TEMP/xcodegen-$xcodegen_version.zip"
           xcodegen_root="$RUNNER_TEMP/xcodegen-$xcodegen_version"
 
-          curl -fsSL \
+          bash Scripts/ci_download_release_asset.sh \
             "https://github.com/yonaskolb/XcodeGen/releases/download/$xcodegen_version/xcodegen.zip" \
-            -o "$xcodegen_archive"
-          echo "$xcodegen_sha256  $xcodegen_archive" | shasum -a 256 -c -
+            "$xcodegen_archive" "$xcodegen_sha256"
           mkdir -p "$xcodegen_root"
           unzip -q "$xcodegen_archive" -d "$xcodegen_root"
           echo "$xcodegen_root/xcodegen/bin" >> "$GITHUB_PATH"
@@ -432,6 +439,12 @@ jobs:
           python3 Scripts/ci_swiftpm_cache.py restore --context "$BUILD_CONTEXT" --clean-fallback
           python3 Scripts/ci_swiftpm_cache.py snapshot --context "$BUILD_CONTEXT"
 
+      - name: Prime pinned Sparkle artifact
+        run: |
+          if ! bash Scripts/ci_prime_sparkle_artifact.sh; then
+            echo "::warning::Sparkle prefetch failed. SwiftPM will resolve the pinned artifact normally."
+          fi
+
       - name: Build tests with Xcode 26.3
         run: |
           set -euo pipefail
@@ -512,6 +525,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
+
+      - name: Prime pinned Sparkle artifact
+        run: |
+          if ! bash Scripts/ci_prime_sparkle_artifact.sh; then
+            echo "::warning::Sparkle prefetch failed. SwiftPM will resolve the pinned artifact normally."
+          fi
 
       - name: Build CLI and run portable Linux tests
         run: |

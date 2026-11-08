@@ -16,8 +16,8 @@ extension CLIEntryTests {
         XCTAssertEqual(CodexBarCLI._decodeFormatForTesting(from: textDefault), .text)
     }
 
-    func test_providerSelectionPrefersOverride() {
-        let selection = CodexBarCLI.providerSelection(rawOverride: "codex", enabled: [.claude, .gemini])
+    func test_providerSelectionPrefersOverride() throws {
+        let selection = try CodexBarCLI.providerSelection(rawOverride: "codex", enabled: [.claude, .gemini])
         XCTAssertEqual(selection.asList, [.codex])
     }
 

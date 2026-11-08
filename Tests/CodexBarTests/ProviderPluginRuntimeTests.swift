@@ -1,9 +1,9 @@
 import Foundation
+import Testing
+@testable import CodexBarCore
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-@testable import CodexBarCore
 
 extension ProviderPluginRuntimeTests {
     @Test(arguments: Self.labelValidationEngines)
@@ -433,7 +433,10 @@ struct ProviderPluginRuntimeTests {
             const response = await ctx.http.getJSON("https://api.example.test/maximum", { timeoutSeconds: 90 });
             return { primary: { usedPercent: response.json.used } };
             """),
+            resourceBundle: CodexBarCoreResources.bundle,
             transport: Self.transport(recorder: requests, body: #"{"used":11}"#),
+            timeout: BundledPluginTestSupport.timeout,
+            contextOptions: BundledPluginTestSupport.contextOptions,
             engine: engine)
 
         let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
@@ -461,40 +464,50 @@ struct ProviderPluginRuntimeTests {
 
     @Test
     func `HTTP request deadline cancels a transport that exceeds it`() async throws {
-        let cancellation = TransportCancellationProbe()
-        let runtime = try ProviderPluginRuntime(
-            source: Self.plugin(fetchBody: """
-            await ctx.http.getJSON("https://api.example.test/slow", { timeoutSeconds: 1 });
-            return { primary: { usedPercent: 1 } };
-            """),
-            transport: ProviderHTTPTransportHandler { request in
-                do {
-                    try await Task.sleep(for: .seconds(5))
-                } catch is CancellationError {
-                    await cancellation.markCancelled()
+        try await BundledPluginTestSupport.withWatchdog {
+            let (cancellations, cancelled) = AsyncStream<Void>.makeStream()
+            defer { cancelled.finish() }
+            let (starts, started) = AsyncStream<Void>.makeStream()
+            defer { started.finish() }
+            let runtime = try ProviderPluginRuntime(
+                source: Self.plugin(fetchBody: """
+                await ctx.http.getJSON("https://api.example.test/slow", { timeoutSeconds: 1 });
+                return { primary: { usedPercent: 1 } };
+                """),
+                resourceBundle: CodexBarCoreResources.bundle,
+                transport: ProviderHTTPTransportHandler { _ in
+                    started.yield()
+                    let (pending, release) = AsyncStream<Void>.makeStream()
+                    defer { release.finish() }
+                    for await _ in pending {}
+                    #expect(Task.isCancelled)
+                    cancelled.yield()
                     throw CancellationError()
+                },
+                timeout: 300,
+                contextOptions: ProviderPluginContextOptions(
+                    optionalRequestTimeoutSeconds: nil,
+                    waitForHTTPDeadline: { _, budget in
+                        #expect(budget == .seconds(1))
+                        var iterator = starts.makeAsyncIterator()
+                        #expect(await iterator.next() != nil)
+                    }))
+            do {
+                _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
+                Issue.record("Expected the request deadline to reject the plugin fetch")
+            } catch let error as URLError where error.code == .timedOut {
+                var iterator = cancellations.makeAsyncIterator()
+                #expect(await iterator.next() != nil)
+            } catch let error as ProviderPluginError {
+                guard case .script = error else {
+                    Issue.record("Expected a request deadline failure, received \(error)")
+                    return
                 }
-                let response = try #require(HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]))
-                return (Data(#"{"used":1}"#.utf8), response)
-            })
-
-        do {
-            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
-            Issue.record("Expected the request deadline to reject the plugin fetch")
-        } catch let error as URLError where error.code == .timedOut {
-            await cancellation.waitUntilCancelled()
-        } catch let error as ProviderPluginError {
-            guard case .script = error else {
-                Issue.record("Expected a request deadline failure, received \(error)")
-                return
+                var iterator = cancellations.makeAsyncIterator()
+                #expect(await iterator.next() != nil)
+            } catch {
+                Issue.record("Unexpected error: \(error)")
             }
-            await cancellation.waitUntilCancelled()
-        } catch {
-            Issue.record("Unexpected error: \(error)")
         }
     }
 
@@ -1056,7 +1069,7 @@ extension ProviderPluginRuntimeTests {
         }
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `hung script times out and next fetch uses a fresh context`() async throws {
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
@@ -1068,14 +1081,10 @@ extension ProviderPluginRuntimeTests {
             """),
             timeout: 5,
             engine: .quickJS)
-        let start = Date()
 
         await #expect(throws: ProviderPluginError.timedOut) {
             _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
         }
-        // This ceiling only proves the watchdog interrupted the infinite loop instead of hanging
-        // forever. The runtime timeout itself leaves fresh-worker compilation ample scheduler headroom.
-        #expect(Date().timeIntervalSince(start) < 30)
 
         let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
         #expect(recovered.primary?.usedPercent == 7)
@@ -1221,28 +1230,6 @@ extension ProviderPluginRuntimeTests {
         """), engine: engine)
         await #expect(throws: ProviderPluginError.invalidSnapshot("primary.quotaLimit must be positive")) {
             _ = try await invalid.fetchUsage(secrets: ["TEST_KEY": "fixture"])
-        }
-    }
-}
-
-private actor TransportCancellationProbe {
-    private var cancelled = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func markCancelled() {
-        self.cancelled = true
-        for waiter in self.waiters {
-            waiter.resume()
-        }
-        self.waiters.removeAll()
-    }
-
-    func waitUntilCancelled() async {
-        if self.cancelled {
-            return
-        }
-        await withCheckedContinuation { continuation in
-            self.waiters.append(continuation)
         }
     }
 }

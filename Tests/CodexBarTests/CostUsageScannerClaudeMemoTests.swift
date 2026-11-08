@@ -108,7 +108,7 @@ struct CostUsageScannerClaudeMemoTests {
 
         #expect(
             CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: root).lastPathComponent
-                == "claude-v22.json")
+                == "claude-v23.json")
     }
 
     @Test(arguments: [CostUsageReportContext.regular, .spendDashboard])
@@ -134,7 +134,7 @@ struct CostUsageScannerClaudeMemoTests {
         let currentURL = CostUsageClaudeCacheIO.cacheFileURL(
             provider: .claude, cacheRoot: env.cacheRoot, reportContext: context)
         let priorURL = currentURL.deletingLastPathComponent().appendingPathComponent(
-            context == .regular ? "claude-v20.json" : "claude-history-v20.json")
+            context == .regular ? "claude-v22.json" : "claude-history-v22.json")
         let currentMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: currentURL)
         let priorMemoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: priorURL)
         let priorBytes = try Data(contentsOf: currentURL)

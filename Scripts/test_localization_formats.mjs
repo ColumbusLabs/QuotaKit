@@ -77,6 +77,11 @@ test("translated technical command values retain their exact spelling", () => {
   );
 });
 
+test("provider setup permission names remain literal", () => {
+  assert.notEqual(protectedLiteralErrors("fixture", "permission lecture_utilisateur", "Use user_read permission").length, 0);
+  assert.deepEqual(protectedLiteralErrors("fixture", "permission user_read", "Use user_read permission"), []);
+});
+
 test("plural template reordering preserves variable positions", () => {
   const rules = { ...structuredClone(plural.sample), NSStringLocalizedFormatKey: "%#@count@ %#@until@" };
   rules.until = structuredClone(rules.count);

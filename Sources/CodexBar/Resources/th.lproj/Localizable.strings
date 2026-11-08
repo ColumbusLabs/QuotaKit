@@ -2939,3 +2939,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
 "Tripo request failed. Try refreshing later." = "คำขอ Tripo ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต QuotaKit แล้วลองอีกครั้ง";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "ใช้คีย์ API ที่มีสิทธิ์ user_read เพื่อดูการใช้งานการสมัครสมาชิก คำสั่งจะบันทึกคีย์แยกต่างหาก โดยบัญชีคีย์ API ที่เลือกจะมีลำดับความสำคัญสูงกว่า";

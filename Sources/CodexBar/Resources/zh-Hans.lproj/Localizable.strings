@@ -2927,3 +2927,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo 正在限制请求频率。请稍后重试。";
 "Tripo request failed. Try refreshing later." = "Tripo 请求失败。请稍后尝试刷新。";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "使用具有 user_read 权限的 API 密钥查看订阅用量。此命令保存独立密钥；所选 API 密钥账户优先。";

@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-08)
+
+- Identify subscription and model rows with provider marks on Spend Dashboard share cards.
+- Reject unknown CLI provider names with an argument error and show setup guidance for ElevenLabs.
+- Reduce retained memory when Claude quota history is reused across reporting windows.
+
 ## Unreleased upstream integration (2026-11-07)
 
 - Add SiliconFlow and Tripo prepaid balances to QuotaKit on Mac and iPhone.

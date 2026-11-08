@@ -77,7 +77,11 @@ install_zip_binary() {
   tmp_dir="$(mktemp -d -t "${label}.XXXX")"
 
   log "==> Downloading ${label}"
-  download_file "$url" "$tmp_zip"
+  if [[ "${QUOTAKIT_CI_RELEASE_ASSET_API:-}" == 1 ]]; then
+    bash "${ROOT_DIR}/Scripts/ci_download_release_asset.sh" "$url" "$tmp_zip" "$expected_sha"
+  else
+    download_file "$url" "$tmp_zip"
+  fi
 
   local actual_sha
   actual_sha="$(sha256_value "$tmp_zip")"

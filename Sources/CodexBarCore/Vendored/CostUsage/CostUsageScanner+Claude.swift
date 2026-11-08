@@ -995,7 +995,7 @@ extension CostUsageScanner {
             // Retain the parsed-window certificate even if pricing changed mid-pass. The
             // captured pricing stamp makes report reuse miss and reprice cached rows next time.
             reportKey.cacheArtifactStamp = finalCacheArtifactStamp
-            memo.store(
+            return memo.store(
                 provider: provider,
                 canonicalCachePath: canonicalCachePath,
                 sourceInventory: sourceInventory,

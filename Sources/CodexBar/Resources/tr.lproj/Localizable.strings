@@ -2937,3 +2937,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.";
 "Tripo request failed. Try refreshing later." = "Tripo isteği başarısız oldu. Daha sonra yeniden yenileyin.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Abonelik kullanımını görüntülemek için user_read iznine sahip bir API anahtarı kullanın. Komut bağımsız bir anahtar kaydeder; seçili API anahtarı hesabı önceliklidir.";

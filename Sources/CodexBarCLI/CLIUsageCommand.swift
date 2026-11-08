@@ -108,7 +108,7 @@ extension CodexBarCLI {
     static func runUsage(_ values: ParsedValues) async {
         let output = Self.resolveUsageOutputPreferences(from: values)
         let config = Self.loadConfig(output: output)
-        let provider = Self.decodeProvider(from: values, config: config)
+        let provider = Self.decodeProvider(from: values, config: config, output: output)
         let format = output.format
         let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")

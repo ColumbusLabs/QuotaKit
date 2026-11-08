@@ -49,7 +49,10 @@ JSON output includes built-in provider authentication metadata: supported source
 
 `setup` separately describes provider-owned setup routes. Copilot declares device login and token routes,
 OpenAI API distinguishes Admin access from legacy balance access, and Azure OpenAI requires a key, endpoint,
-and deployment. Other providers and user plugins report `status: "unknown"`, when the provider has yet to declare setup guidance. The existing `authentication` fields remain available.
+and deployment. ElevenLabs declares an API-key route with `user_read` permission. The route lists both
+environment variable names and the saved-account alternative. Its stdin command saves a standalone key.
+A selected API key account takes priority. Providers without setup guidance and user plugins report
+`status: "unknown"`. The existing `authentication` fields remain available.
 
 Routes are alternatives; all `requiredInputs` in one route are required together. Each input lists alternative
 config fields and environment variable names, never values or precedence. Config paths are relative to a provider
@@ -477,6 +480,10 @@ Note: Using CLI fallback
   }
 }
 ```
+
+An explicit unrecognized `--provider` value in `usage`, `cost`, `cards`, or `diagnose` exits with code 1.
+Commands with JSON output report `kind: "args"`. Omitting the option uses the enabled providers. Explicit
+provider names, aliases, `both`, and `all` are supported.
 
 ## Exit codes
 - 0: success

@@ -4,7 +4,7 @@ Usage & Spend builds chart, ledger, and activity views as they approach the visi
 
 The **Models** view ranks models within each displayed currency. It shows estimated-spend shares when pricing is complete, or tracked-token shares for a single provider. Partial model history and unpriced models from different providers remain visible without percentages.
 
-Share-card previews and exports follow the app's light or dark appearance.
+Share-card previews and exports follow the app's light or dark appearance. Subscription and model rows use the bundled provider marks.
 
 ## Conversation usage details
 
