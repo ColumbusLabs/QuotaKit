@@ -18,3 +18,5 @@ The reviewed steipete/CodexBar range is `5e5275b4f7f30a736f8c58d5374a3fff693962d
 QuotaKit’s scanner audit requires a new Claude artifact generation for the change to report publication. Claude rebuilds its v23 cache from transcripts and preserves existing artifacts and memos on disk. The report wire format and Vertex AI generation stay the same.
 
 The integration keeps QuotaKit's 113-provider catalog and existing Mac and iPhone contracts. The cursor tracks the reviewed range. Shipped upstream provenance remains v0.69.0.
+
+Hosted CI uses checksum-verified downloads through the GitHub Releases API when preparing the existing lint, XcodeGen, and Sparkle pins. The same release URLs remain available as fallbacks. Sparkle prefetch uses the runner’s local SwiftPM cache, and the regular build still verifies the pinned dependency.
