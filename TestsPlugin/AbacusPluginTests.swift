@@ -50,14 +50,45 @@ struct AbacusPluginTests {
 
     @Test(arguments: BundledPluginTestSupport.engines)
     func `billing timeout is bounded to five seconds on both engines`(engine: ProviderPluginEngineKind) async throws {
-        let runtime = try Self.runtime(engine, billingFailure: "slow")
-        let start = ContinuousClock.now
-        let usage = try await runtime.fetchUsage(cookieResolver: Self.cookie)
-        let elapsed = start.duration(to: .now)
-        #expect(usage.primary?.usedPercent == 25)
-        #expect(usage.primary?.resetsAt == nil)
-        #expect(elapsed >= .seconds(4))
-        #expect(elapsed < .seconds(9))
+        try await BundledPluginTestSupport.withWatchdog {
+            let (starts, started) = AsyncStream<Void>.makeStream()
+            let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+            defer { started.finish(); cancelled.finish() }
+            var options = BundledPluginTestSupport.contextOptions
+            options.waitForHTTPDeadline = { _, budget in
+                if budget == .seconds(5) {
+                    var iterator = starts.makeAsyncIterator()
+                    #expect(await iterator.next() != nil)
+                } else {
+                    #expect(budget == .seconds(15))
+                    try await BundledPluginTestSupport.suspendUntilCancelled()
+                }
+            }
+            let runtime = try BundledPluginTestSupport.runtime(
+                "abacus",
+                engine: engine,
+                transport: ProviderHTTPTransportHandler { request in
+                    if request.httpMethod == "POST" {
+                        #expect(request.url?.path == "/api/_getBillingInfo")
+                        #expect(request.timeoutInterval == 5)
+                        started.yield()
+                        defer { cancelled.yield(Task.isCancelled) }
+                        try await BundledPluginTestSupport.suspendUntilCancelled()
+                        throw URLError(.timedOut)
+                    }
+                    #expect(request.url?.path == "/api/_getOrganizationComputePoints")
+                    #expect(request.timeoutInterval == 15)
+                    return Self.response(request, body: Self.points)
+                },
+                contextOptions: options)
+            let usage = try await runtime.fetchUsage(cookieResolver: Self.cookie)
+            #expect(usage.primary?.usedPercent == 25)
+            #expect(usage.primary?.resetDescription == "250 / 1,000 credits")
+            #expect(usage.primary?.resetsAt == nil)
+            #expect(usage.primary?.windowMinutes == 43200)
+            var iterator = cancellations.makeAsyncIterator()
+            #expect(await iterator.next() == true)
+        }
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -247,7 +278,6 @@ struct AbacusPluginTests {
                     case "auth": return Self.response(request, body: #"{"success":false,"error":"session expired"}"#)
                     case "json": return Self.response(request, body: "<html>error</html>")
                     case "timeout": throw URLError(.timedOut)
-                    case "slow": try await Task.sleep(for: .seconds(30))
                     default: break
                     }
                     let date = billingFailure == "date" ? "not-a-date" : reset

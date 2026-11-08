@@ -5652,7 +5652,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Claude queued usage is preserved only through its owner-aware path; this branch excludes it from the generic process queue."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLIHelpers.swift",
-            line: 132,
+            line: 142,
             anchor: "guard provider == .antigravity, sourceMode == .auto, !attempts.isEmpty else { return nil }",
             expectedProviderIDs: ["antigravity"],
             expectedReferenceCount: 1,
