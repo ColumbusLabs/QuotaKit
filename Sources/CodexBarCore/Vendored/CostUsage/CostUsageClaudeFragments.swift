@@ -33,7 +33,7 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
         let headerDigest: SHA256.Digest
         let shards: [String: Shard]
         let values: Any
-        let header: Any
+        var header: Any?
         let cost: Int
         let contentID: UUID?
 
@@ -61,6 +61,19 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
 
     init(byteLimit: Int = 512 * 1024 * 1024) { self.byteLimit = byteLimit }
 
+    #if DEBUG
+    var retainedDecodedHeaderCountForTesting: Int {
+        self.lock.withLock { self.entries.count(where: { $0.snapshot.header != nil }) }
+    }
+    #endif
+
+    func discardDecodedHeader(at url: URL) {
+        self.lock.withLock {
+            guard let index = self.entries.lastIndex(where: { $0.url == url }) else { return }
+            self.entries[index].snapshot.header = nil
+        }
+    }
+
     func evict(at url: URL) {
         let url = url.standardizedFileURL.resolvingSymlinksInPath()
         self.lock.withLock { self.entries.removeAll { $0.url == url } }
@@ -82,7 +95,8 @@ final class CostUsageClaudeFragments: @unchecked Sendable {
         try self.lock.withLock {
             if let snapshot = self.entries.last(where: { $0.url == url })?.snapshot,
                snapshot.stamp == CostUsageClaudeFileStamp.read(at: url),
-               let header = snapshot.header as? Header, let values = snapshot.values as? [String: Value],
+               let cachedHeader = snapshot.header, let header = cachedHeader as? Header,
+               let values = snapshot.values as? [String: Value],
                snapshot.stamp == CostUsageClaudeFileStamp.read(at: url)
             {
                 return (header, values)

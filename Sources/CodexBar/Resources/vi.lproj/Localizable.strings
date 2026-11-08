@@ -2936,3 +2936,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo đang giới hạn tần suất yêu cầu. Hãy thử lại sau.";
 "Tripo request failed. Try refreshing later." = "Yêu cầu Tripo không thành công. Hãy thử làm mới sau.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo trả về phản hồi không nhận dạng được. Hãy cập nhật QuotaKit rồi thử lại.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Sử dụng khóa API có quyền user_read để xem mức sử dụng gói đăng ký. Lệnh lưu một khóa riêng; tài khoản khóa API đang chọn được ưu tiên.";

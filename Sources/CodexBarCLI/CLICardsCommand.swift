@@ -70,7 +70,7 @@ extension CodexBarCLI {
     static func runCards(_ values: ParsedValues) async {
         let output = CLIOutputPreferences.from(values: values)
         let config = Self.loadConfig(output: output)
-        let provider = Self.decodeProvider(from: values, config: config)
+        let provider = Self.decodeProvider(from: values, config: config, output: output)
         let includeCredits = !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")
         let sourceModeRaw = values.options["source"]?.last

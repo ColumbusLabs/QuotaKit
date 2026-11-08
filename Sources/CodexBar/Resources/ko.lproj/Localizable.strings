@@ -2903,3 +2903,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo가 요청 빈도를 제한하고 있습니다. 나중에 다시 시도하세요.";
 "Tripo request failed. Try refreshing later." = "Tripo 요청에 실패했습니다. 나중에 다시 새로 고침하세요.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo가 알 수 없는 응답을 반환했습니다. QuotaKit를 업데이트하고 다시 시도하세요.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "구독 사용량을 조회하려면 user_read 권한이 있는 API 키를 사용하세요. 이 명령은 독립적인 키를 저장하며, 선택된 API 키 계정이 우선합니다.";

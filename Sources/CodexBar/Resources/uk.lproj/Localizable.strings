@@ -2926,3 +2926,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo обмежує частоту запитів. Спробуйте пізніше.";
 "Tripo request failed. Try refreshing later." = "Запит до Tripo не виконано. Спробуйте оновити пізніше.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Для перегляду використання передплати використовуйте ключ API з дозволом user_read. Команда зберігає окремий ключ; вибраний обліковий запис ключа API має пріоритет.";

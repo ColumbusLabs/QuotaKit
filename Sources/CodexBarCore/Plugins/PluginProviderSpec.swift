@@ -60,6 +60,7 @@ public struct PluginProviderSpec: Sendable {
     public var burnDownWidgetSelectable = true
     public var snapshotExport = ProviderSnapshotExportPolicy.standard
     public var aliases: [String] = []
+    public var setup: ProviderSetup = .unknown
     public var timeout = ProviderPluginRuntime.defaultTimeout
     public var scriptSettings: @Sendable (ProviderFetchContext) -> [String: String] = { _ in [:] }
     public var validateContext: ScriptFetchStrategy.ContextValidator = { _ in }
@@ -150,7 +151,8 @@ public struct PluginProviderSpec: Sendable {
                 versionDetector: nil,
                 browserSupportExemption: { source, environment, settings in
                     self.webSource?.browserSupportExemption?(source, environment, settings) ?? false
-                }))
+                }),
+            setup: self.setup)
     }
 
     func scriptValues(_ context: ProviderFetchContext) -> ScriptFetchStrategy.Values? {

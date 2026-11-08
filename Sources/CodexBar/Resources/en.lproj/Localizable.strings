@@ -2937,3 +2937,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo is rate limiting requests. Try again later.";
 "Tripo request failed. Try refreshing later." = "Tripo request failed. Try refreshing later.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo returned an unrecognized response. Update QuotaKit and try again.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority.";

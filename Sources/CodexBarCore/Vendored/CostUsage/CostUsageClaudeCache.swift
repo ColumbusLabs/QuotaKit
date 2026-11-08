@@ -200,17 +200,17 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         self.lock.lock()
         defer { self.lock.unlock() }
         if let memory = self.entries[key]?.entry { return memory }
-        self.installUnlocked(key: key, entry: persisted)
-        return persisted
+        return self.installUnlocked(key: key, entry: persisted)
     }
 
+    @discardableResult
     func store(
         provider: UsageProvider,
         canonicalCachePath: String,
         sourceInventory: [String: CostUsageClaudeFileStamp],
         reportKey: CostUsageClaudeReportMemoKey,
         report: CostUsageDailyReport,
-        hasWindowScopedRows: Bool = false)
+        hasWindowScopedRows: Bool = false) -> CostUsageDailyReport
     {
         let key = "\(provider.rawValue)|\(canonicalCachePath)"
         let entry = Entry(
@@ -219,22 +219,47 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
             report: report,
             hasWindowScopedRows: hasWindowScopedRows)
         self.lock.lock()
-        self.installUnlocked(key: key, entry: entry)
+        let shared = self.installUnlocked(key: key, entry: entry)
         self.lock.unlock()
-        Self.persist(entry, canonicalCachePath: canonicalCachePath)
+        Self.persist(shared, canonicalCachePath: canonicalCachePath)
         CostUsageClaudeFragments.shared.evict(at: URL(fileURLWithPath: canonicalCachePath))
+        return shared.report
     }
 
-    private func installUnlocked(key: String, entry: Entry) {
+    private func installUnlocked(key: String, entry: Entry) -> Entry {
+        var shared = entry
+        if !entry.report.quotaSlices.isEmpty,
+           let prior = self.entries.values.sorted(by: { $0.generation > $1.generation }).first(where: {
+               $0.entry.reportKey.scanConfiguration == entry.reportKey.scanConfiguration
+                   && $0.entry.reportKey.pricingArtifactStamp == entry.reportKey.pricingArtifactStamp
+                   && $0.entry.sourceInventory == entry.sourceInventory
+                   && $0.entry.report.quotaSlices == entry.report.quotaSlices
+                   && zip($0.entry.report.quotaSlices, entry.report.quotaSlices).allSatisfy { lhs, rhs in
+                       lhs.timestamp.timeIntervalSince1970.bitPattern == rhs.timestamp.timeIntervalSince1970.bitPattern
+                           && lhs.costUSD?.bitPattern == rhs.costUSD?.bitPattern
+                   }
+           })?.entry
+        {
+            shared = Entry(
+                sourceInventory: entry.sourceInventory,
+                reportKey: entry.reportKey,
+                report: CostUsageDailyReport(
+                    data: entry.report.data,
+                    summary: entry.report.summary,
+                    hourly: entry.report.hourly,
+                    quotaSlices: prior.report.quotaSlices),
+                hasWindowScopedRows: entry.hasWindowScopedRows)
+        }
         self.generation &+= 1
         self.entries[key] = StoredEntry(
-            entry: entry,
+            entry: shared,
             generation: self.generation)
         if self.entries.count > self.capacity,
            let oldest = self.entries.min(by: { $0.value.generation < $1.value.generation })?.key
         {
             self.entries.removeValue(forKey: oldest)
         }
+        return shared
     }
 
     #if DEBUG
@@ -260,6 +285,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
             envelope.sourceInventory = [:]
             return (envelope, inventory)
         }) else { return nil }
+        defer { CostUsageClaudeFragments.shared.discardDecodedHeader(at: url) }
         var envelope: PersistedEnvelope = loaded.0
         envelope.sourceInventory = loaded.1
         guard envelope.version == Self.persistedVersion,
@@ -515,7 +541,7 @@ enum CostUsageClaudeCacheIO {
         precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
         let generation = switch provider {
-        case .claude: 22
+        case .claude: 23
         case .vertexai: 8
         default: preconditionFailure("unsupported cost cache provider")
         }

@@ -2938,3 +2938,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo membatasi frekuensi permintaan. Coba lagi nanti.";
 "Tripo request failed. Try refreshing later." = "Permintaan Tripo gagal. Coba segarkan lagi nanti.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo mengembalikan respons yang tidak dikenali. Perbarui QuotaKit dan coba lagi.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Gunakan kunci API dengan izin user_read untuk melihat penggunaan langganan. Perintah ini menyimpan kunci terpisah; akun kunci API yang dipilih diprioritaskan.";

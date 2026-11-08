@@ -2934,3 +2934,4 @@
 "Tripo is rate limiting requests. Try again later." = "Tripo está a limitar as solicitudes. Téntao de novo máis tarde.";
 "Tripo request failed. Try refreshing later." = "Fallou a solicitude a Tripo. Tenta actualizar máis tarde.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo devolveu unha resposta descoñecida. Actualiza QuotaKit e téntao de novo.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Usa unha clave API co permiso user_read para consultar o uso da subscrición. A orde garda unha clave independente; a conta de clave API seleccionada ten prioridade.";

@@ -124,6 +124,7 @@ enum ProviderPluginHTTPResponse {
                         id: request.primaryCookieSessionID,
                         jar: contextOptions.cookieJar),
                     retryPolicy: request.retryPolicy,
+                    contextOptions: contextOptions,
                     beforeAttempt: {
                         try await contextOptions.beforeHTTPAttempt?()
                         try await contextOptions.beforeHTTPRequestAttempt?(request.primary)
@@ -140,6 +141,7 @@ enum ProviderPluginHTTPResponse {
                             id: request.optionalCookieSessionID,
                             jar: contextOptions.cookieJar),
                         retryPolicy: .disabled,
+                        contextOptions: contextOptions,
                         beforeAttempt: {
                             try await contextOptions.beforeHTTPAttempt?()
                             try await contextOptions.beforeHTTPRequestAttempt?(optional)
@@ -342,6 +344,7 @@ enum ProviderPluginHTTPResponse {
         for request: URLRequest,
         transport: any ProviderHTTPTransport,
         retryPolicy: ProviderHTTPRetryPolicy,
+        contextOptions: ProviderPluginContextOptions = .production,
         beforeAttempt: (@Sendable () async throws -> Void)? = nil) async throws -> ProviderHTTPResponse
     {
         let bounded = ProviderHTTPTransportHandler { request in
@@ -364,12 +367,23 @@ enum ProviderPluginHTTPResponse {
                 let startedAt = await iterator.next()
                 try Task.checkCancellation()
                 guard let startedAt else { return try await task.value }
-                let deadline = startedAt.advanced(by: .seconds(request.timeoutInterval))
-                let remaining = ContinuousClock.now.duration(to: deadline)
-                return switch await BoundedTaskJoin(sourceTask: task).value(joinGrace: remaining) {
-                case let .value(response): response
-                case let .failure(error): throw error
-                case .timedOut: throw URLError(.timedOut)
+                let budget = Duration.seconds(request.timeoutInterval)
+                let sleep = BoundedTaskJoinTiming.sleep
+                let remaining = contextOptions.waitForHTTPDeadline == nil
+                    ? ContinuousClock.now.duration(to: startedAt.advanced(by: budget)) : budget
+                let wait: @Sendable (Duration) async throws -> Void = { _ in
+                    if let wait = contextOptions.waitForHTTPDeadline {
+                        try await wait(startedAt, budget)
+                    } else {
+                        try await sleep(remaining)
+                    }
+                }
+                return try await BoundedTaskJoinTiming.$sleep.withValue(wait) {
+                    switch await BoundedTaskJoin(sourceTask: task).value(joinGrace: remaining) {
+                    case let .value(response): response
+                    case let .failure(error): throw error
+                    case .timedOut: throw URLError(.timedOut)
+                    }
                 }
             } onCancel: {
                 cancellation.cancel()
@@ -377,7 +391,9 @@ enum ProviderPluginHTTPResponse {
                 DispatchQueue.global().async { task.cancel() }
             }
         }
-        return try await bounded.response(for: request, retryPolicy: retryPolicy)
+        return try await ProviderHTTPRetryTiming.$sleep.withValue(contextOptions.sleepBeforeRetry) {
+            try await bounded.response(for: request, retryPolicy: retryPolicy)
+        }
     }
 
     private final class AdmissionCancellation: @unchecked Sendable {
