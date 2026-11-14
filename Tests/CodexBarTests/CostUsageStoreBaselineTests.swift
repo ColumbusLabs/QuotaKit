@@ -27,12 +27,19 @@ struct CostUsageStoreBaselineTests {
             cache.files[path] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
         }
         cache.files[otherPath] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        let index = CostUsageScanner.CodexSessionFileIndex(
+            files: (paths + [otherPath]).map { URL(fileURLWithPath: $0) }, roots: [fixture.root])
+        cache.codexSessionDiscovery = index.persistedState
         let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
         #expect(!store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: window).catchUpRequired)
         let loaded = store.syncLoadCodexScan(calendar: calendar)
         defer { loaded.release() }
-        #expect(paths.allSatisfy { loaded.cache.files[$0]?.codexArchived == true })
         var changed = loaded.cache
+        changed.codexSessionDiscovery?.metadataPresenceEstablished = true
+        changed.codexSessionDiscovery?.metadataArchivedPaths = paths
+        for path in paths {
+            changed.files[path]?.codexArchived = true
+        }
         changed.files[otherPath]?.lastModel = "fixture-model"
         let before = await store.persistenceWriteMetricsForTesting()
         let result = CostUsageStoreAccess.save(
@@ -47,6 +54,7 @@ struct CostUsageStoreBaselineTests {
 
         let refreshed = store.syncLoadCodexScan(calendar: calendar)
         defer { refreshed.release() }
+        #expect(paths.allSatisfy { refreshed.cache.files[$0]?.codexArchived == true })
         var archiveChanged = refreshed.cache
         let archivedPath = try #require(paths.first)
         archiveChanged.files[archivedPath]?.lastModel = "updated-archive-model"
