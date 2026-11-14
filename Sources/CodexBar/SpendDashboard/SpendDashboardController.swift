@@ -823,13 +823,13 @@ enum SpendDashboardSource {
                     store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)
                 }
             guard let current else { return "\(provider.rawValue):unavailable" }
-            if UsageStore.tokenCostRequiresProviderSnapshot(provider) {
-                guard let snapshot = self.dashboardTokenSnapshot(
-                    store: store, provider: provider, publication: current, piOwnsSource: false)
-                else { return "\(provider.rawValue):empty" }
-                let calendar = SpendDashboardModel.bucketCalendar(
-                    for: provider, displayCalendar: settings.costUsageBucketCalendar)
-                return "\(provider.rawValue):snapshot:\(self.snapshotRevision(snapshot, coverageCalendar: calendar))"
+            if UsageStore.tokenCostRequiresProviderSnapshot(provider),
+               let fingerprint = current.dashboardFingerprint
+            {
+                return "\(provider.rawValue):snapshot:\(fingerprint)"
+            }
+            if UsageStore.tokenCostRequiresProviderSnapshot(provider), current.snapshot == nil {
+                return "\(provider.rawValue):empty"
             }
             guard current.snapshot != nil else {
                 return "\(provider.rawValue):empty:\(current.publicationRevision)"
@@ -845,7 +845,7 @@ enum SpendDashboardSource {
         return revisions
     }
 
-    private static func snapshotRevision(
+    static func snapshotRevision(
         _ snapshot: CostUsageTokenSnapshot,
         coverageCalendar: Calendar? = nil) -> String
     {

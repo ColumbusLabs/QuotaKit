@@ -5,6 +5,71 @@ import Testing
 
 @MainActor
 struct OpenCodeGoPendingHistoryPublicationTests {
+    @Test(arguments: [false, true])
+    func `normal refresh retains prior cost while local history is pending`(hasPriorHistory: Bool) async throws {
+        let settings = testSettingsStore(
+            suiteName: "OpenCodeGoPendingHistoryRefreshTests", userDefaults: InMemoryUserDefaults())
+        settings.costUsageEnabled = true
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.costUsageBucketTimeZoneIdentifier = "UTC"
+        let metadata = try #require(ProviderRegistry.shared.metadata[.opencodego])
+        settings.setProviderEnabled(provider: .opencodego, metadata: metadata, enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        let now = Date()
+        let day = String(ISO8601DateFormatter().string(from: now).prefix(10))
+        let entry = CostUsageDailyReport.Entry(
+            date: day,
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 100,
+            costUSD: 3,
+            modelsUsed: ["fixture-model"],
+            modelBreakdowns: nil)
+        if hasPriorHistory {
+            let local = try OpenCodeGoUsageFetcher.parseAPIUsage(
+                text: #"{"usage":{"rolling":{"percent":40}}}"#, now: now).withDaily([entry])
+            store.publishProviderDerivedTokenSnapshot(from: local.toUsageSnapshot(), for: .opencodego)
+        }
+        let before = store.tokenSnapshotPublicationForCurrentProviderConfig(for: .opencodego)
+        let beforeRevision = store.tokenSnapshotPublicationRevision(for: .opencodego)
+        var remote = try OpenCodeGoUsageFetcher.parseAPIUsage(
+            text: #"{"usage":{"rolling":{"percent":50}}}"#, now: now)
+        remote.localHistoryPending = true
+        let pendingUsage = remote.toUsageSnapshot()
+        store._test_providerFetchOutcomeOverride = { _ in Self.outcome(pendingUsage) }
+        await store.refreshProvider(.opencodego, allowDisabled: true)
+        let pending = store.tokenSnapshotPublicationForCurrentProviderConfig(for: .opencodego)
+        #expect(pending?.publicationRevision == before?.publicationRevision)
+        #expect(pending?.snapshot == before?.snapshot)
+        #expect(store.snapshot(for: .opencodego)?.primary?.usedPercent == 50)
+
+        remote.localHistoryPending = false
+        let completeUsage = remote.toUsageSnapshot()
+        store._test_providerFetchOutcomeOverride = { _ in Self.outcome(completeUsage) }
+        await store.refreshProvider(.opencodego, allowDisabled: true)
+        let completed = try #require(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .opencodego))
+        #expect(completed.snapshot == nil)
+        #expect(completed.publicationRevision == beforeRevision + 1)
+    }
+
+    private static func outcome(_ snapshot: UsageSnapshot) -> ProviderFetchOutcome {
+        ProviderFetchOutcome(
+            result: .success(ProviderFetchResult(
+                usage: snapshot,
+                credits: nil,
+                dashboard: nil,
+                sourceLabel: "fixture",
+                strategyID: "fixture",
+                strategyKind: .localProbe)),
+            attempts: [])
+    }
+
     @Test
     func `pending local history does not publish a confirmed empty cost snapshot`() throws {
         let settings = testSettingsStore(

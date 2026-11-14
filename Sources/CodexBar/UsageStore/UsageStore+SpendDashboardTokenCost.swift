@@ -24,6 +24,7 @@ extension UsageStore {
               publication.scopeSignature == self.spendDashboardTokenSnapshotScopeSignature(for: provider)
         else { return nil }
         return CurrentProviderConfigTokenPublication(
+            dashboardFingerprint: nil,
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
             semanticFingerprint: publication.semanticFingerprint,
@@ -274,6 +275,7 @@ extension UsageStore {
     {
         self.spendDashboardTokenPublicationRevisions[provider.instanceID, default: 0] &+= 1
         self.spendDashboardTokenPublications[provider.instanceID] = TokenSnapshotPublication(
+            dashboardFingerprint: nil,
             snapshot: snapshot,
             publicationRevision: self.spendDashboardTokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),

@@ -192,6 +192,6 @@ struct ClaudeWeeklyOnlyPlanTests {
         let snapshot = UsageSnapshot(primary: nil, secondary: weekly, updatedAt: now)
         let windows = IconRemainingResolver.resolvedWindows(snapshot: snapshot, style: .claude, now: now)
         #expect(windows.primary == nil)
-        #expect(windows.secondary == weekly)
+        #expect(windows.secondary == nil)
     }
 }

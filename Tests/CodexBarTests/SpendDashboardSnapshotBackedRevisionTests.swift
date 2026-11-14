@@ -215,6 +215,7 @@ struct SpendDashboardSnapshotBackedRevisionTests {
             nowProvider: { now },
             publicationHandler: { _ = events.continuation.yield($0) })
         defer { controller.stop(); events.continuation.finish() }
+        controller.activateHistoryDemandForVisibleDashboard()
         var iterator = events.stream.makeAsyncIterator()
         for cycle in 0..<6 {
             let entry = CostUsageDailyReport.Entry(
@@ -239,6 +240,9 @@ struct SpendDashboardSnapshotBackedRevisionTests {
                 while let publication = await iterator.next() {
                     if !publication.isRefreshing { break }
                 }
+            }
+            for _ in 0..<200 where controller.model.groups.isEmpty {
+                try await Task.sleep(for: .milliseconds(10))
             }
             #expect(controller.model.groups.first?.totalTokens == 40)
             #expect(controller.model.groups.first?.totalCost == 3)
@@ -268,6 +272,9 @@ struct SpendDashboardSnapshotBackedRevisionTests {
             }
         }
         #expect(controller.failedSourceCount == 0)
+        for _ in 0..<200 where controller.model.groups.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(controller.model.groups.first?.totalCost == 3)
         #expect(controller.model.groups.first?.totalTokens == 40)
     }

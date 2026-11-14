@@ -9,6 +9,7 @@ struct CurrentProviderConfigTokenSnapshot: Sendable, Equatable {
 }
 
 struct CurrentProviderConfigTokenPublication: Sendable, Equatable {
+    let dashboardFingerprint: String?
     let snapshot: CostUsageTokenSnapshot?
     let publicationRevision: UInt64
     let semanticFingerprint: String?
@@ -16,6 +17,7 @@ struct CurrentProviderConfigTokenPublication: Sendable, Equatable {
 }
 
 struct TokenSnapshotPublication: Sendable, Equatable {
+    let dashboardFingerprint: String?
     let snapshot: CostUsageTokenSnapshot?
     let publicationRevision: UInt64
     let providerConfigRevision: UInt64
@@ -294,6 +296,7 @@ extension UsageStore {
             publication.scopeSignature.hasPrefix("codex:ambient|")
         guard currentProviderConfig || currentLocalCodexScope else { return nil }
         return CurrentProviderConfigTokenPublication(
+            dashboardFingerprint: publication.dashboardFingerprint,
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
             semanticFingerprint: publication.semanticFingerprint,
@@ -368,7 +371,20 @@ extension UsageStore {
     {
         self.tokenSnapshotPublicationRevisions[provider.instanceID, default: 0] &+= 1
         let displayed = snapshot?.reporting(self.settings.costReportingPeriod)
+        let dashboardFingerprint: String?
+        if Self.tokenCostRequiresProviderSnapshot(provider),
+           let usage = self.snapshot(for: provider.instanceID),
+           let fullSnapshot = self.tokenSnapshot(
+               fromProviderSnapshot: usage, provider: provider, historyDays: SpendDashboardSource.scanDays)
+        {
+            let calendar = SpendDashboardModel.bucketCalendar(
+                for: provider, displayCalendar: self.settings.costUsageBucketCalendar)
+            dashboardFingerprint = SpendDashboardSource.snapshotRevision(fullSnapshot, coverageCalendar: calendar)
+        } else {
+            dashboardFingerprint = nil
+        }
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
+            dashboardFingerprint: dashboardFingerprint,
             snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
@@ -397,6 +413,7 @@ extension UsageStore {
         let displayed = snapshot.reporting(self.settings.costReportingPeriod)
         self.tokenSnapshots[provider.instanceID] = displayed
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
+            dashboardFingerprint: nil,
             snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),

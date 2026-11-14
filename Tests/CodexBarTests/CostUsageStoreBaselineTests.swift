@@ -11,11 +11,17 @@ import CSQLite3
 struct CostUsageStoreBaselineTests {
     @Test
     func `archived file status does not force unchanged rows to be rewritten`() async throws {
+        let controlWrites = try await Self.archiveTransitionWrites(fileCount: 2)
+        let manyWrites = try await Self.archiveTransitionWrites(fileCount: 20)
+        #expect(manyWrites == controlWrites)
+    }
+
+    private static func archiveTransitionWrites(fileCount: Int) async throws -> Int {
         let fixture = try BaselineStoreFixture()
         defer { fixture.remove() }
         let calendar = Calendar(identifier: .gregorian)
         let store = CostUsageStore(cacheRoot: fixture.root)
-        let paths = (0..<20).map { fixture.root.appendingPathComponent("archived-\($0).jsonl").path }
+        let paths = (0..<fileCount).map { fixture.root.appendingPathComponent("archived-\($0).jsonl").path }
         let otherPath = fixture.root.appendingPathComponent("active.jsonl").path
         for path in paths {
             try Data().write(to: URL(fileURLWithPath: path + ".zst"))
@@ -53,8 +59,7 @@ struct CostUsageStoreBaselineTests {
             requireScanStamp: true)
         let after = await store.persistenceWriteMetricsForTesting()
         #expect(!result.catchUpRequired)
-        // Only the changed file and save metadata need writes.
-        #expect(after.rows - before.rows <= 9)
+        let writes = after.rows - before.rows
         #expect(store.syncLoadCodexCache(calendar: calendar).files[otherPath]?.lastModel == "fixture-model")
 
         let refreshed = store.syncLoadCodexScan(calendar: calendar)
@@ -74,6 +79,7 @@ struct CostUsageStoreBaselineTests {
             requireScanStamp: true)
         #expect(!archiveResult.catchUpRequired)
         #expect(store.syncLoadCodexCache(calendar: calendar).files[archivedPath]?.lastModel == "updated-archive-model")
+        return writes
     }
 
     @Test

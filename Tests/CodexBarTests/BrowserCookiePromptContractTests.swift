@@ -150,7 +150,8 @@ struct BrowserCookiePromptContractTests {
                     let session = try? MiniMaxCookieImporter.sessionCandidates(
                         browserDetection: detection,
                         loadRecords: { browser, _, _ in
-                            guard BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
+                            // Safari remains a candidate without Keychain access. This fixture has only Chrome data.
+                            guard browser == .chrome, BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
                             _ = try Self.readKey(for: browser, keychain: keychain)
                             reads.setValue(reads.value + 1)
                             let store = BrowserCookieStore(

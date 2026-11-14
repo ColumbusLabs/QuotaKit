@@ -902,7 +902,9 @@ extension UsageStore {
         if provider == .deepseek {
             self.clearDeepSeekProfileTransition()
         }
-        if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
+        if backfilled.opencodegoUsage?.localHistoryPending == true {
+            self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
+        } else if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
             self.publishTokenSnapshot(tokenSnapshot, for: provider)
             self.tokenErrors[provider.instanceID] = nil
             self.tokenFailureGates[provider.instanceID]?.recordSuccess()
