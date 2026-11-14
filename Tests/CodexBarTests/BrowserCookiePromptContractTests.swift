@@ -133,12 +133,15 @@ struct BrowserCookiePromptContractTests {
             nil) == SQLITE_OK)
         sqlite3_close(db)
         let detection = BrowserDetection(
-            homeDirectory: home.path, cacheTTL: 0, now: Date.init,
+            homeDirectory: home.path,
+            cacheTTL: 0,
+            now: Date.init,
             fileExists: {
                 $0 == "/Applications/\(Browser.chrome.appBundleName).app" || FileManager.default.fileExists(atPath: $0)
             },
             directoryContents: { try? FileManager.default.contentsOfDirectory(atPath: $0) },
-            applicationURLs: { _ in [] }, profileAccessIssue: { _ in nil })
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
         let keychain = FakeKeychain(promptFreeBrowser: .chrome)
         let reads = LockIsolated(0)
         self.withFakeKeychain {
@@ -146,8 +149,7 @@ struct BrowserCookiePromptContractTests {
                 ProviderInteractionContext.$current.withValue(.background) {
                     let session = try? MiniMaxCookieImporter.sessionCandidates(
                         browserDetection: detection,
-                        loadRecords: {
-                            browser, _, _ in
+                        loadRecords: { browser, _, _ in
                             guard BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
                             _ = try Self.readKey(for: browser, keychain: keychain)
                             reads.setValue(reads.value + 1)
@@ -158,8 +160,13 @@ struct BrowserCookiePromptContractTests {
                                 label: browser.displayName,
                                 databaseURL: nil)
                             let record = BrowserCookieRecord(
-                                domain: "minimax.io", name: "HERTZ-SESSION", path: "/", value: "synthetic-session",
-                                expires: nil, isSecure: true, isHTTPOnly: true)
+                                domain: "minimax.io",
+                                name: "HERTZ-SESSION",
+                                path: "/",
+                                value: "synthetic-session",
+                                expires: nil,
+                                isSecure: true,
+                                isHTTPOnly: true)
                             return [BrowserCookieStoreRecords(store: store, records: [record])]
                         }).first(where: { _ in true })
                     #expect(session?.cookieHeader == (preflight == .allowed ? "HERTZ-SESSION=synthetic-session" : nil))

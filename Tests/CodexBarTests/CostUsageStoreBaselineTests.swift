@@ -43,8 +43,13 @@ struct CostUsageStoreBaselineTests {
         changed.files[otherPath]?.lastModel = "fixture-model"
         let before = await store.persistenceWriteMetricsForTesting()
         let result = CostUsageStoreAccess.save(
-            store: store, cache: changed, calendar: calendar, requestedScanWindow: window,
-            skipIdenticalContent: true, expectedScanStamp: loaded.scanStamp, receipt: loaded.receipt,
+            store: store,
+            cache: changed,
+            calendar: calendar,
+            requestedScanWindow: window,
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            receipt: loaded.receipt,
             requireScanStamp: true)
         let after = await store.persistenceWriteMetricsForTesting()
         #expect(!result.catchUpRequired)
@@ -59,8 +64,13 @@ struct CostUsageStoreBaselineTests {
         let archivedPath = try #require(paths.first)
         archiveChanged.files[archivedPath]?.lastModel = "updated-archive-model"
         let archiveResult = CostUsageStoreAccess.save(
-            store: store, cache: archiveChanged, calendar: calendar, requestedScanWindow: window,
-            skipIdenticalContent: true, expectedScanStamp: refreshed.scanStamp, receipt: refreshed.receipt,
+            store: store,
+            cache: archiveChanged,
+            calendar: calendar,
+            requestedScanWindow: window,
+            skipIdenticalContent: true,
+            expectedScanStamp: refreshed.scanStamp,
+            receipt: refreshed.receipt,
             requireScanStamp: true)
         #expect(!archiveResult.catchUpRequired)
         #expect(store.syncLoadCodexCache(calendar: calendar).files[archivedPath]?.lastModel == "updated-archive-model")
