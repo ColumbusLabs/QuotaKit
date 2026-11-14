@@ -77,7 +77,14 @@ public struct VeniceUsageSnapshot: Sendable {
         let activeCurrency = self.consumptionCurrency?.uppercased()
 
         if !self.canConsume {
-            balanceDetail = "Balance unavailable for API calls"
+            if let usd = self.usdBalance, activeCurrency == "USD" || self.diemBalance == nil {
+                let magnitude = String(format: "%.2f", abs(usd))
+                balanceDetail = usd < 0 ? "-$\(magnitude)" : "$\(magnitude)"
+            } else if let diem = self.diemBalance {
+                balanceDetail = "DIEM \(String(format: "%.2f", diem))"
+            } else {
+                balanceDetail = "Balance unavailable for API calls"
+            }
             usedPercent = 100
         } else if activeCurrency == "USD", let usd = self.usdBalance, usd > 0 {
             let usdStr = String(format: "%.2f", usd)

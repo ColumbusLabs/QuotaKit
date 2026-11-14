@@ -76,7 +76,9 @@ public enum MiniMaxCookieImporter {
     static func sessionCandidates(
         browserDetection: BrowserDetection,
         region: MiniMaxAPIRegion? = nil,
-        logger: ((String) -> Void)? = nil) throws -> AnySequence<SessionInfo>
+        logger: ((String) -> Void)? = nil,
+        loadRecords: ((Browser, BrowserCookieQuery, ((String) -> Void)?) throws -> [BrowserCookieStoreRecords])? = nil)
+        throws -> AnySequence<SessionInfo>
     {
         try BrowserCookieImportSupport.collectSessions(
             from: minimaxCookieImportOrder.lazyCookieImportCandidates(using: browserDetection),
@@ -84,10 +86,11 @@ public enum MiniMaxCookieImporter {
             logger: { self.emit(
                 $0,
                 logger: logger) },
-            load: { try self.importSessions(
+            load: { try self.sessions(
                 from: $0,
                 region: region,
-                logger: logger) })
+                logger: logger,
+                loadRecords: loadRecords) })
     }
 
     public static func importSessions(
@@ -95,12 +98,20 @@ public enum MiniMaxCookieImporter {
         region: MiniMaxAPIRegion? = nil,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
+        try self.sessions(from: browserSource, region: region, logger: logger, loadRecords: nil)
+    }
+
+    private static func sessions(
+        from browserSource: Browser,
+        region: MiniMaxAPIRegion?,
+        logger: ((String) -> Void)?,
+        loadRecords: ((Browser, BrowserCookieQuery, ((String) -> Void)?) throws -> [BrowserCookieStoreRecords])?)
+        throws -> [SessionInfo]
+    {
         let query = self.cookieQuery
         let log: (String) -> Void = { msg in self.emit(msg, logger: logger) }
-        let sources = try Self.cookieClient.codexBarRecords(
-            matching: query,
-            in: browserSource,
-            logger: log)
+        let sources = try loadRecords?(browserSource, query, log)
+            ?? Self.cookieClient.codexBarRecords(matching: query, in: browserSource, logger: log)
 
         var sessions: [SessionInfo] = []
         let grouped = Dictionary(grouping: sources, by: { $0.store.profile.id })

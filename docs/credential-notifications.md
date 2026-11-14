@@ -37,3 +37,6 @@ credential reads, refreshes, login flows, or browser imports.
 
 Focused tests use injected power/notification APIs, dictionary defaults, and synthetic fetch outcomes;
 they never deliver real notifications or access credentials.
+
+Notification withdrawal, including stale delivery cleanup, runs on a serial background queue to keep the menu
+responsive if the system notification service stalls.

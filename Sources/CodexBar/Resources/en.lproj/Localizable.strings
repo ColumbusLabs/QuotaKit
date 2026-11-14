@@ -2938,3 +2938,4 @@
 "Tripo request failed. Try refreshing later." = "Tripo request failed. Try refreshing later.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo returned an unrecognized response. Update QuotaKit and try again.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key.";

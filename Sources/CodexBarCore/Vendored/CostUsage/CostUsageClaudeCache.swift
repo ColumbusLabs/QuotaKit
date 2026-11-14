@@ -131,7 +131,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     #endif
     static let persistedVersion = 1
     /// Bump when pricing, aliases, row identity, or report aggregation changes without new artifact stamps.
-    static let reportSemanticsVersion = 9
+    static let reportSemanticsVersion = 10
 
     private struct StoredEntry {
         let entry: Entry

@@ -2938,3 +2938,4 @@
 "Tripo request failed. Try refreshing later." = "La sol·licitud a Tripo ha fallat. Torna a actualitzar més tard.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo ha retornat una resposta desconeguda. Actualitza QuotaKit i torna-ho a provar.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Utilitza una clau API amb el permís user_read per consultar l'ús de la subscripció. L'ordre desa una clau independent; el compte de clau API seleccionat té prioritat.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "L'ordre llegeix una clau d'API rebuda per una canonada i la desa com a clau independent. Un compte de token d'API seleccionat té prioritat sobre la clau independent.";

@@ -2940,3 +2940,4 @@
 "Tripo request failed. Try refreshing later." = "فشل طلب Tripo. حاول التحديث لاحقًا.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "أعاد Tripo استجابة غير معروفة. حدّث QuotaKit وحاول مجددًا.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "استخدم مفتاح API بصلاحية user_read للوصول إلى بيانات استخدام الاشتراك. يحفظ الأمر مفتاحًا مستقلًا؛ وتكون الأولوية لحساب مفتاح API المحدد.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "يقرأ الأمر مفتاح API من الإدخال المُمرَّر عبر أنبوب ويحفظه كمفتاح مستقل. يتجاوز حساب رمز API المحدد المفتاح المستقل.";

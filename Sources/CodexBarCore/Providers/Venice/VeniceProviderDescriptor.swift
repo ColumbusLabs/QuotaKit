@@ -55,6 +55,7 @@ public enum VeniceProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Venice per-day cost history is not available via API." }),
+            presentation: .init(menuCard: .init(usesRawPrimaryResetDescription: true)),
             fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "venice",

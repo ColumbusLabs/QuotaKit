@@ -17,6 +17,17 @@ DeepInfra is API-only. QuotaKit uses DeepInfra's documented billing endpoints an
 
 You can instead set `DEEPINFRA_API_KEY` or `DEEPINFRA_TOKEN` in QuotaKit's environment. `DEEPINFRA_API_KEY` takes precedence when both are present.
 
+On macOS and Linux, pipe a key into the CLI to save a standalone key in the
+[resolved configuration file](cli-configuration.md):
+
+```sh
+printf '%s' "$DEEPINFRA_API_KEY" | quotakit config set-api-key --provider deepinfra --stdin
+```
+
+The command enables DeepInfra by default. Add `--no-enable` to save without enabling it. It preserves saved
+API-token accounts and their selection. A selected API-token account overrides the standalone key. Saving does not
+validate the key. `quotakit config providers --json` describes the static setup route without reporting readiness.
+
 ## Data source
 
 The bundled JavaScript plugin handles billing requests and parsing on both QuickJS and JavaScriptCore. It is always

@@ -5,6 +5,13 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-14)
+
+- Improve quota recovery and setup guidance for TypeSafe, Venice, MiniMax, MuseAI, Droid, and DeepInfra.
+- Keep menu bar meters aligned, show a single meter for weekly-only Claude plans, and keep notification cleanup off the main thread.
+- Suppress redundant spend dashboard reloads, withhold shares for unpriced requests, and add Claude Mythos 5.2 rates.
+- Bound OpenCode Go background history scans and skip redundant writes for archived Codex rollouts.
+
 ## Unreleased upstream integration (2026-11-08)
 
 - Identify subscription and model rows with provider marks on Spend Dashboard share cards.

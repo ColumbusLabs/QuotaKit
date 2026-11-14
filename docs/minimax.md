@@ -22,7 +22,8 @@ falls back across the provider's supported web requests when needed.
      returns 404.
 
 2) **Cached/imported browser session** (automatic web path)
-   - Uses QuotaKit's standard cookie cache and browser import flow.
+   - Uses QuotaKit's standard cookie cache and browser import flow. Automatic app refreshes can reimport expired sessions using prompt-free background reads.
+   - Manual and Off do not use cached or automatically imported sessions. The CLI does not import browsers automatically.
 
 3) **Browser cookie import** (automatic)
    - Uses provider metadata for browser order and MiniMax domain filters.

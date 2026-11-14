@@ -212,6 +212,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         if Self.resolveCookieOverride(context: context) != nil {
             return true
         }
+        guard (context.settings?.minimax?.cookieSource ?? .auto) == .auto else { return false }
         #if os(macOS)
         let region = context.settings?.minimax?.apiRegion ?? .global
         if Self.loadScopedCache(region: region) != nil { return true }
@@ -245,6 +246,9 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                 sourceLabel: "web")
         }
 
+        guard (context.settings?.minimax?.cookieSource ?? .auto) == .auto else {
+            throw MiniMaxSettingsError.missingCookie
+        }
         #if os(macOS)
         var lastError: Error?
         let scope = Self.cacheScope(region: fetchContext.region)
@@ -350,7 +354,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     }
 
     static func allowsBrowserCookieImport(context: ProviderFetchContext) -> Bool {
-        context.runtime == .app && ProviderInteractionContext.current == .userInitiated
+        context.runtime == .app && (context.settings?.minimax?.cookieSource ?? .auto) == .auto
     }
 
     #if os(macOS)

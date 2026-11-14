@@ -280,7 +280,7 @@ accepted request is unpriced. This opt-in mode does not change ordinary cost rep
   - Previously scanned Codex rollouts retained as `X.jsonl.zst` keep their cached usage in either Codex root.
     If the plain `X.jsonl` is restored, it takes precedence and the rollout is counted once. QuotaKit does not
     decompress archives or backfill archives it never scanned as plain files. Narrower history windows retain
-    cached archive rows. Clearing the cost cache removes this retained history. If the reporting time zone changes
+    cached archive rows. Refreshes skip rewriting unchanged archive rows. Clearing the cost cache removes this retained history. If the reporting time zone changes
     and the plain logs are unavailable, refresh reports an error and preserves the cache; restore the original logs
     or use the previous time zone to resume. An unrecognized incompatible cache producer also leaves compressed-only
     history untouched and unavailable rather than reconstructing dates or usage.
