@@ -2709,7 +2709,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "claude@15",
                 "codex@17",
                 "deepseek@23",
-                "xai@30",
+                "xai@32",
             ],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(

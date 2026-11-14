@@ -192,7 +192,6 @@ struct SpendDashboardSnapshotBackedRevisionTests {
             suiteName: "SpendDashboardSnapshotBackedRevisionTests-work", snapshotBackedProvider: .openrouter)
         defer { fixture.cleanup() }
         let now = Self.sameDayScanTimes(calendar: fixture.settings.costUsageBucketCalendar).first
-        let events = AsyncStream<SpendDashboardPublication>.makeStream()
         let failures = RefreshFailure()
         let controller = SpendDashboardController(
             userDefaults: InMemoryUserDefaults(),
@@ -212,11 +211,9 @@ struct SpendDashboardSnapshotBackedRevisionTests {
                 if await failures.get() { return .init(inputs: [], failedSourceIDs: ["openrouter"]) }
                 return .init(inputs: request.capturedInputs, failedSourceIDs: [])
             },
-            nowProvider: { now },
-            publicationHandler: { _ = events.continuation.yield($0) })
-        defer { controller.stop(); events.continuation.finish() }
+            nowProvider: { now })
+        defer { controller.stop() }
         controller.activateHistoryDemandForVisibleDashboard()
-        var iterator = events.stream.makeAsyncIterator()
         for cycle in 0..<6 {
             let entry = CostUsageDailyReport.Entry(
                 date: Self.dayKey(now, calendar: fixture.settings.costUsageBucketCalendar),
@@ -232,16 +229,11 @@ struct SpendDashboardSnapshotBackedRevisionTests {
                 provider: .openrouter,
                 daily: [entry],
                 scannedAt: now.addingTimeInterval(Double(cycle * 60)))
-            let previous = controller.generation
             controller.update(configuration: SpendDashboardSource.configuration(
                 settings: fixture.settings,
                 store: fixture.store))
-            if controller.generation != previous {
-                while let publication = await iterator.next() {
-                    if !publication.isRefreshing { break }
-                }
-            }
-            for _ in 0..<200 where controller.model.groups.isEmpty {
+            for _ in 0..<500 {
+                if !controller.isRefreshing, !controller.model.groups.isEmpty { break }
                 try await Task.sleep(for: .milliseconds(10))
             }
             #expect(controller.model.groups.first?.totalTokens == 40)
@@ -250,11 +242,17 @@ struct SpendDashboardSnapshotBackedRevisionTests {
         print("[snapshot-refresh-work] refreshes=6 loads=\(controller.generation) tokens=40 cost=3")
         #expect(controller.generation == 1)
         await failures.set(true)
+        let beforeFailure = controller.generation
         controller.refresh()
-        while let publication = await iterator.next() {
-            if !publication.isRefreshing { break }
+        for _ in 0..<500 {
+            if controller.generation > beforeFailure, !controller.isRefreshing, controller.failedSourceCount == 1 {
+                break
+            }
+            try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(controller.failedSourceCount == 1)
+        try #require(controller.generation > beforeFailure)
+        try #require(!controller.isRefreshing)
+        try #require(controller.failedSourceCount == 1)
         await failures.set(false)
         let priorGeneration = controller.generation
         try Self.completeRefresh(
@@ -266,15 +264,14 @@ struct SpendDashboardSnapshotBackedRevisionTests {
             settings: fixture.settings,
             store: fixture.store))
         #expect(controller.generation > priorGeneration)
-        if controller.generation > priorGeneration {
-            while let publication = await iterator.next() {
-                if !publication.isRefreshing { break }
+        for _ in 0..<500 {
+            if controller.generation > priorGeneration, !controller.isRefreshing, controller.failedSourceCount == 0 {
+                break
             }
-        }
-        #expect(controller.failedSourceCount == 0)
-        for _ in 0..<200 where controller.model.groups.isEmpty {
             try await Task.sleep(for: .milliseconds(10))
         }
+        #expect(!controller.isRefreshing)
+        #expect(controller.failedSourceCount == 0)
         #expect(controller.model.groups.first?.totalCost == 3)
         #expect(controller.model.groups.first?.totalTokens == 40)
     }
