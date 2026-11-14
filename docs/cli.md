@@ -51,7 +51,8 @@ JSON output includes built-in provider authentication metadata: supported source
 OpenAI API distinguishes Admin access from legacy balance access, and Azure OpenAI requires a key, endpoint,
 and deployment. ElevenLabs declares an API-key route with `user_read` permission. The route lists both
 environment variable names and the saved-account alternative. Its stdin command saves a standalone key.
-A selected API key account takes priority. Providers without setup guidance and user plugins report
+A selected API key account takes priority. DeepInfra declares standalone config, selected saved accounts,
+and both API-key environment variables. Providers without setup guidance and user plugins report
 `status: "unknown"`. The existing `authentication` fields remain available.
 
 Routes are alternatives; all `requiredInputs` in one route are required together. Each input lists alternative

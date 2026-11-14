@@ -2927,3 +2927,4 @@
 "Tripo request failed. Try refreshing later." = "Запит до Tripo не виконано. Спробуйте оновити пізніше.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Для перегляду використання передплати використовуйте ключ API з дозволом user_read. Команда зберігає окремий ключ; вибраний обліковий запис ключа API має пріоритет.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Команда зчитує ключ API, переданий через канал, і зберігає його як окремий ключ. Вибраний обліковий запис із токеном API має пріоритет над окремим ключем.";

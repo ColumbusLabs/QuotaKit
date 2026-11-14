@@ -2938,3 +2938,4 @@
 "Tripo request failed. Try refreshing later." = "Tripo isteği başarısız oldu. Daha sonra yeniden yenileyin.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Abonelik kullanımını görüntülemek için user_read iznine sahip bir API anahtarı kullanın. Komut bağımsız bir anahtar kaydeder; seçili API anahtarı hesabı önceliklidir.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Komut, boru üzerinden iletilen bir API anahtarını okur ve bağımsız bir anahtar olarak kaydeder. Seçili bir API belirteci hesabı, bağımsız anahtardan önceliklidir.";

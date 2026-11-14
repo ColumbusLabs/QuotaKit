@@ -45,6 +45,10 @@ payload of at most 4 MiB (row storage plus model text, excluding allocator overh
 remain readable but are not cached. Exact row timestamps let quota windows, resets, and requested history ranges
 advance on cache hits. Separate CLI invocations each perform their own initial scan.
 
+Auto waits up to five seconds for local history while obtaining remote quota. A running scan can complete and warm
+the cache, while obsolete queued work is cancelled. Pending history retains the last same-scope cost snapshot or
+leaves cost unavailable until the scan finishes. Without remote quota, Auto waits for the local estimate.
+
 The shared [OpenCode guide](opencode.md) documents authentication, scoped source selection, usage mapping, and the
 boundary between device-local estimates and account quota. Keep those details there so the two guides do not drift.
 

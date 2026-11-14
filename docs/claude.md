@@ -178,7 +178,7 @@ to another credential source.
   - `iguana_necktie` → promotional Cloud credits, separate from prepaid Extra usage.
 - Preferences → Providers → Claude → Visible usage items lets you hide the Daily Routines and Cloud credits rows in
   menus, the Settings preview, and Overview. The global optional credits and extra usage setting remains their master
-  switch. Hiding either row does not change fetching, history, notifications, widgets, model-scoped weekly limits,
+  switch. The menu bar icon uses one measured weekly meter when the session quota is unavailable. Hiding either row does not change fetching, history, notifications, widgets, model-scoped weekly limits,
   hooks, or CLI output.
 - Preferences → Providers → Claude → Show model-specific weekly usage in widgets controls model-scoped weekly quota
   rows in desktop widgets. It is on by default and displays every known Claude window with a
@@ -453,6 +453,7 @@ of retaining values from another profile.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
+  - Local Claude Mythos 5.2 estimates use Anthropic's published model-specific input, output, and cache rates.
   - Completed requests with unknown model pricing retain their token counts and mark the day as unpriced coverage.
     Usage & Spend keeps dollars from priced requests and days as a lower bound; it never treats an unknown price as zero.
   - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).

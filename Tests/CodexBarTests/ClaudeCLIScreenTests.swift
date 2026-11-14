@@ -33,6 +33,18 @@ struct ClaudeCLIScreenTests {
     }
 
     @Test
+    func `weekly only redraw completes capture and preserves reset spacing`() throws {
+        let capture = try Self.fixture("usage-pty-weekly-only").replacingOccurrences(of: "\n", with: "\r\n")
+        let normalized = ClaudeCLIScreen.render(capture).lowercased().filter { !$0.isWhitespace }
+        #expect(ClaudeStatusProbe.usageCaptureIsComplete(normalized))
+        let snapshot = try ClaudeStatusProbe.parse(text: capture)
+        #expect(snapshot.sessionPercentLeft == nil)
+        #expect(snapshot.weeklyPercentLeft == 45)
+        #expect(snapshot.secondaryResetDescription == "Resets Sep 23 at 3pm (Europe/Stockholm)")
+        #expect(snapshot.extraRateWindows.first?.window.usedPercent == 14)
+    }
+
+    @Test
     func `differential usage fixture preserves scoped quota and reset spacing`() throws {
         let text = try Self.fixture("usage-differential-redraw")
         #expect(TextParsing.stripANSICodes(text).contains("51%usd"))

@@ -5,6 +5,22 @@ import Testing
 /// Mythos is available to verified organizations and its rates are published by Anthropic.
 struct CostUsagePricingClaudeMythosTests {
     @Test
+    func `claude cost supports mythos 5 point 2 bundled fallback`() throws {
+        let emptyCacheRoot = try Self.cacheRoot()
+        defer { try? FileManager.default.removeItem(at: emptyCacheRoot) }
+        let cost = CostUsagePricing.claudeCostUSD(
+            model: "claude-mythos-5-2",
+            inputTokens: 100,
+            cacheReadInputTokens: 20,
+            cacheCreationInputTokens: 30,
+            cacheCreationInputTokens1h: 20,
+            outputTokens: 5,
+            modelsDevCacheRoot: emptyCacheRoot)
+        let expected = (100.0 * 8e-6) + (20.0 * 2e-7) + (10.0 * 1e-5) + (20.0 * 1.6e-5) + (5.0 * 4e-5)
+        #expect(cost == expected)
+    }
+
+    @Test
     func `claude cost supports mythos 5 point 1 bundled fallback`() throws {
         let emptyCacheRoot = try Self.cacheRoot()
         defer { try? FileManager.default.removeItem(at: emptyCacheRoot) }

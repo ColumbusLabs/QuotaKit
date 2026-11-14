@@ -11,6 +11,7 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
     let codexAccountDisplayNames: [String: String]
     let sourceOwnershipFingerprints: [String]
     let sourceRevisions: [String]
+    let sourcePublicationRevisions: [UInt64]
     let bucketTimeZoneIdentifier: String
     let openCodexUsageLogsEnabled: Bool
     let hideNativeCodexCostWhenOpenCodexPresent: Bool
@@ -29,6 +30,7 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
         codexAccountDisplayNames: [String: String] = [:],
         sourceOwnershipFingerprints: [String] = [],
         sourceRevisions: [String] = [],
+        sourcePublicationRevisions: [UInt64] = [],
         bucketTimeZoneIdentifier: String = "",
         openCodexUsageLogsEnabled: Bool = false,
         hideNativeCodexCostWhenOpenCodexPresent: Bool = false,
@@ -43,12 +45,27 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
         self.codexAccountDisplayNames = codexAccountDisplayNames
         self.sourceOwnershipFingerprints = sourceOwnershipFingerprints
         self.sourceRevisions = sourceRevisions
+        self.sourcePublicationRevisions = sourcePublicationRevisions
         self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
         self.openCodexUsageLogsEnabled = openCodexUsageLogsEnabled
         self.hideNativeCodexCostWhenOpenCodexPresent = hideNativeCodexCostWhenOpenCodexPresent
         self.hiddenSourceIDs = hiddenSourceIDs
         self.menuOwnershipFingerprint = menuOwnershipFingerprint
         self.codexHistoryDays = codexHistoryDays
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.costUsageEnabled == rhs.costUsageEnabled && lhs.preferredCurrencyCode == rhs.preferredCurrencyCode &&
+            lhs.providerIDs == rhs.providerIDs && lhs.codexAccountIdentities == rhs.codexAccountIdentities &&
+            lhs.codexAccountDisplayNames == rhs.codexAccountDisplayNames &&
+            lhs.sourceOwnershipFingerprints == rhs.sourceOwnershipFingerprints &&
+            lhs.sourceRevisions == rhs.sourceRevisions && lhs.bucketTimeZoneIdentifier == rhs
+            .bucketTimeZoneIdentifier &&
+            lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled &&
+            lhs.hideNativeCodexCostWhenOpenCodexPresent == rhs.hideNativeCodexCostWhenOpenCodexPresent &&
+            lhs.hiddenSourceIDs == rhs.hiddenSourceIDs && lhs.menuOwnershipFingerprint == rhs
+            .menuOwnershipFingerprint &&
+            lhs.codexHistoryDays == rhs.codexHistoryDays
     }
 
     var supportsCodexDetails: Bool {
@@ -242,6 +259,8 @@ enum SpendDashboardSource {
                 settings: settings,
                 store: store),
             sourceRevisions: self.sourceRevisions(providers: providers, settings: settings, store: store),
+            sourcePublicationRevisions: providers.filter(UsageStore.tokenCostRequiresProviderSnapshot)
+                .map { store.tokenSnapshotPublicationRevision(for: $0) },
             bucketTimeZoneIdentifier: settings.costUsageBucketTimeZoneIdentifier,
             openCodexUsageLogsEnabled: settings.openCodexUsageLogsEnabled,
             hideNativeCodexCostWhenOpenCodexPresent: settings.hideNativeCodexCostWhenOpenCodexPresent,
@@ -804,6 +823,14 @@ enum SpendDashboardSource {
                     store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)
                 }
             guard let current else { return "\(provider.rawValue):unavailable" }
+            if UsageStore.tokenCostRequiresProviderSnapshot(provider),
+               let fingerprint = current.dashboardFingerprint
+            {
+                return "\(provider.rawValue):snapshot:\(fingerprint)"
+            }
+            if UsageStore.tokenCostRequiresProviderSnapshot(provider), current.snapshot == nil {
+                return "\(provider.rawValue):empty"
+            }
             guard current.snapshot != nil else {
                 return "\(provider.rawValue):empty:\(current.publicationRevision)"
             }
@@ -816,6 +843,65 @@ enum SpendDashboardSource {
                 "independent-trigger-\(provider.rawValue):\(trigger.regularPublicationRevision):\(inFlight)")
         }
         return revisions
+    }
+
+    static func snapshotRevision(
+        _ snapshot: CostUsageTokenSnapshot,
+        coverageCalendar: Calendar? = nil) -> String
+    {
+        var encoder = SnapshotBackedRevisionEncoder()
+        encoder.append(snapshot.currencyCode)
+        encoder.append(snapshot.historyDays)
+        encoder.append(snapshot.historyCoverageIsEstablished)
+        encoder.append(snapshot.detailsAreComplete)
+        // Content-backed sources still advance at their coverage-day boundary, not every fetch.
+        let coverageDate = coverageCalendar?.startOfDay(for: snapshot.updatedAt) ?? snapshot.updatedAt
+        encoder.append(coverageDate.timeIntervalSinceReferenceDate)
+        encoder.append(snapshot.historyScanIsPartial)
+        encoder.append(snapshot.historySinceDayKey ?? "")
+        encoder.append(snapshot.historyUntilDayKey ?? "")
+        encoder.append(snapshot.historyLabel ?? "")
+        encoder.append(snapshot.meteredCostUSD)
+        encoder.append(snapshot.costProvenance.rawValue)
+        encoder.append(snapshot.last30DaysTokens)
+        encoder.append(snapshot.last30DaysCostUSD)
+        encoder.append(snapshot.last30DaysRequests)
+        // Reuse the daily model's complete encoding rather than a second field list that can drift.
+        let contentEncoder = JSONEncoder()
+        contentEncoder.outputFormatting = [.sortedKeys]
+        contentEncoder.nonConformingFloatEncodingStrategy = .convertToString(
+            positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
+        encoder.append((try? contentEncoder.encode(snapshot.daily)) ?? Data())
+        encoder.append(snapshot.hourly.count)
+        for entry in snapshot.hourly {
+            encoder.append(entry.hour.timeIntervalSinceReferenceDate)
+            encoder.append(entry.tokensAreComplete)
+            encoder.append(entry.costIsComplete)
+            encoder.append(entry.totalTokens)
+            encoder.append(entry.costUSD)
+        }
+        encoder.append(snapshot.projects.count)
+        encoder.append(snapshot.sessions.count)
+        for project in snapshot.projects {
+            encoder.append(project.name)
+            encoder.append(project.isProjectless)
+            encoder.append(project.path ?? "")
+            encoder.append(project.totalTokens)
+            encoder.append(project.totalCostUSD)
+            encoder.append((try? contentEncoder.encode(project.daily)) ?? Data())
+            encoder.append((try? contentEncoder.encode(project.modelBreakdowns ?? [])) ?? Data())
+        }
+        for session in snapshot.sessions {
+            encoder.append(session.sessionID)
+            encoder.append(session.lastActivity.timeIntervalSinceReferenceDate)
+            encoder.append(session.totalTokens)
+            encoder.append(session.costUSD)
+            encoder.append(session.requestCount)
+            encoder.append(session.title ?? "")
+            encoder.append(session.projectPath ?? "")
+            encoder.append((try? contentEncoder.encode(session.modelBreakdowns)) ?? Data())
+        }
+        return encoder.finalize()
     }
 
     @MainActor
@@ -1185,11 +1271,13 @@ final class SpendDashboardController {
             self.startLoad(configuration: configuration, phase: .forcing)
             return
         }
-        guard configuration != self.configuration else { return }
+        let hasRecoveryPublication = self.failedSourceCount > 0 &&
+            configuration.sourcePublicationRevisions != self.configuration?.sourcePublicationRevisions
+        guard configuration != self.configuration || hasRecoveryPublication else { return }
         let previousConfiguration = self.configuration
         // Fast-path: display-only changes (filter, currency, hide flag) require
         // only a model rebuild — no Codex scan or token capture.
-        if let previousConfiguration,
+        if !hasRecoveryPublication, let previousConfiguration,
            Self.isDisplayOnlyConfigurationChange(from: previousConfiguration, to: configuration)
         {
             self.configuration = configuration
@@ -2127,5 +2215,66 @@ extension SpendDashboardController {
         self.dashboardSnapshotLoadedAt = nil
         self.isHistoryDemandActive = false
         self.publishCurrentState()
+    }
+}
+
+private struct SnapshotBackedRevisionEncoder {
+    private var hasher = SHA256()
+
+    mutating func append(_ value: String) {
+        self.append(Data(value.utf8))
+    }
+
+    mutating func append(_ data: Data) {
+        self.append(UInt64(data.count))
+        self.hasher.update(data: data)
+    }
+
+    mutating func append(_ value: Int) {
+        self.append(UInt64(bitPattern: Int64(value)))
+    }
+
+    mutating func append(_ value: Int?) {
+        guard let value else {
+            self.appendPresence(false)
+            return
+        }
+        self.appendPresence(true)
+        self.append(value)
+    }
+
+    mutating func append(_ value: Bool) {
+        self.appendPresence(value)
+    }
+
+    mutating func append(_ value: Double) {
+        self.append(value.bitPattern)
+    }
+
+    mutating func append(_ value: Double?) {
+        guard let value else {
+            self.appendPresence(false)
+            return
+        }
+        self.appendPresence(true)
+        self.append(value)
+    }
+
+    mutating func finalize() -> String {
+        self.hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private mutating func appendPresence(_ isPresent: Bool) {
+        var byte: UInt8 = isPresent ? 1 : 0
+        withUnsafeBytes(of: &byte) { bytes in
+            self.hasher.update(data: Data(bytes))
+        }
+    }
+
+    private mutating func append(_ value: UInt64) {
+        var value = value.bigEndian
+        withUnsafeBytes(of: &value) { bytes in
+            self.hasher.update(data: Data(bytes))
+        }
     }
 }

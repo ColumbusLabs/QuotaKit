@@ -257,7 +257,12 @@ public enum ClaudeProviderDescriptor {
             prioritizesExhaustedQuotas: false,
             now: context.now))
         if case let .resolved(window) = resolution { return .init(primary: window, secondary: nil) }
-        return .init(primary: context.snapshot.primary?.measured, secondary: context.snapshot.secondary)
+        let primary = context.snapshot.primary?.measured
+        let secondary = context.snapshot.secondary
+        if primary == nil, let weekly = secondary?.measured {
+            return .init(primary: weekly, secondary: nil)
+        }
+        return .init(primary: primary, secondary: secondary)
     }
 
     private static let pipeline = ProviderFetchPipeline(

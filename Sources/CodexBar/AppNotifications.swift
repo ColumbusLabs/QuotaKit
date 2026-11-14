@@ -54,8 +54,9 @@ final class AppNotifications {
                     authorize: { await self.ensureAuthorized() },
                     submit: { try await center.add(request) },
                     remove: {
-                        center.removePendingNotificationRequests(withIdentifiers: [request.identifier])
-                        center.removeDeliveredNotifications(withIdentifiers: [request.identifier])
+                        await withCheckedContinuation { continuation in
+                            self.remove(identifier: request.identifier) { continuation.resume() }
+                        }
                     },
                     isCurrent: isCurrent)
                 onCompletion?(delivered)
@@ -67,29 +68,48 @@ final class AppNotifications {
         }
     }
 
-    func remove(identifier: String) {
-        guard !Self.isRunningUnderTests else { return }
-        let center = self.centerProvider()
-        center.removePendingNotificationRequests(withIdentifiers: [identifier])
-        center.removeDeliveredNotifications(withIdentifiers: [identifier])
+    func remove(identifier: String, completion: @escaping @Sendable () -> Void = {}) {
+        guard !Self.isRunningUnderTests else {
+            completion()
+            return
+        }
+        let centerProvider = self.centerProvider
+        Self.scheduleRemoval(identifiers: [identifier]) { identifiers in
+            let center = centerProvider()
+            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+            center.removeDeliveredNotifications(withIdentifiers: identifiers)
+            completion()
+        }
     }
+
+    /// The notification service can block on synchronous XPC. Keep removals ordered off the main actor.
+    nonisolated static func scheduleRemoval(
+        identifiers: [String],
+        perform: @escaping @Sendable ([String]) -> Void)
+    {
+        self.removalQueue.async { perform(identifiers) }
+    }
+
+    private nonisolated static let removalQueue = DispatchQueue(
+        label: "com.columbuslabs.quotakit.notifications.removal",
+        qos: .utility)
 
     @discardableResult
     static func deliverIfCurrent(
         authorize: () async -> Bool,
         submit: () async throws -> Void,
-        remove: () -> Void,
+        remove: () async -> Void,
         isCurrent: () -> Bool) async throws -> Bool
     {
         guard isCurrent(), await authorize(), isCurrent() else { return false }
         do {
             try await submit()
         } catch {
-            remove()
+            await remove()
             throw error
         }
         guard isCurrent() else {
-            remove()
+            await remove()
             return false
         }
         return true

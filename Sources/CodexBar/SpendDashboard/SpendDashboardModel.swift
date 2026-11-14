@@ -607,7 +607,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             }
             if retainsModelHistory { modelSummaries.append(summary) }
             if summaryModelHistory.completeness == .incomplete || !retainsModelHistory ||
-                summary.incompleteRequestCount > 0 || summary.historyScanIsPartial
+                summary.incompleteRequestCount > 0 || summary.hasUnpricedRequests || summary.historyScanIsPartial
             {
                 incompleteModelProviders.insert(summary.input.provider)
             }
@@ -617,7 +617,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         let modelSummary = Self.modelSummary(summaries: modelSummaries)
         let modelHistoryCompleteness = modelSummaries.count == scopedSummaries.count &&
             modelSummary.completeness == .complete && !scopedSummaries.contains(where: {
-                $0.historyScanIsPartial || $0.incompleteRequestCount > 0
+                $0.historyScanIsPartial || $0.incompleteRequestCount > 0 || $0.hasUnpricedRequests
             })
             ? ModelHistoryCompleteness.complete
             : ModelHistoryCompleteness.incomplete
@@ -1452,7 +1452,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         return displayCalendar.startOfDay(for: date)
     }
 
-    private static func bucketCalendar(for provider: UsageProvider, displayCalendar: Calendar) -> Calendar {
+    static func bucketCalendar(for provider: UsageProvider, displayCalendar: Calendar) -> Calendar {
         // Provider-specific by design: mistral openrouter xai display calendar
         guard provider == .mistral || provider == .openrouter || provider == .xai else { return displayCalendar }
         // Mistral, OpenRouter, and xAI label daily buckets and snapshot coverage by UTC day. Map each UTC boundary into

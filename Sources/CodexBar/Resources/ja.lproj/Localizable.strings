@@ -2936,3 +2936,4 @@
 "Tripo request failed. Try refreshing later." = "Tripo へのリクエストに失敗しました。後でもう一度更新してください。";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo から認識できない応答が返されました。QuotaKit を更新して、もう一度お試しください。";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "サブスクリプションの使用状況を取得するには、user_read 権限のある API キーを使用します。このコマンドは単独のキーを保存します。選択中の API キーアカウントが優先されます。";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "このコマンドはパイプで渡された API キーを読み取り、単独のキーとして保存します。選択された API トークンアカウントは、単独のキーより優先されます。";

@@ -1859,11 +1859,14 @@ extension CostUsageStore {
         let snapshotCount = source.snapshotCount
         let rowCount = source.rowCount
         let replacementPending = source.replacementPending
+        // Archive status is derived from the filesystem and is not persisted.
+        var persistedUsage = usage
+        persistedUsage.codexArchived = baseline.usage?.codexArchived
 
         if baseline.canReuseRows,
            !replacementPending,
            baseline.file != nil,
-           baseline.usage == usage,
+           baseline.usage == persistedUsage,
            rowCount == baseline.rowCount,
            snapshotCount == baseline.snapshotCount,
            let persistedAggregates = baseline.aggregates,

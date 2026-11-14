@@ -2360,6 +2360,7 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "f80230e162d75b65",
         "1a32d8d0c63060d2",
         "8d37b5425fe86c2a",
         "c939f17d29a7e29d",
@@ -2474,7 +2475,7 @@ extension CostUsageStoreTests {
         var before = await predecessor.readSnapshot()
         // Earlier reports predate the Fast pricing correction. The immediate QuotaKit
         // predecessor already contains corrected reports, so preserve those bytes.
-        if predecessorHash != "1a32d8d0c63060d2" {
+        if !["f80230e162d75b65", "1a32d8d0c63060d2"].contains(predecessorHash) {
             before.metadata.previousReportPayload = nil
         }
 

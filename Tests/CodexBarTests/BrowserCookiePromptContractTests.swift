@@ -114,6 +114,70 @@ struct BrowserCookiePromptContractTests {
         return keychain.interactiveQueries
     }
 
+    @Test(arguments: [KeychainAccessPreflight.Outcome.allowed, .interactionRequired])
+    func `MiniMax background recovery never makes interactive credential queries`(
+        preflight: KeychainAccessPreflight.Outcome) throws
+    {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let relative = try #require(Browser.chrome.chromiumProfileRelativePath)
+        let directory = home.appendingPathComponent("Library/Application Support/\(relative)/Default/Network")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var db: OpaquePointer?
+        #expect(sqlite3_open(directory.appendingPathComponent("Cookies").path, &db) == SQLITE_OK)
+        #expect(sqlite3_exec(
+            db,
+            "CREATE TABLE cookies (host_key TEXT); INSERT INTO cookies VALUES ('.minimax.io')",
+            nil,
+            nil,
+            nil) == SQLITE_OK)
+        sqlite3_close(db)
+        let detection = BrowserDetection(
+            homeDirectory: home.path,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: {
+                $0 == "/Applications/\(Browser.chrome.appBundleName).app" || FileManager.default.fileExists(atPath: $0)
+            },
+            directoryContents: { try? FileManager.default.contentsOfDirectory(atPath: $0) },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
+        let keychain = FakeKeychain(promptFreeBrowser: .chrome)
+        let reads = LockIsolated(0)
+        self.withFakeKeychain {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in preflight } operation: {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    let session = try? MiniMaxCookieImporter.sessionCandidates(
+                        browserDetection: detection,
+                        loadRecords: { browser, _, _ in
+                            // Safari remains a candidate without Keychain access. This fixture has only Chrome data.
+                            guard browser == .chrome, BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
+                            _ = try Self.readKey(for: browser, keychain: keychain)
+                            reads.setValue(reads.value + 1)
+                            let store = BrowserCookieStore(
+                                browser: browser,
+                                profile: .init(id: browser.rawValue, name: "Synthetic"),
+                                kind: .network,
+                                label: browser.displayName,
+                                databaseURL: nil)
+                            let record = BrowserCookieRecord(
+                                domain: "minimax.io",
+                                name: "HERTZ-SESSION",
+                                path: "/",
+                                value: "synthetic-session",
+                                expires: nil,
+                                isSecure: true,
+                                isHTTPOnly: true)
+                            return [BrowserCookieStoreRecords(store: store, records: [record])]
+                        }).first(where: { _ in true })
+                    #expect(session?.cookieHeader == (preflight == .allowed ? "HERTZ-SESSION=synthetic-session" : nil))
+                }
+            }
+        }
+        #expect(reads.value == (preflight == .allowed ? 1 : 0))
+        #expect(keychain.interactiveQueries == 0)
+    }
+
     private func withFakeKeychain<T>(_ operation: () throws -> T) rethrows -> T {
         BrowserCookieAccessGate.resetForTesting()
         ChromeCookieImporter.resetSafeStorageKeyCacheForTesting()

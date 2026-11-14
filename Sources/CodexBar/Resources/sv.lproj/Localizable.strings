@@ -2935,3 +2935,4 @@
 "Tripo request failed. Try refreshing later." = "Tripo-förfrågan misslyckades. Försök uppdatera senare.";
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Använd en API-nyckel med behörigheten user_read för att visa abonnemangsanvändningen. Kommandot sparar en separat nyckel; det valda API-nyckelkontot har företräde.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Kommandot läser en API-nyckel som skickas via en pipe och sparar den som en fristående nyckel. Ett valt API-tokenkonto har företräde framför den fristående nyckeln.";
