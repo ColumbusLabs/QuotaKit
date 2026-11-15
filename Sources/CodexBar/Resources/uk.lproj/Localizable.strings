@@ -2945,3 +2945,7 @@
 "Google Developer Program returned an unrecognized response. Update QuotaKit and try again." = "Google Developer Program повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
 "Google session expired or invalid." = "Термін дії сеансу Google минув або сеанс недійсний.";
 "No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Файли cookie сеансу Google Developer Program не знайдено. Увійдіть на me.developers.google.com/benefits або вставте заголовок Cookie.";
+
+"Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "Увійдіть у cloud.siliconflow.cn у браузері, а потім оновіть QuotaKit.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API балансу SiliconFlow для Китаю вимкнено. Виберіть джерело Веб для SiliconFlow і увійдіть у cloud.siliconflow.cn.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow відмовив у доступі до балансу консолі (HTTP 403). Відкрийте cloud.siliconflow.cn, переконайтеся, що цьому обліковому запису доступні рахунки, і оновіть.";

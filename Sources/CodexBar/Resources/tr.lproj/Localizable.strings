@@ -2956,3 +2956,7 @@
 "Google Developer Program returned an unrecognized response. Update QuotaKit and try again." = "Google Developer Program tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
 "Google session expired or invalid." = "Google oturumunun süresi doldu veya oturum geçersiz.";
 "No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Google Developer Program oturum çerezleri bulunamadı. me.developers.google.com/benefits adresinde oturum açın veya bir Cookie başlığı yapıştırın.";
+
+"Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "Tarayıcınızda cloud.siliconflow.cn hesabınıza giriş yapın, ardından QuotaKit’ı yenileyin.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow Çin bakiye API’si kullanımdan kaldırıldı. SiliconFlow kaynağını Web olarak ayarlayın ve cloud.siliconflow.cn’ye giriş yapın.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow konsol bakiyesine erişimi reddetti (HTTP 403). cloud.siliconflow.cn’yi açın, bu hesabın faturalandırmayı görebildiğini doğrulayın ve yenileyin.";

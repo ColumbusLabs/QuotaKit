@@ -2946,3 +2946,7 @@
 "Google Developer Program returned an unrecognized response. Update QuotaKit and try again." = "Google Developer Program 返回了无法识别的响应。请更新 QuotaKit 后重试。";
 "Google session expired or invalid." = "Google 会话已过期或无效。";
 "No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "未找到 Google Developer Program 会话 Cookie。请在 me.developers.google.com/benefits 登录或粘贴 Cookie 请求头。";
+
+"Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "在浏览器中登录 cloud.siliconflow.cn，然后刷新 QuotaKit。";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow 中国站余额 API 已停用。请将 SiliconFlow 来源切换为 网页，并登录 cloud.siliconflow.cn。";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow 拒绝访问控制台余额（HTTP 403）。请打开 cloud.siliconflow.cn，确认此账户可以查看账单，然后刷新。";
