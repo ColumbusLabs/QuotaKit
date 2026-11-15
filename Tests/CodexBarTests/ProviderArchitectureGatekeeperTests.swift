@@ -5477,6 +5477,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "flora",
                 "futureagi",
                 "gitkraken",
+                "googledeveloper",
                 "hyper",
                 "langdock",
                 "linkup",
@@ -5499,7 +5500,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "workbuddy",
                 "xkiro",
             ],
-            expectedReferenceCount: 36,
+            expectedReferenceCount: 37,
             expectedReferenceFingerprint: [
                 "v0@0",
                 "v0@0",
@@ -5537,6 +5538,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "opendesign@31",
                 "siliconflow@32",
                 "tripo@33",
+                "googledeveloper@34",
             ],
             reason: "AppIntents needs literal per-provider titles for this widget selector; snapshot data separately decides provider eligibility."),
         AllowedProviderConstruct(
