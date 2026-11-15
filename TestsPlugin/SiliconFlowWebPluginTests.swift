@@ -89,11 +89,14 @@ struct SiliconFlowWebPluginTests {
     func `host only parent cookies do not block a later console session`(
         engine: ProviderPluginEngineKind) async throws
     {
-        let cookie = try #require(HTTPCookie(properties: [
-            .name: "parent-only", .value: "synthetic", .domain: "siliconflow.cn", .path: "/", .secure: "TRUE",
-        ]))
-        let record = ProviderPluginCookieRecord(cookie: cookie)
-        #expect(record.hostOnly)
+        let record = ProviderPluginCookieRecord(
+            name: "parent-only",
+            value: "synthetic",
+            domain: "siliconflow.cn",
+            hostOnly: true,
+            path: "/",
+            secure: true,
+            expires: nil)
         let session = ProviderPluginCookieSession(
             header: "", source: "Synthetic", origin: "https://cloud.siliconflow.cn", records: [record])
         let fixture = Fixture(wallet: Self.wallet(), firstSession: session)
@@ -202,16 +205,19 @@ struct SiliconFlowWebPluginTests {
 
     @Test
     func `production redirect delegate keeps parent domain cookies off the login host`() throws {
-        var properties: [HTTPCookiePropertyKey: Any] = [
-            .name: "__SF_auth.session-token", .value: "sf-session", .domain: ".siliconflow.cn", .path: "/",
-        ]
-        properties[.secure] = "TRUE"
         let jar = ProviderPluginCookieJar()
-        let session = try ProviderPluginCookieSession(
+        let session = ProviderPluginCookieSession(
             header: "",
             source: "Synthetic",
             origin: "https://cloud.siliconflow.cn",
-            records: [ProviderPluginCookieRecord(cookie: #require(HTTPCookie(properties: properties)))])
+            records: [ProviderPluginCookieRecord(
+                name: "__SF_auth.session-token",
+                value: "sf-session",
+                domain: "siliconflow.cn",
+                hostOnly: false,
+                path: "/",
+                secure: true,
+                expires: nil)])
         jar.register(session)
         let delegate = ProviderPluginCookieTransport.CookieRedirectDelegate(jar: jar, id: session.id)
         let original = try #require(URL(string: "https://cloud.siliconflow.cn/me/expensebill"))

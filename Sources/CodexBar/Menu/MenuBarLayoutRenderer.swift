@@ -774,7 +774,8 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData,
         icon: NSImage?,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions)
+        options: MenuBarLayoutRenderOptions,
+        providerTintColor: NSColor?)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         if let rendered = self.renderProviderTextItem(
