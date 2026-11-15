@@ -112,14 +112,14 @@ extension SiliconFlowProviderTests {
         fixture.settings.updateProviderConfig(provider: .siliconflow) { $0.source = .web }
         #expect(implementation.isAvailable(context: .init(
             provider: .siliconflow, settings: fixture.settings, environment: [:])))
-        fixture.settings.setCookieSource(.off, provider: .siliconflow)
+        fixture.settings.updateProviderConfig(provider: .siliconflow) { $0.cookieSource = .off }
         #expect(!implementation.isAvailable(context: .init(
             provider: .siliconflow, settings: fixture.settings, environment: [:])))
-        fixture.settings.setCookieSource(.auto, provider: .siliconflow)
+        fixture.settings.updateProviderConfig(provider: .siliconflow) { $0.cookieSource = .auto }
         fixture.settings[providerConfig: .siliconflow, field: .apiKey] = "synthetic-key"
         #expect(!implementation.isAvailable(context: .init(
             provider: .siliconflow, settings: fixture.settings, environment: international)))
-        fixture.settings.setCookieSource(.off, provider: .siliconflow)
+        fixture.settings.updateProviderConfig(provider: .siliconflow) { $0.cookieSource = .off }
         #expect(!implementation.isAvailable(context: .init(
             provider: .siliconflow, settings: fixture.settings, environment: [:])))
         fixture.settings.updateProviderConfig(provider: .siliconflow) { $0.source = .auto }
