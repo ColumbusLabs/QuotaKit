@@ -482,7 +482,9 @@ struct UserPluginRefreshTests {
             let approvals = ProviderPluginApprovalStore(fileURL: self.root.appendingPathComponent("approvals.json"))
             try approvals.record(plugin.approvalBinding(settings: ["ACCOUNT": "first"]))
             self.settings = testSettingsStore(
-                suiteName: "UserPluginRefreshTests")
+                suiteName: "UserPluginRefreshTests",
+                config: testConfigWithAllProvidersDisabled(),
+                userDefaults: InMemoryUserDefaults())
             self.settings.refreshFrequency = .manual
             self.settings.statusChecksEnabled = false
             self.settings.updatePluginConfig(instanceID: self.id) {
