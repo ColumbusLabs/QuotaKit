@@ -322,7 +322,7 @@ payloads include the visible account label in `account`.
 - `historyCoverageIsEstablished`: `false` while a bounded Codex scan still has catch-up work pending; `true` once the requested history is covered.
 - Cursor only: `meteredCostUSD` — what Cursor's plan actually deducts over the window, alongside the API-rate estimate in `last30DaysCostUSD`.
 - `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)
-- Codex only: `projects[]`: `name`, `path`, `totalTokens`, `totalCost`, `daily[]`, `modelBreakdowns[]`, `sources[]`
+- Codex, Claude, and Pi: `projects[]`: `name`, `path`, `totalTokens`, `totalCost`, `daily[]`, `modelBreakdowns[]`, `sources[]`
 - `totals`: `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`
 - `error`: structured provider error when a fetch fails (for example Cursor requested while its cookie source is Off).
 
@@ -367,6 +367,8 @@ quotakit cost --days 90           # choose a 1...365 day cost window
 quotakit cost --period month-to-date # use the pinned cost calendar month
 quotakit cost --period all        # use the available 365-day horizon
 quotakit cost --provider codex --group-by project
+quotakit cost --provider claude --group-by project
+quotakit cost --provider pi --group-by session
 quotakit cost --provider claude --format json --pretty
 quotakit cost --provider cursor   # Cursor dashboard cost (API-rate + Cursor-metered)
 quotakit cost --provider muse     # local Muse token history; dollar costs unavailable
@@ -574,3 +576,5 @@ validation, and a locked commit that rejects a removed or changed account.
 Usage JSON includes optional `resetCredits` with `available` and `nextExpiresAt`, derived from the shared unexpired, available reset-credit inventory. The compact summary omits credit identifiers.
 
 The Settings CLI install status reports successful installs alongside conflicts and protected or unwritable destinations.
+
+Claude, Codex, and Pi support `--group-by project|session` for local cost history. Claude and Codex session reports show native conversations; selecting Pi separately includes its sessions.

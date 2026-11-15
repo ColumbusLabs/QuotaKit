@@ -88,10 +88,10 @@ public enum KeychainPromptHandler {
 public enum KeychainAccessPreflight {
     public enum Outcome: Sendable, Equatable {
         case allowed
-        /// The item is readable, but its decrypt ACL does not trust the current executable.
+        /// The item is readable, but its access controls do not trust the current executable.
         case interactionRequired
-        /// The check could not complete without UI (for example a locked keychain), or the decrypt
-        /// ACL could not be inspected; unlike `interactionRequired`, nothing proved a stable rejection.
+        /// The check could not complete without UI (for example a locked keychain), or its
+        /// access controls could not be inspected; unlike `interactionRequired`, nothing proved a stable rejection.
         case temporarilyUnavailable
         case notFound
         case failure(Int)
@@ -109,6 +109,8 @@ public enum KeychainAccessPreflight {
     private struct GenericPasswordKey: Hashable {
         let service: String
         let account: String?
+        let requirePartition: Bool
+        let persistentRef: Data?
     }
 
     private final class GenericPasswordCheckMemo: @unchecked Sendable {
@@ -141,10 +143,10 @@ public enum KeychainAccessPreflight {
 
     #if DEBUG
     final class CheckGenericPasswordOverrideStore: @unchecked Sendable {
-        let check: (String, String?) -> Outcome
+        let check: (String, String?, Bool, Data?) -> Outcome
         let retryDelay: () -> Void
 
-        init(check: @escaping (String, String?) -> Outcome, retryDelay: @escaping () -> Void) {
+        init(check: @escaping (String, String?, Bool, Data?) -> Outcome, retryDelay: @escaping () -> Void) {
             self.check = check
             self.retryDelay = retryDelay
         }
@@ -162,10 +164,12 @@ public enum KeychainAccessPreflight {
         operation: () throws -> T) rethrows -> T
     {
         try self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
-        {
-            try operation()
-        }
+            override.map { check in
+                CheckGenericPasswordOverrideStore(
+                    check: { service, account, _, _ in check(service, account) }, retryDelay: retryDelay)
+            }) {
+                try operation()
+            }
     }
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
@@ -175,10 +179,38 @@ public enum KeychainAccessPreflight {
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
-        {
-            try await operation()
-        }
+            override.map { check in
+                CheckGenericPasswordOverrideStore(
+                    check: { service, account, _, _ in check(service, account) }, retryDelay: retryDelay)
+            }) {
+                try await operation()
+            }
+    }
+
+    static func withPartitionCheckOverrideForTesting<T>(
+        _ check: @escaping (String, String?, Bool) -> Outcome,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskCheckGenericPasswordOverrideStore.withValue(
+            CheckGenericPasswordOverrideStore(check: { service, account, partition, _ in
+                check(service, account, partition)
+            }, retryDelay: {}), operation: operation)
+    }
+
+    static func withItemCheckOverrideForTesting<T>(
+        _ check: @escaping (String, String?, Bool, Data?) -> Outcome,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$taskCheckGenericPasswordOverrideStore.withValue(
+            CheckGenericPasswordOverrideStore(check: check, retryDelay: {}), operation: operation)
+    }
+
+    static func withItemCheckOverrideForTesting<T>(
+        _ check: @escaping (String, String?, Bool, Data?) -> Outcome,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskCheckGenericPasswordOverrideStore.withValue(
+            CheckGenericPasswordOverrideStore(check: check, retryDelay: {}), operation: operation)
     }
     #endif
 
@@ -192,14 +224,21 @@ public enum KeychainAccessPreflight {
         }
     }
 
-    public static func checkGenericPassword(service: String, account: String?) -> Outcome {
-        let key = GenericPasswordKey(service: service, account: account)
+    /// Foreign CLI-owned items may also require the caller's signing-team partition.
+    public static func checkGenericPassword(
+        service: String,
+        account: String?,
+        requirePartition: Bool = false,
+        persistentRef: Data? = nil) -> Outcome
+    {
+        let key = GenericPasswordKey(
+            service: service, account: account, requirePartition: requirePartition, persistentRef: persistentRef)
         if let memo = self.genericPasswordCheckMemo {
             return memo.outcome(for: key) {
-                self.checkGenericPasswordUncached(service: service, account: account)
+                self.checkGenericPasswordUncached(key)
             }
         }
-        return self.checkGenericPasswordUncached(service: service, account: account)
+        return self.checkGenericPasswordUncached(key)
     }
 
     static func invalidateGenericPasswordChecks(service: String) {
@@ -210,13 +249,13 @@ public enum KeychainAccessPreflight {
     private static let temporarilyUnavailableRetryCount = 3
     private static let temporarilyUnavailableRetryDelayMicroseconds: UInt32 = 30000
 
-    private static func checkGenericPasswordUncached(service: String, account: String?) -> Outcome {
+    private static func checkGenericPasswordUncached(_ key: GenericPasswordKey) -> Outcome {
         #if os(macOS)
-        var outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+        var outcome = self.performGenericPasswordPreflightAttempt(key)
         var attempt = 1
         while case .temporarilyUnavailable = outcome, attempt < self.temporarilyUnavailableRetryCount {
             self.waitBeforePreflightRetry()
-            outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+            outcome = self.performGenericPasswordPreflightAttempt(key)
             attempt += 1
         }
         return outcome
@@ -236,14 +275,16 @@ public enum KeychainAccessPreflight {
         usleep(self.temporarilyUnavailableRetryDelayMicroseconds)
     }
 
-    private static func performGenericPasswordPreflightAttempt(service: String, account: String?) -> Outcome {
+    private static func performGenericPasswordPreflightAttempt(_ key: GenericPasswordKey) -> Outcome {
+        let service = key.service
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
-            return override.check(service, account)
+            return override.check(service, key.account, key.requirePartition, key.persistentRef)
         }
         #endif
         guard !KeychainAccessGate.isDisabled else { return .notFound }
-        let query = self.makeGenericPasswordPreflightQuery(service: service, account: account)
+        let query = self.makeGenericPasswordPreflightQuery(
+            service: service, account: key.account, persistentRef: key.persistentRef)
 
         var result: AnyObject?
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
@@ -255,7 +296,7 @@ public enum KeychainAccessPreflight {
                     metadata: ["service": service])
                 return .temporarilyUnavailable
             }
-            switch self.evaluateDecryptACL(item: item) {
+            switch self.evaluateDecryptACL(item: item, requirePartition: key.requirePartition) {
             case .allowed:
                 self.log.debug("Keychain preflight allowed", metadata: ["service": service])
                 return .allowed
@@ -290,10 +331,11 @@ public enum KeychainAccessPreflight {
     #endif
 
     #if os(macOS)
-    static func makeGenericPasswordPreflightQuery(service: String, account: String?) -> [String: Any] {
+    static func makeGenericPasswordPreflightQuery(
+        service: String, account: String?, persistentRef: Data? = nil) -> [String: Any]
+    {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
             kSecMatchLimit as String: kSecMatchLimitOne,
             // Preflight should never trigger UI. Avoid requesting the secret payload (`kSecReturnData`) because
             // some macOS configurations have been observed to show the legacy keychain prompt even with UI-fail.
@@ -302,8 +344,11 @@ public enum KeychainAccessPreflight {
             kSecReturnRef as String: true,
         ]
         KeychainNoUIQuery.apply(to: &query)
-        if let account {
-            query[kSecAttrAccount as String] = account
+        if let persistentRef {
+            query[kSecValuePersistentRef as String] = persistentRef
+        } else {
+            query[kSecAttrService as String] = service
+            if let account { query[kSecAttrAccount as String] = account }
         }
         return query
     }
@@ -344,7 +389,7 @@ public enum KeychainAccessPreflight {
         case indeterminate
     }
 
-    private static func evaluateDecryptACL(item: SecKeychainItem) -> DecryptACLEvaluation {
+    private static func evaluateDecryptACL(item: SecKeychainItem, requirePartition: Bool) -> DecryptACLEvaluation {
         guard let copyItemAccess = self.securityFunction(
             named: "SecKeychainItemCopyAccess",
             as: SecKeychainItemCopyAccessFunction.self),
@@ -363,10 +408,8 @@ public enum KeychainAccessPreflight {
               let access,
               let rawACLs = copyMatchingACLs(access, kSecACLAuthorizationDecrypt)?.takeRetainedValue(),
               let acls = rawACLs as? [SecACL],
-              !acls.isEmpty
-        else { return .indeterminate }
-
-        guard let currentPath = KeychainCacheStore.invokingApplicationPathsForCacheAccess().first
+              !acls.isEmpty,
+              let currentPath = KeychainCacheStore.invokingApplicationPathsForCacheAccess().first
         else { return .indeterminate }
 
         var inspectionIncomplete = false
@@ -378,28 +421,19 @@ public enum KeychainAccessPreflight {
                 inspectionIncomplete = true
                 continue
             }
-            guard let applications else {
-                if self.evaluateDecryptACL(
-                    trustedApplicationValidationStatuses: nil,
-                    promptSelector: selector) == .allowed
-                {
-                    return .allowed
-                }
-                continue
+            let validationResults = (applications as? [SecTrustedApplication])?.map {
+                self.trustedApplication($0, validatesExecutableAt: currentPath)
             }
-            guard let trustedApplications = applications as? [SecTrustedApplication] else {
+            if applications != nil, validationResults == nil {
                 inspectionIncomplete = true
                 continue
-            }
-            let validationResults = trustedApplications.map { application in
-                self.trustedApplication(application, validatesExecutableAt: currentPath)
             }
             switch self.evaluateDecryptACL(
                 trustedApplicationValidationStatuses: validationResults,
                 promptSelector: selector)
             {
             case .allowed:
-                return .allowed
+                return requirePartition ? self.evaluatePartitionList(access: access) : .allowed
             case .indeterminate:
                 inspectionIncomplete = true
             case .rejected:
@@ -407,6 +441,75 @@ public enum KeychainAccessPreflight {
             }
         }
         return inspectionIncomplete ? .indeterminate : .rejected
+    }
+
+    /// Partition ACLs are separate from decrypt grants. Muse rewrites this list on token refresh.
+    static func evaluatePartitionList(
+        access: SecAccess,
+        callerTeam: String? = KeychainAccessPreflight.currentCallerTeam()) -> DecryptACLEvaluation
+    {
+        guard let copyACLs = self.securityFunction(
+            named: "SecAccessCopyACLList",
+            as: SecAccessCopyACLListFunction.self),
+            let authorizations = self.securityFunction(
+                named: "SecACLCopyAuthorizations", as: SecACLCopyAuthorizationsFunction.self),
+            let contents = self.securityFunction(named: "SecACLCopyContents", as: SecACLCopyContentsFunction.self)
+        else { return .indeterminate }
+        var rawACLs: Unmanaged<CFArray>?
+        guard copyACLs(access, &rawACLs) == errSecSuccess,
+              let acls = rawACLs?.takeRetainedValue() as? [SecACL]
+        else { return .indeterminate }
+        var descriptions: [String] = []
+        for acl in acls {
+            guard let ids = authorizations(acl)?.takeRetainedValue() as? [String] else { return .indeterminate }
+            guard ids.contains(kSecACLAuthorizationPartitionID as String) else { continue }
+            var applications: CFArray?
+            var description: CFString?
+            var selector = SecKeychainPromptSelector()
+            guard contents(acl, &applications, &description, &selector) == errSecSuccess,
+                  let description
+            else { return .indeterminate }
+            descriptions.append(description as String)
+        }
+        return self.evaluatePartitionList(descriptions: descriptions, callerTeam: callerTeam)
+    }
+
+    static func evaluatePartitionList(descriptions: [String], callerTeam: String?) -> DecryptACLEvaluation {
+        guard !descriptions.isEmpty else { return .allowed }
+        var partitions: [String] = []
+        for description in descriptions {
+            guard let ids = self.partitionIDs(fromACLDescription: description) else { return .indeterminate }
+            partitions += ids
+        }
+        guard let callerTeam, !callerTeam.isEmpty else { return .indeterminate }
+        return partitions.contains("teamid:\(callerTeam)") ? .allowed : .rejected
+    }
+
+    static func partitionIDs(fromACLDescription description: String) -> [String]? {
+        let hex = Array(description.utf8)
+        guard !hex.isEmpty, hex.count.isMultiple(of: 2) else { return nil }
+        var bytes = Data(capacity: hex.count / 2)
+        for index in stride(from: 0, to: hex.count, by: 2) {
+            guard let pair = String(bytes: hex[index..<index + 2], encoding: .ascii),
+                  let byte = UInt8(pair, radix: 16)
+            else { return nil }
+            bytes.append(byte)
+        }
+        guard let plist = try? PropertyListSerialization.propertyList(from: bytes, format: nil) as? [String: Any]
+        else { return nil }
+        return plist["Partitions"] as? [String]
+    }
+
+    private static func currentCallerTeam() -> String? {
+        var code: SecCode?
+        var staticCode: SecStaticCode?
+        var info: CFDictionary?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+              SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+              SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info)
+              == errSecSuccess
+        else { return nil }
+        return (info as? [String: Any])?[kSecCodeInfoTeamIdentifier as String] as? String
     }
 
     private static let validationMemo = ValidationMemo()
@@ -466,6 +569,10 @@ public enum KeychainAccessPreflight {
     private typealias SecAccessCopyMatchingACLListFunction = @convention(c) (
         SecAccess,
         CFTypeRef) -> Unmanaged<CFArray>?
+    private typealias SecAccessCopyACLListFunction = @convention(c) (
+        SecAccess,
+        UnsafeMutablePointer<Unmanaged<CFArray>?>) -> OSStatus
+    private typealias SecACLCopyAuthorizationsFunction = @convention(c) (SecACL) -> Unmanaged<CFArray>?
     private typealias SecACLCopyContentsFunction = @convention(c) (
         SecACL,
         UnsafeMutablePointer<CFArray?>,

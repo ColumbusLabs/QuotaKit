@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone.
+
 - SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac to iPhone.
 
 - OpenDesign subscription quotas now sync from QuotaKit Mac to iPhone with provider branding and quota alerts.

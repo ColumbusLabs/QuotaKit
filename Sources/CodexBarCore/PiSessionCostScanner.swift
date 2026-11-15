@@ -65,10 +65,47 @@ enum PiSessionCostScanner {
         let entryUsages: [String: PiSessionEntryUsage]
         let parsedBytes: Int64
         let sessionID: String?
+        let projectPath: String?
+        let title: String?
         let lastModelContext: PiModelContext?
+        /// Newest in-window assistant row timestamp; nil when no such row has a timestamp.
+        let lastAssistantUnixMs: Int64?
         let isComplete: Bool
         let unsupportedAssistantDayKeys: Set<String>
         let hasUndatedUnsupportedAssistant: Bool
+    }
+
+    /// Session facts carried across tail parses: the first header's id and cwd, and the latest title.
+    private struct SessionMetadata {
+        var sessionID: String?
+        var projectPath: String?
+        var title: String?
+        /// An OMP title line owns the title even when empty, matching the live session parser.
+        var titleSlotSeen = false
+
+        /// Returns whether `object` was a metadata record; such records carry no usage.
+        mutating func apply(type: String, object: [String: Any]) -> Bool {
+            switch type {
+            case "session":
+                self.sessionID = self.sessionID ?? PiSessionCostScanner.sessionIdentifier(from: object)
+                self.projectPath = self.projectPath
+                    ?? CostUsageScanner.normalizedCodexProjectPath(object["cwd"] as? String)
+                if !self.titleSlotSeen, self.title == nil, let headerTitle = object["title"] as? String {
+                    self.title = PiFamilySessionFileParser.sanitizedTitle(headerTitle)
+                }
+            case "title":
+                self.titleSlotSeen = true
+                self.title = (object["title"] as? String).flatMap(PiFamilySessionFileParser.sanitizedTitle)
+            case "session_info":
+                // The latest Pi rename wins; an empty name clears the title.
+                if let name = object["name"] as? String {
+                    self.title = PiFamilySessionFileParser.sanitizedTitle(name)
+                }
+            default:
+                return false
+            }
+            return true
+        }
     }
 
     private struct SessionFileCandidate {
@@ -135,6 +172,10 @@ enum PiSessionCostScanner {
         /// The scope represented by `report`, which may be the prior cache scope when a
         /// newly requested root set could not be inspected completely.
         let scopeFingerprint: String?
+        /// Pi-only rows that partition `report`; mirror reads leave them empty.
+        var projects: [CostUsageProjectBreakdown] = []
+        var sessions: [CostUsageSessionBreakdown] = []
+        var detailsAreComplete = false
     }
 
     static func loadDailyReportCancellable(
@@ -152,6 +193,29 @@ enum PiSessionCostScanner {
             now: now,
             options: options,
             checkCancellation: checkCancellation).report
+    }
+
+    private static func lastScanDate(_ cache: PiSessionCostCache) -> Date? {
+        guard cache.lastScanUnixMs > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
+    }
+
+    private static func initialCache(
+        options: Options,
+        range: CostUsageScanner.CostUsageDayRange) -> (PiSessionCostCache, Bool)
+    {
+        var cache = PiSessionCostCacheIO.load(cacheRoot: options.cacheRoot)
+        var usingLegacyFallback = false
+        if cache.lastScanUnixMs == 0,
+           let legacy = PiSessionCostCacheIO.loadLegacyFallback(cacheRoot: options.cacheRoot)
+        {
+            cache = legacy
+            usingLegacyFallback = true
+        }
+        guard cache.timeZoneIdentifier == range.calendar.timeZone.identifier else {
+            return (PiSessionCostCache(), false)
+        }
+        return (cache, usingLegacyFallback)
     }
 
     static func loadDailyReportResultCancellable(
@@ -175,10 +239,7 @@ enum PiSessionCostScanner {
             since: since,
             until: until,
             calendar: options.calendar)
-        var cache = PiSessionCostCacheIO.load(cacheRoot: options.cacheRoot)
-        if cache.timeZoneIdentifier != range.calendar.timeZone.identifier {
-            cache = PiSessionCostCache()
-        }
+        var (cache, usingLegacyFallback) = self.initialCache(options: options, range: range)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
         let pricingContext = self.pricingContext(now: now, cacheRoot: options.cacheRoot)
@@ -186,13 +247,18 @@ enum PiSessionCostScanner {
             options: options,
             previousSessionRootsFingerprint: cache.sessionRootsFingerprint)
         let sessionRootsFingerprint = self.sessionRootsFingerprint(roots)
+        // A legacy report is only attributable to the exact root set that produced it.
+        if usingLegacyFallback, cache.sessionRootsFingerprint != sessionRootsFingerprint {
+            cache = PiSessionCostCache()
+            usingLegacyFallback = false
+        }
         let windowExpanded = self.requestedWindowExpandsCache(range: range, cache: cache)
         let pricingChanged = cache.pricingKey != pricingContext.pricingKey
         let sessionRootsChanged = cache.sessionRootsFingerprint != sessionRootsFingerprint
         let invalidCache = cache.files.values.contains { $0.fileIdentity == nil }
             || self.checkedReports(cache: cache, range: range) == nil
         let cacheBeforeScan = cache
-        let shouldRefresh = options.forceRescan
+        let shouldRefresh = usingLegacyFallback || options.forceRescan
             || windowExpanded
             || pricingChanged
             || sessionRootsChanged
@@ -234,7 +300,8 @@ enum PiSessionCostScanner {
                     cache: &cache,
                     context: ScanContext(
                         range: range,
-                        forceRescan: options.forceRescan || windowExpanded || pricingChanged || invalidCache,
+                        forceRescan: usingLegacyFallback || options.forceRescan || windowExpanded || pricingChanged
+                            || invalidCache,
                         pricingContext: pricingContext,
                         checkCancellation: checkCancellation))
                 scanIsComplete = scanIsComplete && fileIsComplete
@@ -252,8 +319,8 @@ enum PiSessionCostScanner {
                     cache = cacheBeforeScan
                     scanIsComplete = false
                 }
-            } else if sessionRootsChanged || pricingChanged {
-                // Scope and pricing changes require one complete reparse. Keep the previous
+            } else if usingLegacyFallback || sessionRootsChanged || pricingChanged {
+                // Upgrades, scope changes and pricing changes require a complete reparse. Keep the previous
                 // report intact rather than mixing roots or catalog versions after a failure.
                 cache = cacheBeforeScan
             } else {
@@ -301,16 +368,25 @@ enum PiSessionCostScanner {
             PiSessionCostCacheIO.save(cache: cache, cacheRoot: options.cacheRoot, calendar: range.calendar)
         }
         // Provider-specific by design: Pi aggregates native vendor mirrors and standalone backend sessions.
-        let lastScanAt = cache.lastScanUnixMs > 0
-            ? Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
-            : nil
+        let lastScanAt = self.lastScanDate(cache)
         if provider == .pi {
+            let isComplete = scanIsComplete && !self.hasUnsupportedHistory(cache: cache, range: range)
+            let breakdowns = try self.breakdowns(
+                cache: cache,
+                range: range,
+                checkCancellation: checkCancellation)
             return DailyReportResult(
                 report: reports.pi,
-                isComplete: scanIsComplete && !self.hasUnsupportedHistory(cache: cache, range: range),
+                isComplete: isComplete,
                 lastScanAt: lastScanAt,
-                scopeFingerprint: cache.sessionRootsFingerprint)
+                scopeFingerprint: cache.sessionRootsFingerprint,
+                projects: breakdowns?.projects ?? [],
+                sessions: breakdowns?.sessions ?? [],
+                // A cache with usage but no session rows cannot partition the total.
+                detailsAreComplete: isComplete && breakdowns != nil
+                    && (reports.pi.data.isEmpty || !cache.sessions.isEmpty))
         }
+        // Provider-specific by design: Codex and Claude mirrors return only their own backend partition.
         return DailyReportResult(
             report: provider == .codex ? reports.codex : reports.claude,
             isComplete: scanIsComplete,
@@ -780,6 +856,8 @@ enum PiSessionCostScanner {
                 range: context.range,
                 startOffset: cached.parsedBytes,
                 initialSessionID: cached.sessionID,
+                initialProjectPath: cached.projectPath,
+                initialTitle: cached.title,
                 initialModelContext: cached.lastModelContext,
                 pricingContext: context.pricingContext,
                 checkCancellation: context.checkCancellation)
@@ -796,7 +874,11 @@ enum PiSessionCostScanner {
                 parsedBytes: delta.parsedBytes,
                 fileIdentity: fileIdentity,
                 sessionID: delta.sessionID ?? cached.sessionID,
+                projectPath: delta.projectPath,
+                title: delta.title,
                 lastModelContext: delta.lastModelContext,
+                lastAssistantUnixMs: [cached.lastAssistantUnixMs, delta.lastAssistantUnixMs]
+                    .compactMap(\.self).max(),
                 contributions: merged,
                 unkeyedContributions: mergedUnkeyed,
                 entryUsages: mergedEntryUsages,
@@ -820,7 +902,10 @@ enum PiSessionCostScanner {
             parsedBytes: parsed.parsedBytes,
             fileIdentity: fileIdentity,
             sessionID: parsed.sessionID,
+            projectPath: parsed.projectPath,
+            title: parsed.title,
             lastModelContext: parsed.lastModelContext,
+            lastAssistantUnixMs: parsed.lastAssistantUnixMs,
             contributions: parsed.contributions,
             unkeyedContributions: parsed.unkeyedContributions,
             entryUsages: parsed.entryUsages,
@@ -829,11 +914,18 @@ enum PiSessionCostScanner {
         return true
     }
 
+    private static func hasParsedEntireFile(_ fileURL: URL, parsedBytes: Int64) -> Bool {
+        let size = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value
+        return size == parsedBytes
+    }
+
     private static func parsePiSessionFile(
         fileURL: URL,
         range: CostUsageScanner.CostUsageDayRange,
         startOffset: Int64 = 0,
         initialSessionID: String? = nil,
+        initialProjectPath: String? = nil,
+        initialTitle: String? = nil,
         initialModelContext: PiModelContext? = nil,
         pricingContext: ModelsDevPricingContext? = nil,
         checkCancellation: CostUsageScanner.CancellationCheck? = nil) throws -> ParseResult
@@ -842,13 +934,17 @@ enum PiSessionCostScanner {
         self.sessionParseObserverForTesting?()
         #endif
 
-        var sessionID = initialSessionID
+        var metadata = SessionMetadata(
+            sessionID: initialSessionID,
+            projectPath: initialProjectPath,
+            title: initialTitle)
         var currentModelContext = initialModelContext
         var contributions: [String: [String: [String: PiPackedUsage]]] = [:]
         var unkeyedContributions: [String: [String: [String: PiPackedUsage]]] = [:]
         var entryUsages: [String: PiSessionEntryUsage] = [:]
         var unsupportedAssistantDayKeys: Set<String> = []
         var hasUndatedUnsupportedAssistant = false
+        var lastAssistantDate: Date?
         var isComplete = true
 
         func add(
@@ -908,10 +1004,7 @@ enum PiSessionCostScanner {
                         }
                         guard let type = object["type"] as? String else { return }
 
-                        if type == "session" {
-                            sessionID = sessionID ?? self.sessionIdentifier(from: object)
-                            return
-                        }
+                        if metadata.apply(type: type, object: object) { return }
 
                         if type == "model_change" {
                             currentModelContext = self.modelContext(from: object)
@@ -933,6 +1026,7 @@ enum PiSessionCostScanner {
                             guard CostUsageScanner.CostUsageDayRange.isInRange(
                                 dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
                             else { return }
+                            lastAssistantDate = max(lastAssistantDate ?? date, date)
                             if let extractedUsage = self.extractUsage(
                                 provider: identity.pricingProvider,
                                 modelName: identity.modelName,
@@ -972,6 +1066,7 @@ enum PiSessionCostScanner {
                                 dayKey: day, since: range.scanSinceKey, until: range.scanUntilKey)
                             {
                                 unsupportedAssistantDayKeys.insert(day)
+                                lastAssistantDate = max(lastAssistantDate ?? date, date)
                             }
                         } else {
                             hasUndatedUnsupportedAssistant = true
@@ -981,10 +1076,7 @@ enum PiSessionCostScanner {
             // A scan can stop at the last complete newline while an active writer leaves a
             // partial JSON object at EOF. The committed offset then trails the file size, so
             // keep the cache incomplete and retry the tail on a later refresh.
-            let observedFileSize = (try? FileManager.default
-                .attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?
-                            .int64Value
-            if observedFileSize != parsedBytes {
+            if !self.hasParsedEntireFile(fileURL, parsedBytes: parsedBytes) {
                 isComplete = false
             }
         } catch is CancellationError {
@@ -999,8 +1091,11 @@ enum PiSessionCostScanner {
             unkeyedContributions: unkeyedContributions,
             entryUsages: entryUsages,
             parsedBytes: parsedBytes,
-            sessionID: sessionID,
+            sessionID: metadata.sessionID,
+            projectPath: metadata.projectPath,
+            title: metadata.title,
             lastModelContext: currentModelContext,
+            lastAssistantUnixMs: lastAssistantDate.map { Int64($0.timeIntervalSince1970 * 1000) },
             isComplete: isComplete,
             unsupportedAssistantDayKeys: unsupportedAssistantDayKeys,
             hasUndatedUnsupportedAssistant: hasUndatedUnsupportedAssistant)
@@ -1028,31 +1123,54 @@ enum PiSessionCostScanner {
     {
         var seenEntriesBySessionID: [String: Set<String>] = [:]
         var days: [String: [String: [String: PiPackedUsage]]] = [:]
+        var sessions: [String: PiSessionUsage] = [:]
+        var newestMtimeBySessionKey: [String: Int64] = [:]
+        var newestReplyBySessionKey: [String: Int64] = [:]
 
         for file in files {
             try checkCancellation?()
             guard let usage = cache.files[file.url.path] else { continue }
+            // Pi names files `<timestamp>_<uuid>.jsonl`, so a stem cannot collide with a header id.
+            let sessionKey = usage.sessionID ?? file.url.deletingPathExtension().lastPathComponent
+            var session = sessions[sessionKey]
+                ?? PiSessionUsage(lastActivityUnixMs: usage.mtimeUnixMs, contributions: [:])
+            // Metadata follows the most recently modified copy; activity follows the newest reply.
+            if usage.mtimeUnixMs > newestMtimeBySessionKey[sessionKey] ?? .min {
+                newestMtimeBySessionKey[sessionKey] = usage.mtimeUnixMs
+                session.projectPath = usage.projectPath
+                session.projectSlug = usage.projectPath == nil ? Self.piProjectSlug(fileURL: file.url) : nil
+                session.title = usage.title
+            }
+            if let reply = usage.lastAssistantUnixMs {
+                newestReplyBySessionKey[sessionKey] = max(newestReplyBySessionKey[sessionKey] ?? reply, reply)
+            }
+            session.lastActivityUnixMs = newestReplyBySessionKey[sessionKey]
+                ?? newestMtimeBySessionKey[sessionKey]
+                ?? usage.mtimeUnixMs
+            // Sessions receive exactly the deltas the totals receive, so they partition `days`.
+            func apply(_ contributions: [String: [String: [String: PiPackedUsage]]]) -> Bool {
+                self.applyContributions(daysByProvider: &days, contributions: contributions)
+                    && self.applyContributions(daysByProvider: &session.contributions, contributions: contributions)
+            }
+            defer { sessions[sessionKey] = session }
             guard let sessionID = usage.sessionID else {
-                guard self.applyContributions(daysByProvider: &days, contributions: usage.contributions) else {
-                    return false
-                }
+                guard apply(usage.contributions) else { return false }
                 continue
             }
 
-            guard self.applyContributions(daysByProvider: &days, contributions: usage.unkeyedContributions) else {
-                return false
-            }
+            guard apply(usage.unkeyedContributions) else { return false }
 
             var seenEntries = seenEntriesBySessionID[sessionID] ?? []
             for entryID in usage.entryUsages.keys.sorted() where seenEntries.insert(entryID).inserted {
                 guard let entryUsage = usage.entryUsages[entryID] else { continue }
-                guard self.applyContributions(daysByProvider: &days, contributions: [
+                guard apply([
                     entryUsage.providerRawValue: [entryUsage.dayKey: [entryUsage.modelName: entryUsage.usage]],
                 ]) else { return false }
             }
             seenEntriesBySessionID[sessionID] = seenEntries
         }
         cache.daysByProvider = days
+        cache.sessions = sessions
         return true
     }
 

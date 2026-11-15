@@ -357,6 +357,7 @@ final class MenuBarLayoutRenderer {
     private struct TokenStyle {
         let font: NSFont
         let foregroundColor: NSColor
+        let providerTintColor: NSColor?
         let iconHeight: CGFloat
         let attributes: [NSAttributedString.Key: Any]
     }
@@ -525,6 +526,9 @@ final class MenuBarLayoutRenderer {
         let providerTintColor = data.provider.flatMap { Self.effectiveProviderTintColor(for: $0, options: options) }
         let foregroundColor = providerTintColor ?? Self.neutralForegroundColor(options)
         let isTintActive = providerTintColor != nil
+        let renderedIcon = icon.map { image in
+            providerTintColor.map { Self.attachmentImage(image, tint: $0, isMonochrome: false) } ?? image
+        }
         let paragraphStyle = NSMutableParagraphStyle()
         if isStacked {
             let lineHeight: CGFloat = options.size == .large ? 11 : 9.5
@@ -549,18 +553,23 @@ final class MenuBarLayoutRenderer {
         let canSurfaceStackedIcon = !options.forceStackedStyle && renderedLines.count == 2
             && renderedLines.joined().filter { $0 == .icon }.count == 1
             && renderedLines[0].contains { $0 != .icon && $0 != .space }
+        let spanningIcon = options.highContrast && canSurfaceStackedIcon && renderedLines.first?.first == .icon
+            ? icon : nil
         // High-contrast layouts keep icon + text together for consistent rendering.
-        // Provider-colored layouts keep the icon in attributed title to preserve the custom tint.
+        // Colored spanning icons carry their tint in the image; inline icons reuse it.
         // With a missing icon the token still renders its placeholder inside the title.
-        let leadingIcon: NSImage? = if options.highContrast || (isStacked && !canSurfaceStackedIcon) || isTintActive {
+        let leadingIcon: NSImage? = if options.highContrast || (isStacked && !canSurfaceStackedIcon)
+            || (isTintActive && !canSurfaceStackedIcon)
+        {
             nil
         } else if renderedLines.first?.first == .icon, icon != nil {
-            icon.map { Self.offsetLeadingIcon($0, adjustment: options.verticalAdjustment) }
+            renderedIcon.map { Self.offsetLeadingIcon($0, adjustment: options.verticalAdjustment) }
         } else {
             nil
         }
 
-        if isStacked, options.size == .large, leadingIcon == nil, icon != nil,
+        let hasPromotedIcon = leadingIcon != nil || spanningIcon != nil
+        if isStacked, options.size == .large, !hasPromotedIcon, icon != nil,
            renderedLines.joined().contains(.icon)
         {
             // Inline attachments need less baseline lowering to fit both rows in the 22pt status bar.
@@ -574,10 +583,9 @@ final class MenuBarLayoutRenderer {
             var accessibilityParts: [String] = []
             var lineWindowLabel: String?
             for (tokenIndex, token) in renderedLine.enumerated() {
-                // The leading icon is surfaced as `button.image` so AppKit applies the system's
-                // active/inactive display tinting; it is not repeated inside the attributed title,
-                // but its accessibility description must survive for VoiceOver.
-                if leadingIcon != nil, lineIndex == 0, tokenIndex == 0, token == .icon {
+                // Promoted icons are drawn beside the whole text block, through the native image
+                // or the shared high-contrast title. Keep their VoiceOver description in row one.
+                if hasPromotedIcon, lineIndex == 0, tokenIndex == 0, token == .icon {
                     accessibilityParts.append(Self.iconAccessibilityText(data: data))
                     continue
                 }
@@ -591,10 +599,10 @@ final class MenuBarLayoutRenderer {
                     style: TokenStyle(
                         font: font,
                         foregroundColor: foregroundColor,
+                        providerTintColor: providerTintColor,
                         iconHeight: Self.iconHeight(size: options.size, isStacked: isStacked),
                         attributes: attributes),
-                    options: options,
-                    providerTintColor: providerTintColor)
+                    options: options)
                 renderedItem = Self.labelAutomaticItem(
                     renderedItem,
                     token: token,
@@ -609,7 +617,7 @@ final class MenuBarLayoutRenderer {
         }
 
         if isStacked {
-            Self.alignWindowPrefixes(in: result, promotedIcon: leadingIcon != nil)
+            Self.alignWindowPrefixes(in: result, promotedIcon: hasPromotedIcon)
         }
         if options.isDebugApp {
             result.append(NSAttributedString(string: " D", attributes: attributes))
@@ -624,7 +632,9 @@ final class MenuBarLayoutRenderer {
             index == 0 ? line : "\(L("menu_bar_layout_line", index + 1)), \(line)"
         }.joined(separator: ", ")
         return MenuBarLayoutRenderedTitle(
-            attributedTitle: result,
+            attributedTitle: spanningIcon.map {
+                Self.spanningIconTitle($0, title: result, font: font, options: options)
+            } ?? result,
             accessibilityLabel: accessibilityLabel,
             leadingIcon: leadingIcon,
             statusImage: !options.highContrast && !options.isStale && !isTintActive && leadingIcon == nil
@@ -765,8 +775,7 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData,
         icon: NSImage?,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions,
-        providerTintColor: NSColor? = nil)
+        options: MenuBarLayoutRenderOptions)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         if let rendered = self.renderProviderTextItem(
@@ -774,7 +783,7 @@ final class MenuBarLayoutRenderer {
             data: data,
             showUsed: options.showUsed,
             attributes: style.attributes,
-            providerTintColor: providerTintColor)
+            providerTintColor: style.providerTintColor)
         {
             return rendered
         }
@@ -787,14 +796,14 @@ final class MenuBarLayoutRenderer {
 
         switch item {
         case .icon:
-            return self.renderIcon(icon, data: data, style: style, providerTintColor: providerTintColor)
+            return self.renderIcon(icon, data: data, style: style, providerTintColor: style.providerTintColor)
         case let .percent(window):
             return self.renderPercent(
                 window,
                 data: data,
                 style: style,
                 options: options,
-                providerTintColor: providerTintColor)
+                providerTintColor: style.providerTintColor)
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
             let pace = Self.pace(window, data: data)
@@ -995,45 +1004,6 @@ final class MenuBarLayoutRenderer {
               let suffixRange = withoutPrefix.range(of: suffix)
         else { return String(withoutPrefix) }
         return String(withoutPrefix[..<suffixRange.lowerBound]) + String(withoutPrefix[suffixRange.upperBound...])
-    }
-
-    private static func offsetLeadingIcon(_ image: NSImage, adjustment: Int) -> NSImage {
-        // Bake the offset into the surfaced image so the status button and preferences preview share it.
-        // Cap the canvas at the 22 pt menu bar content height to avoid proportional downscaling.
-        let maxShift = max(0, floor((22 - image.size.height) / 2))
-        let shift = min(CGFloat(abs(adjustment)), maxShift)
-        guard adjustment != 0, shift > 0 else { return image }
-
-        let offsetImage = NSImage(
-            size: NSSize(width: image.size.width, height: image.size.height + 2 * shift),
-            flipped: false)
-        { _ in
-            image.draw(
-                in: NSRect(
-                    x: 0,
-                    y: adjustment > 0 ? 2 * shift : 0,
-                    width: image.size.width,
-                    height: image.size.height))
-            return true
-        }
-        offsetImage.isTemplate = image.isTemplate
-        return offsetImage
-    }
-
-    static func attachmentImage(_ image: NSImage, tint: NSColor, isMonochrome: Bool = true) -> NSImage {
-        guard image.isTemplate else { return image }
-
-        // NSTextAttachment draws an NSImage directly instead of through an image cell, so AppKit does not
-        // apply template tinting here. Keep a template image for monochrome status-item semantics while drawing its
-        // mask with the dynamic foreground color. Provider-colored marks retain their tint by remaining non-template.
-        let tintedImage = NSImage(size: image.size, flipped: false) { rect in
-            image.draw(in: rect)
-            tint.setFill()
-            rect.fill(using: .sourceAtop)
-            return true
-        }
-        tintedImage.isTemplate = isMonochrome
-        return tintedImage
     }
 
     private static func neutralForegroundColor(_ options: MenuBarLayoutRenderOptions) -> NSColor {

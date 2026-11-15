@@ -21,6 +21,7 @@ extension UsageStore {
                 continue
             }
             if current.runtime !== plugin.runtime {
+                self.tokenSnapshotPublications.removeValue(forKey: plugin.manifest.id)
                 self.providerRefreshCoordinator.invalidateRequests(for: plugin.manifest.id)
                 self.clearUserPluginHookState(plugin.manifest.id, requiresSessionQuotaBaseline: true)
             }
@@ -84,12 +85,22 @@ extension UsageStore {
                 approvalStore: self.pluginApprovalStore,
                 browserDetection: self.browserDetection)
             guard canPublish() else { return }
+            let dashboardFingerprint = snapshot.costUsage.map { SpendDashboardSource.snapshotRevision($0) }
+            self.tokenSnapshotPublications[instanceID] = TokenSnapshotPublication(
+                dashboardFingerprint: dashboardFingerprint,
+                snapshot: snapshot.costUsage,
+                publicationRevision: 0,
+                providerConfigRevision: configRevision,
+                scopeSignature: self.userPluginStatisticsScope(plugin),
+                semanticFingerprint: nil,
+                accounting: nil)
             self.snapshots[instanceID] = snapshot
             self.errors[instanceID] = nil
             self.lastSourceLabels[instanceID] = plugin.fileURL.pathExtension.lowercased()
             self.emitUserPluginHooks(provider: instanceID, snapshot: snapshot)
         } catch {
             guard canPublish() else { return }
+            self.tokenSnapshotPublications.removeValue(forKey: instanceID)
             self.errors[instanceID] = error.localizedDescription
         }
     }
@@ -97,6 +108,7 @@ extension UsageStore {
     func clearUserPluginState(_ instanceID: ProviderInstanceID) {
         self.providerRefreshCoordinator.invalidateRequests(for: instanceID)
         self.refreshingProviders.remove(instanceID)
+        self.tokenSnapshotPublications.removeValue(forKey: instanceID)
         self.snapshots.removeValue(forKey: instanceID)
         self.errors.removeValue(forKey: instanceID)
         self.lastSourceLabels.removeValue(forKey: instanceID)

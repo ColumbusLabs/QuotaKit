@@ -210,7 +210,7 @@ struct CostUsageScannerClaudeDesktopTests {
         #expect(rebuilt.data == initial.data)
         #expect(rebuilt.summary == initial.summary)
         #expect(work.transcriptParses == 2)
-        #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).version == 4)
+        #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).version == 5)
         #expect(CostUsageClaudeFileStamp.read(at: auditURL) == auditStamp)
         #expect(CostUsageClaudeFileStamp.read(at: transcriptURL) == transcriptStamp)
     }

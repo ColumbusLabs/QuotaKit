@@ -2941,3 +2941,26 @@
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต QuotaKit แล้วลองอีกครั้ง";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "ใช้คีย์ API ที่มีสิทธิ์ user_read เพื่อดูการใช้งานการสมัครสมาชิก คำสั่งจะบันทึกคีย์แยกต่างหาก โดยบัญชีคีย์ API ที่เลือกจะมีลำดับความสำคัญสูงกว่า";
 "The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "คำสั่งนี้อ่านคีย์ API ที่ส่งผ่านไปป์และบันทึกเป็นคีย์แยกต่างหาก บัญชีโทเค็น API ที่เลือกจะมีลำดับความสำคัญเหนือคีย์แยกต่างหาก";
+
+/* Google Developer Program provider */
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program แสดงเครดิต Cloud รายเดือนปัจจุบัน ไม่ใช่ประวัติค่าใช้จ่ายโทเค็นในเครื่อง";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "วางส่วนหัว Cookie ของ me.developers.google.com จากบัญชี Google ที่ลงชื่อเข้าใช้อยู่";
+
+"Billing account" = "บัญชีสำหรับการเรียกเก็บเงิน";
+"Granted" = "วันที่ได้รับ";
+"Not applied" = "ยังไม่ได้ใช้กับบัญชี";
+"%@ of %@ left" = "เหลือ %@ จาก %@";
+"No Cloud credit found. Check your Google Developer Program benefits." = "ไม่พบเครดิต Cloud โปรดตรวจสอบสิทธิประโยชน์ Google Developer Program ของคุณ";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "เซสชันเบราว์เซอร์";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"Google Developer Program request failed. Try refreshing later." = "คำขอ Google Developer Program ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"Google Developer Program returned an unrecognized response. Update QuotaKit and try again." = "Google Developer Program ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต QuotaKit แล้วลองอีกครั้ง";
+"Google session expired or invalid." = "เซสชัน Google หมดอายุหรือไม่ถูกต้อง";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "ไม่พบคุกกี้เซสชันของ Google Developer Program ลงชื่อเข้าใช้ที่ me.developers.google.com/benefits หรือวางส่วนหัว Cookie";
+
+"Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "ลงชื่อเข้าใช้ cloud.siliconflow.cn ในเบราว์เซอร์ แล้วรีเฟรช QuotaKit";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API ยอดคงเหลือ SiliconFlow ประเทศจีนถูกยกเลิกแล้ว เปลี่ยนแหล่งข้อมูลของ SiliconFlow เป็น เว็บ แล้วลงชื่อเข้าใช้ cloud.siliconflow.cn";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow ปฏิเสธการเข้าถึงยอดคงเหลือในคอนโซล (HTTP 403) เปิด cloud.siliconflow.cn ตรวจสอบว่าบัญชีนี้ดูข้อมูลการเรียกเก็บเงินได้ แล้วรีเฟรช";
+"Credits per million tokens" = "เครดิตต่อล้านโทเค็น";
+"Paused during grace period" = "หยุดชั่วคราวในช่วงผ่อนผัน";

@@ -784,6 +784,7 @@ extension LocalizationLanguageCatalogTests {
             "Flash Lite",
             "Gemini Flash",
             "GitHub",
+            "Google Developer Program",
             "Google OAuth",
             "Grok CLI",
             "Helmcode Cloud",

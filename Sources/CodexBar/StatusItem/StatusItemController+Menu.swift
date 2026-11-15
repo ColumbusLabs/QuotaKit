@@ -565,7 +565,9 @@ extension StatusItemController {
         // interaction closures must always reference the live menu they end up serving.
         let interactionMenu = captureMenu ?? menu
         let providerScopes = self.overviewProviderScopes(enabledProviders: enabledProviders)
-        let rows = self.store.mergedOverviewRows(for: providerScopes.visible)
+        let rows = self.store.mergedOverviewRows(
+            for: providerScopes.visible,
+            claudeSwapInspectedAccountID: self.claudeSwapInspectedAccountID)
         guard !rows.isEmpty else { return false }
 
         let t0 = CACurrentMediaTime()
@@ -1069,8 +1071,7 @@ extension StatusItemController {
             selectedIndex: display.activeIndex,
             width: width,
             onSelect: { [weak self, weak menu] index -> Task<Void, Never>? in
-                guard let self, let menu else { return nil }
-                guard display.accounts.indices.contains(index) else { return nil }
+                guard let self, let menu, display.accounts.indices.contains(index) else { return nil }
                 let selectedAccount = display.accounts[index]
                 self.advanceMenuInteraction(for: menu)
                 self.settings.setActiveTokenAccountIndex(index, for: display.provider)
@@ -1190,8 +1191,7 @@ extension StatusItemController {
         self.menuRefreshTasks[key] = Task { @MainActor [weak self, weak menu] in
             guard let self, let menu else { return }
             try? await Task.sleep(for: Self.menuOpenRefreshDelay)
-            guard !Task.isCancelled else { return }
-            guard self.isMenuRefreshEnabled else { return }
+            guard !Task.isCancelled, self.isMenuRefreshEnabled else { return }
             #if DEBUG
             self.onDelayedMenuRefreshAttemptForTesting?()
             #endif
@@ -1256,8 +1256,7 @@ extension StatusItemController {
             if !stillNeedsRetry {
                 self.clearSatisfiedDeferredMenuInteractionRefreshes(for: retryInstanceIDs)
             }
-            guard !Task.isCancelled else { return }
-            guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
+            guard !Task.isCancelled, self.openMenus[ObjectIdentifier(menu)] != nil else { return }
             self.invalidateMenus(
                 refreshOpenMenus: true,
                 deferOpenParentMenuRebuild: false,
@@ -1566,8 +1565,8 @@ extension StatusItemController {
     }
 
     func makeCostHistorySubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
-        guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else { return nil }
-        guard self.tokenSnapshotForCostHistorySubmenu(provider: provider)?.daily.isEmpty == false else { return nil }
+        guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost,
+              self.tokenSnapshotForCostHistorySubmenu(provider: provider)?.daily.isEmpty == false else { return nil }
         if let width {
             return self.makeHostedSubviewPlaceholderMenu(
                 chartID: Self.costHistoryChartID,

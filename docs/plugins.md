@@ -25,6 +25,8 @@ It uses the same quota as the switcher gauge: the most-used seven-day window, or
 usage arrives, the plugin stays selected with unavailable usage. Other merged-icon sources retain their built-in
 provider behavior.
 
+[Google Developer Program](googledeveloper.md) reads the current monthly Cloud credit with scoped, nonpersistent Google cookies on both plugin engines.
+
 ## Bundled API-key provider registration
 
 For a bundled plugin with a simple API-key configuration, declare a public `PluginProviderSpec` named `spec` in its
@@ -362,6 +364,16 @@ displayable usage or identity remains invalid unless `empty: true` is explicitly
 DeepInfra uses a bundled JavaScript plugin for API key billing.
 
 ZenMux uses the bundled `zenmux.js` plugin for management API usage.
+## Statistics and sharing
+
+Enabled, approved community plugins that already return `costUsage` also contribute to Usage & Spend,
+and token activity on this Mac. The existing unversioned contract and daily-window rules apply.
+Each plugin is counted once under its own instance ID, independently of its `iconProvider` branding.
+Plugins without `costUsage` contribute nothing. Statistics containing community plugins cannot be shared because plugin labels and model names may contain private information. Failed refreshes and changed configuration invalidate
+statistics until a successful refresh; the quota card keeps its existing last-known behavior.
+Statistics consume publications from the normal plugin refresh cadence and manual provider refreshes.
+Opening or refreshing Usage & Spend never fetches community plugins; successful quota-only results remain empty.
+
 ## External hooks
 
 Installed user plugins appear in the existing Hooks provider picker. Rules can select the manifest ID or match any
@@ -461,6 +473,9 @@ disabled, plugins retain appended-card placement.
 Merged meter icons render the primary window in the thick lane and the secondary window in the thin lane, following
 the used/remaining preference. When both are absent, the existing tertiary/extra-window single-meter fallback remains;
 the switcher gauge follows the plugin's selected metric.
+
+Plugin card headers use the same title style and insets as built-in providers. Branding stays in the switcher,
+and the plugin source file remains visible in plugin settings.
 
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed

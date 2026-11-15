@@ -29,8 +29,9 @@ defineProvider({
         return fail("invalid JSON");
       }
     };
-    const integer = (value: unknown, field: string): number => {
-      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) return fail(field);
+    const amount = (value: unknown, field: string, fractional = false): number => {
+      const valid = fractional ? Number.isFinite(value) : Number.isSafeInteger(value);
+      if (typeof value !== "number" || !valid || value < 0) return fail(field);
       return value;
     };
     async function* sessions() {
@@ -63,21 +64,22 @@ defineProvider({
       };
       const get = (path: string, timeoutSeconds = 8) =>
         ctx.http.get(`https://cloud-api.${tenant.domain}${path}`, { headers, timeoutSeconds });
-      const response = await get("/api/usage/quota");
-      if ((response.status >= 300 && response.status < 400) || response.status === 401 || response.status === 403) {
-        ctx.browser.rejectCookie(domain, session);
-        rejected = true;
-        continue;
-      }
-      const seconds = Number(response.headers["retry-after"] ?? 1);
-      const retryAfterSeconds = Number.isFinite(seconds) && seconds >= 0 ? Math.min(10, seconds) : 1;
-      if (response.status === 429) throw ctx.fail.rateLimited("Helmcode rate limit reached.", { retryAfterSeconds });
-      if (response.status === 408 || response.status >= 500)
-        throw ctx.fail.providerUnavailable("Helmcode dashboard is unavailable.", { retryAfterSeconds });
-      if (response.status < 200 || response.status >= 300)
-        throw ctx.fail.apiFailure(`Helmcode dashboard returned HTTP ${response.status}.`);
-      const quota = parse(response.bodyText);
-      if (typeof quota.periodStart !== "string" || !Array.isArray(quota.models)) return fail("periodStart or models");
+      const required = async (path: string, allowMissing = false) => {
+        const response = await get(path);
+        if ((response.status >= 300 && response.status < 400) || response.status === 401 || response.status === 403) {
+          ctx.browser.rejectCookie(domain, session);
+          rejected = true;
+          return undefined;
+        }
+        const seconds = Number(response.headers["retry-after"] ?? 1);
+        const retryAfterSeconds = Number.isFinite(seconds) && seconds >= 0 ? Math.min(10, seconds) : 1;
+        if (response.status === 429) throw ctx.fail.rateLimited("Helmcode rate limit reached.", { retryAfterSeconds });
+        if (response.status === 408 || response.status >= 500)
+          throw ctx.fail.providerUnavailable("Helmcode dashboard is unavailable.", { retryAfterSeconds });
+        if ((response.status < 200 || response.status >= 300) && !(allowMissing && response.status === 404))
+          throw ctx.fail.apiFailure(`Helmcode dashboard returned HTTP ${response.status}.`);
+        return response;
+      };
       const optional = async (path: string): Promise<Record<string, unknown> | undefined> => {
         try {
           const result = await get(path, 2);
@@ -87,6 +89,73 @@ defineProvider({
           return undefined;
         }
       };
+      const prepaidBalance = async (): Promise<CodexBarCostSnapshot | undefined> => {
+        if (tenant.domain !== "helmcode.com") return undefined;
+        const billingCredits = await optional("/api/billing/credits");
+        if (!billingCredits) return undefined;
+        const balance = billingCredits.balanceMicros;
+        const rawCurrency = billingCredits.currency;
+        const currency = rawCurrency == null ? "EUR" : typeof rawCurrency === "string" ? rawCurrency.toUpperCase() : "";
+        if (typeof balance === "number" && Number.isSafeInteger(balance) && /^[A-Z]{3}$/.test(currency))
+          return { used: Math.max(0, balance / 1e6), limit: 0, currency, period: "Prepaid balance" };
+        return undefined;
+      };
+      const creditResponse = await required("/api/usage/credits", true);
+      if (!creditResponse) continue;
+      const credits = creditResponse.status === 404 ? undefined : parse(creditResponse.bodyText);
+      if (credits && typeof credits.enabled !== "boolean") return fail("enabled");
+      // Only an absent or explicitly disabled credit plan permits legacy token quotas.
+      if (credits?.enabled) {
+        const allowance = amount(credits.allowanceCredits, "allowanceCredits", true);
+        const spent = amount(credits.usedCredits, "usedCredits", true);
+        if (allowance <= 0) return fail("allowanceCredits");
+        const start = typeof credits.periodStart === "string" ? ctx.date.iso(credits.periodStart) : undefined;
+        const end = typeof credits.periodEnd === "string" ? ctx.date.iso(credits.periodEnd) : undefined;
+        const format = (value: unknown, field: string) =>
+          value == null ? "—" : ctx.format.number(amount(value, field, true), { maximumFractionDigits: 3 });
+        const models = (Array.isArray(credits.models) ? credits.models : []).map((value: unknown) => {
+          const row = object(value) ?? fail("credit model");
+          if (typeof row.model !== "string" || !ctx.isDetailLabel(row.model)) return fail("credit model name");
+          return {
+            label: row.model,
+            value: format(row.creditsThisMonth, "creditsThisMonth"),
+            weight: format(row.approxCreditsPerMTokens, "approxCreditsPerMTokens"),
+          };
+        });
+        const rows: CodexBarDetailRow[] = models.slice(0, 20).map(({ label, value }) => ({ label, value }));
+        if (models.length > 20) rows.push({ label: "Other models", value: "—" });
+        const planRows: CodexBarDetailRow[] = [];
+        if (credits.packCredits != null)
+          planRows.push({ label: "Top-up credits", value: format(credits.packCredits, "packCredits") });
+        if (credits.frozen === true) planRows.push({ label: "Paused during grace period", value: "—" });
+        return {
+          primary: {
+            title: "Credits",
+            usedPercent: ctx.pct(spent, allowance),
+            resetsAt: end,
+            windowMinutes:
+              start && end && end > start ? Math.round((end.getTime() - start.getTime()) / 60000) : undefined,
+            quotaLimit: allowance,
+            quotaUnit: "credits",
+            resetDescription: `${format(spent, "usedCredits")} / ${format(allowance, "allowanceCredits")}`,
+          },
+          details: [
+            { title: "Credits used", rows },
+            {
+              title: "Credits per million tokens",
+              rows: models.slice(0, 20).map(({ label, weight }) => ({ label, value: weight })),
+            },
+            ...(planRows.length ? [{ title: "Credits", rows: planRows }] : []),
+          ],
+          cost: await prepaidBalance(),
+          identity: { organization: tenant.name, loginMethod: "Dashboard session" },
+          dataConfidence: "exact",
+        };
+      }
+      const response = await required("/api/usage/quota");
+      if (!response) continue;
+      const quota = parse(response.bodyText);
+      if (typeof quota.periodStart !== "string" || !Array.isArray(quota.models)) return fail("periodStart or models");
       const billing = await optional("/api/billing");
       const premium = object(billing?.subscription)?.premium === true;
       const start = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(quota.periodStart);
@@ -98,10 +167,10 @@ defineProvider({
         .map((value: unknown) => {
           const row = object(value) ?? fail("model");
           if (typeof row.model !== "string" || !ctx.isDetailLabel(row.model)) return fail("model name");
-          const cap = integer(row.cap, "cap");
-          const used = integer(row.tokensUsed, "tokensUsed");
-          const credit = row.creditTokens == null ? 0 : integer(row.creditTokens, "creditTokens");
-          const hours = row.windowHours == null ? undefined : integer(row.windowHours, "windowHours");
+          const cap = amount(row.cap, "cap");
+          const used = amount(row.tokensUsed, "tokensUsed");
+          const credit = row.creditTokens == null ? 0 : amount(row.creditTokens, "creditTokens");
+          const hours = row.windowHours == null ? undefined : amount(row.windowHours, "windowHours");
           if (hours !== undefined && (hours < 1 || hours > 525600 / 60)) return fail("windowHours");
           let resetsAt = fallback;
           if (typeof row.periodEnd === "string") {
@@ -127,23 +196,10 @@ defineProvider({
             (row.credit > 0 ? ` · ${ctx.format.number(row.credit)} credit-funded` : ""),
         },
       }));
-      let cost: CodexBarCostSnapshot | undefined;
-      if (tenant.domain === "helmcode.com") {
-        const credits = await optional("/api/billing/credits");
-        const balance = credits?.balanceMicros;
-        const currency =
-          credits?.currency == null
-            ? "EUR"
-            : typeof credits.currency === "string"
-              ? credits.currency.toUpperCase()
-              : "";
-        if (typeof balance === "number" && Number.isSafeInteger(balance) && /^[A-Z]{3}$/.test(currency))
-          cost = { used: Math.max(0, balance / 1e6), limit: 0, currency, period: "Prepaid balance" };
-      }
       return {
         primary: windows[0]?.window,
         extraWindows: windows.slice(1),
-        cost,
+        cost: await prepaidBalance(),
         identity: { organization: tenant.name, loginMethod: "Dashboard session" },
         dataConfidence: "exact",
       };

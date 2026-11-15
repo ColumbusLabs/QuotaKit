@@ -248,17 +248,28 @@ enum SpendDashboardSource {
         providers: [UsageProvider],
         codexSources: [CodexSpendSourceDescriptor]) -> SpendDashboardConfiguration
     {
-        SpendDashboardConfiguration(
+        let plugins = self.statisticsPlugins(store: store)
+        return SpendDashboardConfiguration(
             costUsageEnabled: self.spendCollectionEnabled(settings: settings, providers: providers),
             preferredCurrencyCode: settings.preferredCurrencyCode,
-            providerIDs: providers.map(\.rawValue),
+            providerIDs: providers.map(\.rawValue) + plugins.map { "plugin/\($0.manifest.id.rawValue)" },
             codexAccountIdentities: codexSources.map(\.identity),
             codexAccountDisplayNames: self.codexDisplayNamesByID(codexSources),
             sourceOwnershipFingerprints: self.sourceOwnershipFingerprints(
                 providers: providers,
                 settings: settings,
-                store: store),
-            sourceRevisions: self.sourceRevisions(providers: providers, settings: settings, store: store),
+                store: store) + plugins.map {
+                "plugin/\($0.manifest.id.rawValue):\(store.userPluginStatisticsScope($0)):" +
+                    "\(settings.providerConfigRevision(forInstanceID: $0.manifest.id))"
+            },
+            sourceRevisions: self.sourceRevisions(providers: providers, settings: settings, store: store)
+                + plugins.map { plugin in
+                    let prefix = "plugin/\(plugin.manifest.id.rawValue):"
+                    guard let publication = self.pluginPublication(plugin, store: store) else {
+                        return prefix + "unavailable"
+                    }
+                    return prefix + (publication.dashboardFingerprint ?? "empty")
+                },
             sourcePublicationRevisions: providers.filter(UsageStore.tokenCostRequiresProviderSnapshot)
                 .map { store.tokenSnapshotPublicationRevision(for: $0) },
             bucketTimeZoneIdentifier: settings.costUsageBucketTimeZoneIdentifier,
@@ -367,7 +378,7 @@ enum SpendDashboardSource {
             && piCurrent.publication?.snapshot != nil
             && !(mode.shouldRefresh(hasPublication: piBaseline?.hasPublication ?? false)
                 && piBaseline?.publicationRevision == piCurrent.revision)
-        var inputs: [SpendDashboardModel.ProviderInput] = []
+        var inputs = self.pluginInputs(store: store)
         var unavailableSourceIDs: Set<String> = []
         var confirmedEmptySourceIDs: Set<String> = []
         // Provider-specific by design: spend dashboard
@@ -418,6 +429,14 @@ enum SpendDashboardSource {
                 snapshot: snapshot,
                 // Provider-specific by design: Pi reports local history rather than a subscription feed.
                 sourceKind: provider == .pi ? .localHistory : .native))
+        }
+        for plugin in self.statisticsPlugins(store: store) {
+            let sourceID = "plugin/\(plugin.manifest.id.rawValue)"
+            if let publication = self.pluginPublication(plugin, store: store) {
+                if publication.snapshot == nil { confirmedEmptySourceIDs.insert(sourceID) }
+            } else {
+                unavailableSourceIDs.insert(sourceID)
+            }
         }
         return SpendDashboardLoadRequest(
             configuration: configuration,
@@ -843,65 +862,6 @@ enum SpendDashboardSource {
                 "independent-trigger-\(provider.rawValue):\(trigger.regularPublicationRevision):\(inFlight)")
         }
         return revisions
-    }
-
-    static func snapshotRevision(
-        _ snapshot: CostUsageTokenSnapshot,
-        coverageCalendar: Calendar? = nil) -> String
-    {
-        var encoder = SnapshotBackedRevisionEncoder()
-        encoder.append(snapshot.currencyCode)
-        encoder.append(snapshot.historyDays)
-        encoder.append(snapshot.historyCoverageIsEstablished)
-        encoder.append(snapshot.detailsAreComplete)
-        // Content-backed sources still advance at their coverage-day boundary, not every fetch.
-        let coverageDate = coverageCalendar?.startOfDay(for: snapshot.updatedAt) ?? snapshot.updatedAt
-        encoder.append(coverageDate.timeIntervalSinceReferenceDate)
-        encoder.append(snapshot.historyScanIsPartial)
-        encoder.append(snapshot.historySinceDayKey ?? "")
-        encoder.append(snapshot.historyUntilDayKey ?? "")
-        encoder.append(snapshot.historyLabel ?? "")
-        encoder.append(snapshot.meteredCostUSD)
-        encoder.append(snapshot.costProvenance.rawValue)
-        encoder.append(snapshot.last30DaysTokens)
-        encoder.append(snapshot.last30DaysCostUSD)
-        encoder.append(snapshot.last30DaysRequests)
-        // Reuse the daily model's complete encoding rather than a second field list that can drift.
-        let contentEncoder = JSONEncoder()
-        contentEncoder.outputFormatting = [.sortedKeys]
-        contentEncoder.nonConformingFloatEncodingStrategy = .convertToString(
-            positiveInfinity: "Infinity", negativeInfinity: "-Infinity", nan: "NaN")
-        encoder.append((try? contentEncoder.encode(snapshot.daily)) ?? Data())
-        encoder.append(snapshot.hourly.count)
-        for entry in snapshot.hourly {
-            encoder.append(entry.hour.timeIntervalSinceReferenceDate)
-            encoder.append(entry.tokensAreComplete)
-            encoder.append(entry.costIsComplete)
-            encoder.append(entry.totalTokens)
-            encoder.append(entry.costUSD)
-        }
-        encoder.append(snapshot.projects.count)
-        encoder.append(snapshot.sessions.count)
-        for project in snapshot.projects {
-            encoder.append(project.name)
-            encoder.append(project.isProjectless)
-            encoder.append(project.path ?? "")
-            encoder.append(project.totalTokens)
-            encoder.append(project.totalCostUSD)
-            encoder.append((try? contentEncoder.encode(project.daily)) ?? Data())
-            encoder.append((try? contentEncoder.encode(project.modelBreakdowns ?? [])) ?? Data())
-        }
-        for session in snapshot.sessions {
-            encoder.append(session.sessionID)
-            encoder.append(session.lastActivity.timeIntervalSinceReferenceDate)
-            encoder.append(session.totalTokens)
-            encoder.append(session.costUSD)
-            encoder.append(session.requestCount)
-            encoder.append(session.title ?? "")
-            encoder.append(session.projectPath ?? "")
-            encoder.append((try? contentEncoder.encode(session.modelBreakdowns)) ?? Data())
-        }
-        return encoder.finalize()
     }
 
     @MainActor
@@ -1653,6 +1613,7 @@ final class SpendDashboardController {
         let unsafeSourceIDs = invalidatedSourceIDs
             .union(result.invalidatedSourceIDs)
             .union(confirmedEmptySourceIDs)
+            .union(result.failedSourceIDs.filter { $0.hasPrefix("plugin/") })
         nextInputs = self.retainingCompleteDetails(
             nextInputs, configuration: request.configuration, unsafeSourceIDs: unsafeSourceIDs)
         if !result.failedSourceIDs.isEmpty {
@@ -1695,8 +1656,9 @@ final class SpendDashboardController {
         capture: SpendDashboardLoadRequest) -> ReconciledOutcome
     {
         let forceFailed = outcome.result.failedSourceIDs
-        let invalidated = outcome.result.invalidatedSourceIDs
         let barrierFailed = capture.unavailableSourceIDs
+        let invalidated = outcome.result.invalidatedSourceIDs
+            .union(barrierFailed.filter { $0.hasPrefix("plugin/") })
         let forcedCodexIDs = Set(outcome.request.codexRequests.map { "codex:\($0.id)" })
         let confirmedNonemptyInputs = outcome.confirmedNonemptyInputs
         let confirmedNonemptyIDs = Set(confirmedNonemptyInputs.map(\.id))
@@ -1725,10 +1687,13 @@ final class SpendDashboardController {
         let openCodex = SpendDashboardSource.mergingOpenCodexInputsWithObservation(
             inputs,
             request: outcome.request)
+        // A later plugin publication supersedes the forced request's failure.
+        let recoveredPluginIDs = Set(inputs.map(\.id)).union(outcome.confirmedEmptySourceIDs)
+            .filter { $0.hasPrefix("plugin/") }
         return ReconciledOutcome(
             result: SpendDashboardLoadResult(
                 inputs: openCodex.inputs,
-                failedSourceIDs: forceFailed.union(barrierFailed),
+                failedSourceIDs: forceFailed.subtracting(recoveredPluginIDs).union(barrierFailed),
                 invalidatedSourceIDs: invalidated,
                 openCodexObservation: openCodex.observation),
             confirmedEmptySourceIDs: outcome.confirmedEmptySourceIDs)
@@ -1923,16 +1888,17 @@ final class SpendDashboardController {
         return ids.filter { seen.insert($0).inserted }
     }
 
-    private func provider(for sourceID: String) -> UsageProvider? {
-        if sourceID.hasPrefix("codex:") {
-            return .codex
-        }
-        return UsageProvider(rawValue: sourceID)
+    private func provider(for sourceID: String) -> ProviderInstanceID? {
+        // Provider-specific by design: account source IDs map to Codex.
+        if sourceID.hasPrefix("codex:") { return .codex }
+        return ProviderInstanceID(rawValue: sourceID.hasPrefix("plugin/")
+            ? String(sourceID.dropFirst("plugin/".count)) : sourceID)
     }
 
-    private func displayName(for sourceID: String, provider: UsageProvider) -> String {
+    private func displayName(for sourceID: String, provider: ProviderInstanceID) -> String {
         self.configuration?.codexAccountDisplayNames[sourceID]
-            ?? ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+            ?? provider.firstPartyProvider.map { ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName }
+            ?? provider.rawValue
     }
 
     private func refreshRetainedCodexDisplayNames(_ displayNamesByID: [String: String]) {
@@ -2055,7 +2021,14 @@ final class SpendDashboardController {
         let changedCodexIDs = codexIDs.filter {
             previousCodexOwnership[$0] != currentCodexOwnership[$0]
         }
-        return Set(changedProviderIDs).union(changedCodexIDs)
+        let unavailablePluginIDs = current.sourceRevisions.compactMap { revision -> String? in
+            guard revision.hasPrefix("plugin/"),
+                  revision.hasSuffix(":unavailable") || revision.hasSuffix(":empty"),
+                  let separator = revision.firstIndex(of: ":")
+            else { return nil }
+            return String(revision[..<separator])
+        }
+        return Set(changedProviderIDs).union(changedCodexIDs).union(unavailablePluginIDs)
     }
 
     private static func sourceOwnershipByID(_ fingerprints: [String]) -> [String: String] {
@@ -2215,66 +2188,5 @@ extension SpendDashboardController {
         self.dashboardSnapshotLoadedAt = nil
         self.isHistoryDemandActive = false
         self.publishCurrentState()
-    }
-}
-
-private struct SnapshotBackedRevisionEncoder {
-    private var hasher = SHA256()
-
-    mutating func append(_ value: String) {
-        self.append(Data(value.utf8))
-    }
-
-    mutating func append(_ data: Data) {
-        self.append(UInt64(data.count))
-        self.hasher.update(data: data)
-    }
-
-    mutating func append(_ value: Int) {
-        self.append(UInt64(bitPattern: Int64(value)))
-    }
-
-    mutating func append(_ value: Int?) {
-        guard let value else {
-            self.appendPresence(false)
-            return
-        }
-        self.appendPresence(true)
-        self.append(value)
-    }
-
-    mutating func append(_ value: Bool) {
-        self.appendPresence(value)
-    }
-
-    mutating func append(_ value: Double) {
-        self.append(value.bitPattern)
-    }
-
-    mutating func append(_ value: Double?) {
-        guard let value else {
-            self.appendPresence(false)
-            return
-        }
-        self.appendPresence(true)
-        self.append(value)
-    }
-
-    mutating func finalize() -> String {
-        self.hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-
-    private mutating func appendPresence(_ isPresent: Bool) {
-        var byte: UInt8 = isPresent ? 1 : 0
-        withUnsafeBytes(of: &byte) { bytes in
-            self.hasher.update(data: Data(bytes))
-        }
-    }
-
-    private mutating func append(_ value: UInt64) {
-        var value = value.bigEndian
-        withUnsafeBytes(of: &value) { bytes in
-            self.hasher.update(data: Data(bytes))
-        }
     }
 }

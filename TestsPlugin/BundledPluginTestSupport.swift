@@ -30,6 +30,21 @@ enum BundledPluginTestSupport {
         }
     }
 
+    /// Decodes an `application/x-www-form-urlencoded` body, reading `+` as a space and rejecting duplicate keys.
+    static func formFields(_ body: Data?) throws -> [String: String] {
+        var fields: [String: String] = [:]
+        let text = try #require(String(data: body ?? Data(), encoding: .utf8))
+        for pair in text.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            #expect(parts.count == 2)
+            guard parts.count == 2 else { continue }
+            let key = try #require(String(parts[0]).replacingOccurrences(of: "+", with: " ").removingPercentEncoding)
+            let value = try #require(String(parts[1]).replacingOccurrences(of: "+", with: " ").removingPercentEncoding)
+            #expect(fields.updateValue(value, forKey: key) == nil)
+        }
+        return fields
+    }
+
     static func suspendUntilCancelled() async throws {
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { release.finish() }
@@ -59,4 +74,15 @@ enum BundledPluginTestSupport {
             contextOptions: contextOptions,
             engine: engine)
     }
+}
+
+/// Counts calls from synchronous host callbacks, such as cookie invalidation, that cannot await an actor.
+final class Counter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int {
+        self.lock.withLock { self.count }
+    }
+
+    func increment() { self.lock.withLock { self.count += 1 } }
 }

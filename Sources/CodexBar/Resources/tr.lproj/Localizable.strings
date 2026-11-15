@@ -2939,3 +2939,26 @@
 "Tripo returned an unrecognized response. Update QuotaKit and try again." = "Tripo tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
 "Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Abonelik kullanımını görüntülemek için user_read iznine sahip bir API anahtarı kullanın. Komut bağımsız bir anahtar kaydeder; seçili API anahtarı hesabı önceliklidir.";
 "The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Komut, boru üzerinden iletilen bir API anahtarını okur ve bağımsız bir anahtar olarak kaydeder. Seçili bir API belirteci hesabı, bağımsız anahtardan önceliklidir.";
+
+/* Google Developer Program provider */
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program yerel token maliyet geçmişini değil, geçerli aylık Cloud kredisini gösterir.";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "Oturum açılmış bir Google hesabından me.developers.google.com Cookie başlığını yapıştırın.";
+
+"Billing account" = "Faturalandırma hesabı";
+"Granted" = "Verildi";
+"Not applied" = "Uygulanmadı";
+"%@ of %@ left" = "%@ / %@ kaldı";
+"No Cloud credit found. Check your Google Developer Program benefits." = "Cloud kredisi bulunamadı. Google Developer Program avantajlarınızı kontrol edin.";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "Tarayıcı oturumu";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.";
+"Google Developer Program request failed. Try refreshing later." = "Google Developer Program isteği başarısız oldu. Daha sonra yeniden yenileyin.";
+"Google Developer Program returned an unrecognized response. Update QuotaKit and try again." = "Google Developer Program tanınmayan bir yanıt döndürdü. QuotaKit’ı güncelleyip tekrar deneyin.";
+"Google session expired or invalid." = "Google oturumunun süresi doldu veya oturum geçersiz.";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Google Developer Program oturum çerezleri bulunamadı. me.developers.google.com/benefits adresinde oturum açın veya bir Cookie başlığı yapıştırın.";
+
+"Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "Tarayıcınızda cloud.siliconflow.cn hesabınıza giriş yapın, ardından QuotaKit’ı yenileyin.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow Çin bakiye API’si kullanımdan kaldırıldı. SiliconFlow kaynağını Web olarak ayarlayın ve cloud.siliconflow.cn’ye giriş yapın.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow konsol bakiyesine erişimi reddetti (HTTP 403). cloud.siliconflow.cn’yi açın, bu hesabın faturalandırmayı görebildiğini doğrulayın ve yenileyin.";
+"Credits per million tokens" = "Milyon token başına kredi";
+"Paused during grace period" = "Ek süre boyunca duraklatıldı";

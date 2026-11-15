@@ -154,6 +154,16 @@ enum ProviderDetailSectionDispatcher {
                 title: String(localized: "Credits"),
                 rows: safeRows)]
         }
+        if provider.providerID == "googledeveloper",
+           provider.providerDetails?.contains(where: { section in
+               section.title == "Cloud credits" &&
+                   section.rows.contains(where: { $0.label == "Status" && $0.value == "Not applied" })
+           }) == true
+        {
+            return [.init(title: String(localized: "Cloud credits"), rows: [
+                .init(label: String(localized: "Status"), value: String(localized: "Not applied")),
+            ])]
+        }
         guard provider.providerID == "claude", let details = provider.providerDetails else {
             return provider.providerDetails
         }

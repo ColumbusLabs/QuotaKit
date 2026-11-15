@@ -661,8 +661,8 @@ struct SpendDashboardSourceConcurrencyTests {
         await gate.resume()
 
         let request = await requestTask.value
-        let firstInput = try #require(request.capturedInputs.first { $0.provider == firstProvider })
-        let laterInput = try #require(request.capturedInputs.first { $0.provider == laterProvider })
+        let firstInput = try #require(request.capturedInputs.first { $0.provider == firstProvider.instanceID })
+        let laterInput = try #require(request.capturedInputs.first { $0.provider == laterProvider.instanceID })
         #expect(firstInput.snapshot.last30DaysCostUSD == 11)
         #expect(laterInput.snapshot.last30DaysCostUSD == 20)
         #expect(request.unavailableSourceIDs.isEmpty)
@@ -778,6 +778,182 @@ struct SpendDashboardSourceConcurrencyTests {
         }
         Issue.record("Timed out waiting for dashboard state")
     }
+}
+
+extension SpendDashboardSourceConcurrencyTests {
+    @Test(arguments: [false, true])
+    func `recovered plugin capture clears a forced failure`(hasCostUsage: Bool) async throws {
+        let gate = PluginStatisticsPendingLoad<Void>()
+        defer { gate.close() }
+        let sourceID = "plugin/refresh-fixture"
+        let failed = SpendDashboardConfiguration(
+            costUsageEnabled: true,
+            providerIDs: [sourceID],
+            codexAccountIdentities: [],
+            sourceOwnershipFingerprints: ["\(sourceID):owner"],
+            sourceRevisions: ["\(sourceID):unavailable"])
+        let recovered = SpendDashboardConfiguration(
+            costUsageEnabled: true,
+            providerIDs: [sourceID],
+            codexAccountIdentities: [],
+            sourceOwnershipFingerprints: ["\(sourceID):owner"],
+            sourceRevisions: ["\(sourceID):\(hasCostUsage ? "success" : "empty")"])
+        let input = try SpendDashboardModel.ProviderInput(
+            id: sourceID,
+            providerID: #require(ProviderInstanceID(rawValue: "refresh-fixture")),
+            displayName: "Refresh Fixture",
+            snapshot: Self.input(cost: 2).snapshot)
+        let controller = SpendDashboardController(
+            userDefaults: InMemoryUserDefaults(),
+            requestBuilder: { mode in
+                SpendDashboardLoadRequest(
+                    configuration: mode == .forceRefresh ? failed : recovered,
+                    capturedInputs: mode != .forceRefresh && hasCostUsage ? [input] : [],
+                    unavailableSourceIDs: mode == .forceRefresh ? [sourceID] : [],
+                    confirmedEmptySourceIDs: mode != .forceRefresh && !hasCostUsage ? [sourceID] : [],
+                    codexRequests: [],
+                    now: Date(timeIntervalSince1970: 1_784_179_200),
+                    force: mode.forcesLoader)
+            },
+            loader: { request in
+                await gate.suspend()
+                return SpendDashboardLoadResult(
+                    inputs: request.capturedInputs, failedSourceIDs: request.unavailableSourceIDs)
+            })
+        defer { controller.stop() }
+        controller.update(configuration: failed, force: true)
+        try await gate.waitForPendingCount(1)
+        controller.update(configuration: recovered)
+        gate.resume()
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        #expect(controller.failedSourceCount == 0)
+        #expect(controller.publication.inputs.contains { $0.id == sourceID } == hasCostUsage)
+        var readyModel: SpendDashboardModel?
+        await Self.waitUntil {
+            readyModel = controller.publication.modelIfReady(
+                requestedDays: 7,
+                now: Date(timeIntervalSince1970: 1_784_179_200),
+                calendar: Calendar(identifier: .gregorian),
+                preferredCurrencyCode: "USD")
+            return readyModel != nil
+        }
+        let model = try #require(readyModel)
+        #expect(model.groups.isEmpty == !hasCostUsage)
+        #expect(ShareStatsBuilder.make(model: model) == nil)
+    }
+
+    @Test
+    func `failed plugin capture cannot restore a successful forced input`() async throws {
+        let gate = PluginStatisticsPendingLoad<Void>()
+        defer { gate.close() }
+        let sourceID = "plugin/refresh-fixture"
+        let initial = SpendDashboardConfiguration(
+            costUsageEnabled: true,
+            providerIDs: [sourceID],
+            codexAccountIdentities: [],
+            sourceOwnershipFingerprints: ["\(sourceID):owner"],
+            sourceRevisions: ["\(sourceID):success"])
+        let failed = SpendDashboardConfiguration(
+            costUsageEnabled: true,
+            providerIDs: [sourceID],
+            codexAccountIdentities: [],
+            sourceOwnershipFingerprints: ["\(sourceID):owner"],
+            sourceRevisions: ["\(sourceID):unavailable"])
+        let input = try SpendDashboardModel.ProviderInput(
+            id: sourceID,
+            providerID: #require(ProviderInstanceID(rawValue: "refresh-fixture")),
+            displayName: "Refresh Fixture",
+            snapshot: Self.input(cost: 2).snapshot)
+        var modes: [SpendDashboardRequestBuildMode] = []
+        let controller = SpendDashboardController(
+            userDefaults: InMemoryUserDefaults(),
+            requestBuilder: { mode in
+                modes.append(mode)
+                return SpendDashboardLoadRequest(
+                    configuration: mode == .forceRefresh ? initial : failed,
+                    capturedInputs: mode == .forceRefresh ? [input] : [],
+                    unavailableSourceIDs: mode == .forceRefresh ? [] : [sourceID],
+                    codexRequests: [],
+                    now: Date(timeIntervalSince1970: 1_784_179_200),
+                    force: mode.forcesLoader)
+            },
+            loader: { request in
+                await gate.suspend()
+                return SpendDashboardLoadResult(inputs: request.capturedInputs, failedSourceIDs: [])
+            })
+        defer { controller.stop() }
+        controller.update(configuration: initial, force: true)
+        try await gate.waitForPendingCount(1)
+        controller.update(configuration: failed)
+        gate.resume()
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
+        #expect(modes == [.forceRefresh, .captureOnly])
+        #expect(controller.publication.inputs.isEmpty)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.failedSourceCount == 1)
+        #expect(ShareStatsBuilder.make(model: controller.model) == nil)
+    }
+
+    @Test
+    func `gate readiness tolerates a delayed producer`() async throws {
+        let gate = PluginStatisticsPendingLoad<CostUsageTokenSnapshot>()
+        defer { gate.close() }
+        let producer = Task {
+            try await Task.sleep(for: .seconds(2))
+            return try await gate.load()
+        }
+
+        defer { producer.cancel() }
+        try await gate.waitForPendingCount(1)
+        #expect(gate.isSuspended)
+        gate.resume(returning: Self.input(cost: 5).snapshot)
+        let snapshot = try await producer.value
+        #expect(snapshot.last30DaysCostUSD == 5)
+    }
+}
+
+@MainActor
+private final class PluginStatisticsPendingLoad<Value: Sendable> {
+    private var continuation: CheckedContinuation<Value, any Error>?
+    private var closed = false
+
+    var isSuspended: Bool {
+        self.continuation != nil
+    }
+
+    func load() async throws -> Value {
+        guard !self.closed else { throw CancellationError() }
+        return try await withCheckedThrowingContinuation { self.continuation = $0 }
+    }
+
+    func suspend() async where Value == Void {
+        _ = try? await self.load()
+    }
+
+    func waitForPendingCount(_ count: Int) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while !self.isSuspended, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try #require(count == 1 && self.isSuspended)
+    }
+
+    func resume(returning value: Value) {
+        let continuation = self.continuation
+        self.continuation = nil
+        continuation?.resume(returning: value)
+    }
+
+    func close() {
+        self.closed = true
+        let continuation = self.continuation
+        self.continuation = nil
+        continuation?.resume(throwing: CancellationError())
+    }
+}
+
+extension PluginStatisticsPendingLoad where Value == Void {
+    func resume() { self.resume(returning: ()) }
 }
 
 private enum SpendDashboardSyntheticError: Error {

@@ -940,10 +940,11 @@ public struct CostUsageFetcher: Sendable {
                 calendar: piOptionsOnly.calendar,
                 historyCoverageIsEstablished: piScanResult.isComplete,
                 costProvenance: .listPriceEstimate,
-                projects: [],
-                sessions: [],
-                // An incomplete Pi scan may be serving a retained cache report. Preserve its
-                // scan time; if there is none, mark the age unknown rather than freshly read.
+                projects: piScanResult.projects,
+                sessions: piScanResult.sessions,
+                detailsAreComplete: piScanResult.detailsAreComplete,
+                // An incomplete Pi scan may be serving a retained cache report. Keep its
+                // original scan time so stale usage is not presented as freshly read.
                 updatedAt: piScanResult.isComplete ? now : piScanResult.lastScanAt ?? .distantPast)
             return CostUsageTokenResult(
                 snapshot: snapshot,
@@ -1265,21 +1266,39 @@ public struct CostUsageFetcher: Sendable {
             scope: sourceScope, cacheRoot: scanOptions.cacheRoot, calendar: scanOptions.calendar)
         let sourceSummary = await OpenCodeLocalHistoryAdapter.readSummary(
             scope: sourceScope, cacheRoot: scanOptions.cacheRoot, purpose: .activity)
-        // Provider-specific by design: Codex owns project/session attribution and optional Pi merge state, while
-        // Claude/Vertex share the transcript scanner with mutually exclusive filters.
+
+        // Provider-specific by design: Codex and Claude own project/session attribution and optional Pi merge
+        // state, while Claude/Vertex share the transcript scanner with mutually exclusive filters.
         // These synchronous scans can run for minutes on large archives. The dedicated queue keeps
         // them off the cooperative pool and bridges task cancellation into scanner-level checks.
         return try await CostUsageScanExecutor.run { checkCancellation in
-            var daily = try CostUsageScanner.loadDailyReportCancellable(
-                provider: provider,
-                since: since,
-                until: now,
-                now: now,
-                options: scanOptions,
-                reportContext: options.reportContext,
-                checkCancellation: checkCancellation)
+            var projects: [CostUsageProjectBreakdown] = []
+            var sessions: [CostUsageSessionBreakdown] = []
+            var daily: CostUsageDailyReport
+            if provider == .claude {
+                let claude = try CostUsageScanner.loadClaudeReportProjectionsCancellable(
+                    since: since,
+                    until: now,
+                    now: now,
+                    options: scanOptions,
+                    reportContext: options.reportContext,
+                    checkCancellation: checkCancellation)
+                daily = claude.daily
+                projects = claude.projects
+                sessions = claude.sessions
+            } else {
+                daily = try CostUsageScanner.loadDailyReportCancellable(
+                    provider: provider,
+                    since: since,
+                    until: now,
+                    now: now,
+                    options: scanOptions,
+                    reportContext: options.reportContext,
+                    checkCancellation: checkCancellation)
+            }
             try checkCancellation()
 
+            // Provider-specific by design: Vertex AI may have legacy Claude logs without a provider marker.
             if provider == .vertexai,
                !options.allowVertexClaudeFallback,
                scanOptions.claudeLogProviderFilter == .vertexAIOnly,
@@ -1298,8 +1317,6 @@ public struct CostUsageFetcher: Sendable {
                 try checkCancellation()
             }
 
-            var projects: [CostUsageProjectBreakdown] = []
-            var sessions: [CostUsageSessionBreakdown] = []
             var projectSessionIDs: [String: Set<String>] = [:]
             var piScanIsComplete = true
             var nativeTemporalIsComplete = true
@@ -1352,7 +1369,9 @@ public struct CostUsageFetcher: Sendable {
                     staleSnapshotUpdatedAt = [staleSnapshotUpdatedAt, piLastScanAt]
                         .compactMap(\.self).min()
                 }
-                if provider == .codex {
+                // Provider-specific by design: only the Codex and Claude local ledgers attribute native rows to
+                // projects, so Pi rows join them as one unknown project and sessions stay native-only.
+                if provider == .codex || provider == .claude {
                     if let project = Self.unknownProjectBreakdown(from: piScanResult.report) {
                         projects.append(project)
                         sessions = []
@@ -1362,7 +1381,7 @@ public struct CostUsageFetcher: Sendable {
                 daily = CostUsageDailyReport.merged(
                     [daily, piScanResult.report], calendar: scanOptions.calendar)
             }
-            if provider == .codex {
+            if provider == .codex || provider == .claude {
                 projects = Self.mergedProjectBreakdowns(projects)
             }
             return LocalTokenScanResult(

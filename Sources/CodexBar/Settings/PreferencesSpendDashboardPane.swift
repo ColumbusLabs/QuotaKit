@@ -995,47 +995,6 @@ struct SpendPanelExpandButton: View {
     }
 }
 
-struct SpendProviderIcon: View {
-    let provider: UsageProvider
-    var sourceKind: SpendDashboardModel.SourceKind = .native
-    var style: ProviderBrandIcon.Style = .brand
-    var size: CGFloat = 20
-
-    var body: some View {
-        Group {
-            if self.sourceKind == .openCodex {
-                Image(systemName: "arrow.triangle.branch")
-                    .resizable().scaledToFit()
-            } else if let icon = ProviderBrandIcon.image(for: self.provider, style: self.style) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .renderingMode(icon.isTemplate ? .template : .original)
-                    .scaledToFit()
-                    .frame(
-                        width: self.size * self.artworkScale(for: icon),
-                        height: self.size * self.artworkScale(for: icon))
-            } else {
-                Image(systemName: "circle.dotted")
-                    .resizable().scaledToFit()
-            }
-        }
-        .foregroundStyle(.primary)
-        .frame(width: self.size, height: self.size)
-        .accessibilityHidden(true)
-    }
-
-    private func artworkScale(for icon: NSImage) -> CGFloat {
-        switch self.provider {
-        case .cursor: 1.25
-        case .codex: icon.isTemplate ? 1.24 : 1.17
-        case .antigravity: icon.isTemplate ? 1.14 : 1.38
-        case .bedrock: icon.isTemplate ? 1 : 0.84
-        case .muse, .vertexai: icon.isTemplate ? 1 : 1.08
-        default: 1
-        }
-    }
-}
-
 struct SpendSessionPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
     let hidePersonalInfo: Bool
@@ -1072,7 +1031,9 @@ struct SpendSessionPanel: View {
 
     private func sourceName(_ id: String) -> String {
         guard let row = self.group.sessions.first(where: { $0.sourceID == id }) else { return "" }
-        let provider = ProviderDescriptorRegistry.descriptor(for: row.provider).metadata.displayName
+        let provider = row.provider.firstPartyProvider.map {
+            ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName
+        } ?? row.provider.rawValue
         if self.hidePersonalInfo {
             let index = (self.sourceIDs.firstIndex(of: id) ?? 0) + 1
             return self.sourceIDs.count > 1 ? "\(provider) · \(codexBarLocalizedInteger(index))" : provider

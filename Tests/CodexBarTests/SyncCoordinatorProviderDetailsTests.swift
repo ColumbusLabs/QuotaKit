@@ -690,6 +690,9 @@ struct SyncCoordinatorProviderBillingDetailsTests {
                     .init(label: "Bonus", value: "CN¥2.50"),
                 ]),
             ]),
+            .init(provider: .googledeveloper, expected: [
+                .init(title: "Cloud credits", rows: [.init(label: "Status", value: "Not applied")]),
+            ]),
             .init(provider: .tripo, expected: [
                 .init(title: "Credits", rows: [
                     .init(label: "Balance", value: "1,234"), .init(label: "Reserved", value: "50"),

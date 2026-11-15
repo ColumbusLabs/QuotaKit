@@ -9,7 +9,11 @@ enum ClaudeOAuthKeychainQueryTiming {
     @TaskLocal static var copyMatchingOverride: (@Sendable ([String: Any]) -> (OSStatus, AnyObject?, Double))?
     #endif
 
-    static func copyMatching(_ query: [String: Any]) -> (status: OSStatus, result: AnyObject?, durationMs: Double) {
+    static func copyMatching(
+        _ query: [String: Any],
+        interactionPolicy: KeychainSecurity.InteractionPolicy = .nonInteractive)
+        -> (status: OSStatus, result: AnyObject?, durationMs: Double)
+    {
         #if DEBUG
         if let override = self.copyMatchingOverride {
             let (status, result, durationMs) = override(query)
@@ -18,7 +22,7 @@ enum ClaudeOAuthKeychainQueryTiming {
         #endif
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result, interactionPolicy: interactionPolicy)
         let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
         return (status, result, durationMs)
     }

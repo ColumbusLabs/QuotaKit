@@ -85,7 +85,7 @@ struct ShareStatsCompletenessTests {
     }
 
     private static func model(
-        incomplete: Set<UsageProvider> = [],
+        incomplete: Set<ProviderInstanceID> = [],
         selectedDay: Date? = nil) -> SpendDashboardModel
     {
         let providers = [

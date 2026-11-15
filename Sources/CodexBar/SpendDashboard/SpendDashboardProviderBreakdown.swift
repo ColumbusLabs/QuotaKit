@@ -14,7 +14,7 @@ extension UsageFormatter {
 }
 
 struct SpendProviderBreakdown: Identifiable, Equatable {
-    let provider: UsageProvider
+    let provider: ProviderInstanceID
     let displayName: String
     let subscriptions: [SpendDashboardModel.ProviderRow]
     let models: [SpendDashboardModel.ModelRow]
@@ -55,7 +55,9 @@ func spendDashboardProviderBreakdowns(
         let incompleteRequestCount = CostUsageIncompleteRequests.sum(subscriptions.map(\.incompleteRequestCount))
         return SpendProviderBreakdown(
             provider: provider,
-            displayName: ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName,
+            displayName: provider.firstPartyProvider.map {
+                ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName
+            } ?? subscriptions.first?.displayName ?? provider.rawValue,
             subscriptions: subscriptions,
             models: models,
             totalTokens: totalTokens,
@@ -114,7 +116,7 @@ func spendDashboardBreakdownMetricText(
 struct SpendProviderBreakdownRows: View {
     let group: SpendDashboardModel.CurrencyGroup
     let hidePersonalInfo: Bool
-    @State private var expandedProviders: Set<UsageProvider> = []
+    @State private var expandedProviders: Set<ProviderInstanceID> = []
 
     init(group: SpendDashboardModel.CurrencyGroup, hidePersonalInfo: Bool = false) {
         self.group = group
@@ -297,5 +299,50 @@ struct SpendProviderBreakdownRows: View {
 
     private func sourceName(_ name: String) -> String {
         PersonalInfoRedactor.redactEmails(in: name, isEnabled: self.hidePersonalInfo) ?? name
+    }
+}
+
+struct SpendProviderIcon: View {
+    let provider: ProviderInstanceID
+    var sourceKind: SpendDashboardModel.SourceKind = .native
+    var style: ProviderBrandIcon.Style = .brand
+    var size: CGFloat = 20
+
+    var body: some View {
+        Group {
+            if self.sourceKind == .openCodex {
+                Image(systemName: "arrow.triangle.branch")
+                    .resizable().scaledToFit()
+            } else if let icon = self.provider.firstPartyProvider.flatMap({ ProviderBrandIcon.image(
+                for: $0,
+                style: self.style) })
+            {
+                Image(nsImage: icon)
+                    .resizable()
+                    .renderingMode(icon.isTemplate ? .template : .original)
+                    .scaledToFit()
+                    .frame(
+                        width: self.size * self.artworkScale(for: icon),
+                        height: self.size * self.artworkScale(for: icon))
+            } else {
+                Image(systemName: "circle.dotted")
+                    .resizable().scaledToFit()
+            }
+        }
+        .foregroundStyle(.primary)
+        .frame(width: self.size, height: self.size)
+        .accessibilityHidden(true)
+    }
+
+    private func artworkScale(for icon: NSImage) -> CGFloat {
+        // Provider-specific by design: normalize each bundled mark's transparent padding in the shared icon slot.
+        switch self.provider {
+        case .cursor: 1.25
+        case .codex: icon.isTemplate ? 1.24 : 1.17
+        case .antigravity: icon.isTemplate ? 1.14 : 1.38
+        case .bedrock: icon.isTemplate ? 1 : 0.84
+        case .muse, .vertexai: icon.isTemplate ? 1 : 1.08
+        default: 1
+        }
     }
 }

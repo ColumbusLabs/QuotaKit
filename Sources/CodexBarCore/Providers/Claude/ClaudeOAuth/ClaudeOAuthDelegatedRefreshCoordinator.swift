@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import SweetCookieKit
+#endif
 
 public enum ClaudeOAuthDelegatedRefreshCoordinator {
     private struct CooldownState {
@@ -73,6 +76,12 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             self.log.info("Claude OAuth delegated refresh skipped outside explicit user action")
             return AttemptResult(.skippedByPromptPolicy)
         }
+
+        #if os(macOS)
+        guard !BrowserCookieKeychainAccessGate.isUserInteractionDisallowed else {
+            return AttemptResult(.skippedByPromptPolicy)
+        }
+        #endif
 
         let decision = self.inFlightDecision(
             now: now,

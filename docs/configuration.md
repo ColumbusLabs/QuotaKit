@@ -473,3 +473,5 @@ App settings writes are coalesced. Normal quit finishes any pending configuratio
 Unreadable or malformed configuration is preserved for recovery. QuotaKit must not replace it with defaults,
 run legacy migration over it, or save termination/credential changes over it. After the file is repaired, the
 normal load/save path can resume. Credential migrations and test fixtures preserve their scoped no-UI policy.
+
+Custom two-line layouts show a single leading provider icon at full size beside both text rows, including in high-contrast mode and when colored by provider. Merged-provider rows, multiple icons, and icon-only rows retain inline icons.

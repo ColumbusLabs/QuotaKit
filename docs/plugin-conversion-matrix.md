@@ -138,3 +138,5 @@ reported monthly budget supplies an optional meter and alert denominator.
 
 Trae CN is plugin-first. Its browser session is exchanged for a short-lived token to read aggregate credits; the
 token is not persisted, and the plugin infers no reset or renewal.
+
+Google Developer Program reads the current monthly grant with request-scoped, access-gated cookies on both engines.

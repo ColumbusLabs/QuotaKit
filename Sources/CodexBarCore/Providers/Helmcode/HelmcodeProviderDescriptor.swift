@@ -50,6 +50,13 @@ public enum HelmcodeProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Helmcode per-request cost history is not available in QuotaKit." }),
             presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: snapshot.primary?.quotaUnit == "credits" ? "Credits" : metadata.sessionLabel,
+                        secondary: metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
+                },
                 costPresenter: { _ in ProviderCostPresentation(menuCardStyle: .prepaidCredits) },
                 extraRateWindowSelector: { $0.extraRateWindows ?? [] },
                 menuCard: ProviderMenuCardPresentation(showsPrimaryBalanceDescription: true),

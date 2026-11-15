@@ -43,6 +43,7 @@ struct CLIProviderSelectionTests {
             "|tripo|",
             "|claudeplatform|",
             "|munito|",
+            "|googledeveloper|",
             "|both|",
             "|all]",
         ]

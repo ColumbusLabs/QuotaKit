@@ -263,23 +263,8 @@ struct UserPluginMenuCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 8) {
-                Group {
-                    if let image = ProviderBrandIcon.image(for: self.plugin) {
-                        Image(nsImage: image).resizable().scaledToFit().padding(4)
-                    } else {
-                        Text(self.plugin.manifest.icon.monogram).font(.caption.bold())
-                    }
-                }
-                .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
-                .background(self.tint, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(self.plugin.manifest.name).font(.headline)
-                    Text(self.plugin.fileURL.lastPathComponent)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: UsageMenuCardLayout.headerColumnSpacing) {
+                UsageMenuCardTitleView(title: self.plugin.manifest.name)
                 Spacer()
                 if self.isRefreshing {
                     ProgressView().controlSize(.small)
@@ -289,6 +274,7 @@ struct UserPluginMenuCardView: View {
                     }
                     .buttonStyle(.plain)
                     .help(L("Refresh"))
+                    .accessibilityLabel(L("Refresh"))
                 }
             }
             if let error {
@@ -328,7 +314,7 @@ struct UserPluginMenuCardView: View {
             }
         }
         .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
-        .padding(.vertical, 8)
+        .padding(.vertical, UsageMenuCardLayout.headerOnlyVerticalPadding)
         .frame(width: self.width, alignment: .leading)
     }
 
@@ -349,7 +335,7 @@ struct UserPluginMenuCardView: View {
     private func identityRow(_ label: String, _ value: String?) -> some View {
         if let value {
             HStack {
-                Text(label).foregroundStyle(.secondary)
+                Text(L(label)).foregroundStyle(.secondary)
                 Spacer()
                 Text(value).fontWeight(.medium).textSelection(.enabled)
             }
