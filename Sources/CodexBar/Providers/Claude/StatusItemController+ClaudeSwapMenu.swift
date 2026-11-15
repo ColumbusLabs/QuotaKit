@@ -146,12 +146,18 @@ extension StatusItemController {
         captureMenu: NSMenu,
         context: MenuCardContext)
     {
+        let cardRows = accounts.compactMap { account ->
+            (account: ProviderAccountUsageSnapshot, model: UsageMenuCardView.Model)? in
+            guard let model = self.claudeSwapCardModel(for: account) else { return nil }
+            return (account, model)
+        }
         self.addStackedMenuCards(
-            accounts.map { self.claudeSwapCardModel(for: $0) },
+            cardRows.map(\.model),
             to: menu,
             context: context,
             planAction: { [weak self] index in
-                self?.claudeSwapAccountSwitchAction(accounts[index], menu: captureMenu)
+                guard cardRows.indices.contains(index) else { return nil }
+                return self?.claudeSwapAccountSwitchAction(cardRows[index].account, menu: captureMenu)
             })
     }
 
