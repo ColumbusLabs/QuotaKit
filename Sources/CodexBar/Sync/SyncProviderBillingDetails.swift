@@ -153,6 +153,8 @@ enum SyncProviderBillingDetails {
                 ("Purchased", .currencyAmount(allowNegative: true, allowUnavailable: false)),
                 ("Bonus", .currencyAmount(allowNegative: true, allowUnavailable: false)),
             ])]
+        case .googledeveloper:
+            [.init(title: "Cloud credits", rows: [("Status", .fixed(["Not applied"]))])]
         case .tripo:
             [.init(title: "Credits", rows: [("Balance", .number), ("Reserved", .number)])]
         default:

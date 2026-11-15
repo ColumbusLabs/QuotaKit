@@ -172,7 +172,7 @@ defineProvider({
             rows: [
               {
                 label: "Status",
-                value: message("Not applied"),
+                value: "Not applied",
                 secondaryValue: "me.developers.google.com/benefits",
               },
             ],

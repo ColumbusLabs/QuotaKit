@@ -122,6 +122,8 @@ extension UsageMenuCardView.Model {
             return self.localizedTokenSuffix(value)
         case .zai:
             return self.localizedZaiValue(value)
+        case .googledeveloper where value == "Not applied":
+            return L("Not applied")
         case .kiro:
             return self.localizedKiroCapPhrase(value)
         case .kimi:

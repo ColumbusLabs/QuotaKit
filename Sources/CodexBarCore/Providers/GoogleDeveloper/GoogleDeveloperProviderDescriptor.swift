@@ -13,7 +13,6 @@ public enum GoogleDeveloperProviderDescriptor {
         "No Cloud credit found. Check your Google Developer Program benefits.",
         "No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits "
             + "or paste a Cookie header.",
-        "Not applied",
         "Supported browsers: %@. Use Manual for other browsers.",
     ]
 
