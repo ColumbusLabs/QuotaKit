@@ -103,5 +103,4 @@ extension MenuBarLayoutRenderer {
         tintedImage.isTemplate = isMonochrome
         return tintedImage
     }
-
 }

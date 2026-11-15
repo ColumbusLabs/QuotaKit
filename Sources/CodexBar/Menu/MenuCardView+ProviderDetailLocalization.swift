@@ -8,7 +8,9 @@ extension UsageMenuCardView.Model {
     {
         // Provider-specific by design: DeepSeek, z.ai, Kiro, and Kimi rewrite unit phrasing.
         // Other providers localize section titles and row labels through the shared catalog; values stay canonical.
-        guard provider == .deepseek || provider == .zai || provider == .kiro || provider == .kimi else {
+        guard provider == .deepseek || provider == .zai || provider == .kiro || provider == .kimi ||
+            provider == .googledeveloper
+        else {
             return details.compactMap { section in
                 let rows = section.rows.compactMap { row in
                     try? ProviderDetailSection.Row(
