@@ -146,18 +146,12 @@ extension StatusItemController {
         captureMenu: NSMenu,
         context: MenuCardContext)
     {
-        let cardRows = accounts.compactMap { account ->
-            (account: ProviderAccountUsageSnapshot, model: UsageMenuCardView.Model)? in
-            guard let model = self.claudeSwapCardModel(for: account) else { return nil }
-            return (account, model)
-        }
         self.addStackedMenuCards(
-            cardRows.map(\.model),
+            accounts.map { self.claudeSwapCardModel(for: $0) },
             to: menu,
             context: context,
             planAction: { [weak self] index in
-                guard cardRows.indices.contains(index) else { return nil }
-                return self?.claudeSwapAccountSwitchAction(cardRows[index].account, menu: captureMenu)
+                self?.claudeSwapAccountSwitchAction(accounts[index], menu: captureMenu)
             })
     }
 
@@ -166,7 +160,11 @@ extension StatusItemController {
             for: .claude,
             context: ClaudeSwapAccountMenuDisplay.cardContext(
                 for: account,
-                planLabel: self.claudeSwapAccountActionLabel(account),
+                planLabel: ClaudeSwapAccountMenuDisplay.actionLabel(
+                    for: account,
+                    switchingAccountID: self.store.claudeSwapTransientState.switchingAccountID,
+                    switchInFlight: self.store.claudeSwapTransientState.task != nil,
+                    switchPhase: self.store.claudeSwapTransientState.switchPhase),
                 adapterError: self.store.claudeSwapLastError,
                 switchError: self.store.claudeSwapTransientState.lastErrorAccountID == account.id
                     ? self.store.claudeSwapTransientState.lastError
@@ -182,7 +180,7 @@ extension StatusItemController {
             switchPhase: self.store.claudeSwapTransientState.switchPhase)
     }
 
-    private func claudeSwapAccountSwitchAction(
+    func claudeSwapAccountSwitchAction(
         _ account: ProviderAccountUsageSnapshot,
         menu: NSMenu)
         -> (() -> Void)?

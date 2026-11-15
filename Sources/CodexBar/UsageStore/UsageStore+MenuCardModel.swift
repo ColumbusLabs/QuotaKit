@@ -22,6 +22,8 @@ enum UsageMenuCardContext {
         var credits: CreditsSnapshot?
         var codexPublicationHold: String?
         var tokenAccountID: UUID?
+        /// Shows the provider's stored local costs on this account card, for cards that stand in for the provider row.
+        var includesStoredTokenCosts = false
     }
 
     var account: Account? {
@@ -65,7 +67,7 @@ extension UsageStore {
         // Provider-specific by design: a Claude mapping gives local costs only to that selected account card.
         let ownsMappedCosts = provider == .claude && self.claudeTokenCostConfigDirectory != nil &&
             account?.tokenAccountID == self.settings.effectiveSelectedTokenAccount(for: provider)?.id
-        let usesStoredCosts = isLive || ownsMappedCosts
+        let usesStoredCosts = isLive || ownsMappedCosts || account?.includesStoredTokenCosts == true
         let metadata = self.metadata(for: provider)
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         // An explicitly empty account stays empty; live data may belong to another account.
@@ -78,18 +80,12 @@ extension UsageStore {
             creditsOverride: account?.credits,
             now: now)
         let supportsTokenCost = codexProjection != nil || descriptor.tokenCost.supportsTokenCost
-        let tokenSnapshot: CostUsageTokenSnapshot?
-        if isSettings {
-            tokenSnapshot = usesStoredCosts && supportsTokenCost ? self.tokenSnapshot(for: provider) : nil
-        } else {
-            let projected = isLive || snapshot != nil
-                ? self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider)
-                : nil
-            let stored = usesStoredCosts && supportsTokenCost && !Self.tokenCostRequiresProviderSnapshot(provider)
-                ? self.tokenSnapshot(for: provider)
-                : nil
-            tokenSnapshot = projected ?? stored
-        }
+        let stored = usesStoredCosts && supportsTokenCost &&
+            (isSettings || !Self.tokenCostRequiresProviderSnapshot(provider))
+            ? self.tokenSnapshot(for: provider) : nil
+        let projected = !isSettings && (isLive || snapshot != nil)
+            ? self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider) : nil
+        let tokenSnapshot = projected ?? stored
         let weeklyWindow = codexProjection?.rateWindow(for: .weekly)
             ?? snapshot.flatMap { descriptor.presentation.semanticWindows(snapshot: $0).weekly }
         let weeklyPace = weeklyWindow.flatMap {
@@ -208,19 +204,18 @@ extension UsageStore {
                 self.planUtilizationHistorySelection(for: provider, snapshotOverride: $0)
             } ?? .unavailable
         }
-        if let session = codexProjection?.rateWindow(for: .session),
-           let weekly = codexProjection?.rateWindow(for: .weekly)
+        let windows: (
+            session: RateWindow,
+            weekly: RateWindow,
+            weeklyWindowID: String?,
+            historyIdentity: String?)? = if let session = codexProjection?.rateWindow(for: .session),
+                                        let weekly = codexProjection?.rateWindow(for: .weekly)
         {
-            return self.sessionEquivalentForecast(
-                provider: provider,
-                sessionWindow: session,
-                weeklyWindow: weekly,
-                historySelection: historySelection,
-                now: now)
+            (session, weekly, nil, nil)
+        } else {
+            snapshot.flatMap { self.sessionEquivalentWindows(provider: provider, snapshot: $0) }
         }
-        guard let snapshot,
-              let windows = self.sessionEquivalentWindows(provider: provider, snapshot: snapshot)
-        else { return nil }
+        guard let windows else { return nil }
         return self.sessionEquivalentForecast(
             provider: provider,
             sessionWindow: windows.session,
