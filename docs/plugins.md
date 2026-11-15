@@ -464,6 +464,9 @@ Merged meter icons render the primary window in the thick lane and the secondary
 the used/remaining preference. When both are absent, the existing tertiary/extra-window single-meter fallback remains;
 the switcher gauge follows the plugin's selected metric.
 
+Plugin card headers use the same title style and insets as built-in providers. Branding stays in the switcher,
+and the plugin source file remains visible in plugin settings.
+
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
 refreshes update visible plugin cards, and repeated requests for the same plugin share its in-flight refresh.
