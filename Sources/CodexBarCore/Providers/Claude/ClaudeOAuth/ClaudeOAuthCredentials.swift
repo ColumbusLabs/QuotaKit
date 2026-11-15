@@ -8,6 +8,7 @@ import FoundationNetworking
 #if os(macOS)
 import LocalAuthentication
 import Security
+import SweetCookieKit
 #endif
 
 // swiftlint:disable type_body_length file_length
@@ -619,7 +620,10 @@ public enum ClaudeOAuthCredentialsStore {
             environment: [String: String],
             lastError: inout Error?) -> ClaudeOAuthCredentialRecord?
         {
-            guard allowKeychainPrompt else { return nil }
+            guard allowKeychainPrompt, ProviderInteractionContext.current == .userInitiated else { return nil }
+            #if os(macOS)
+            guard !BrowserCookieKeychainAccessGate.isUserInteractionDisallowed else { return nil }
+            #endif
             let profileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(
                 environment: environment)
             let promptGeneration = ClaudeOAuthKeychainAccessGate.promptAttemptGeneration()
@@ -2587,94 +2591,67 @@ public enum ClaudeOAuthCredentialsStore {
         allowKeychainPrompt: Bool,
         promptMode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current()) throws -> Data?
     {
-        guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode, allowKeychainPrompt: allowKeychainPrompt)
-        else { return nil }
-        self.log.debug(
-            "Claude keychain data read start",
-            metadata: [
-                "service": self.claudeKeychainService,
-                "interactive": "\(allowKeychainPrompt)",
-                "process": ProcessInfo.processInfo.processName,
-            ])
-
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecValuePersistentRef as String: candidate.persistentRef,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-
-        if !allowKeychainPrompt {
-            KeychainNoUIQuery.apply(to: &query)
-        }
-
-        var result: AnyObject?
-        let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = KeychainSecurity.copyMatching(
-            query as CFDictionary,
-            &result,
-            interactionPolicy: allowKeychainPrompt ? .userInitiatedPrompt : .nonInteractive)
-        let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
-        self.log.debug(
-            "Claude keychain data read result",
-            metadata: [
-                "service": self.claudeKeychainService,
-                "interactive": "\(allowKeychainPrompt)",
-                "status": "\(status)",
-                "duration_ms": String(format: "%.2f", durationMs),
-                "process": ProcessInfo.processInfo.processName,
-            ])
-        return try self.claudeKeychainDataResult(
-            status: status,
-            result: result,
-            allowKeychainPrompt: allowKeychainPrompt)
+        guard let account = candidate.account else { return nil }
+        return try self.readClaudeKeychainData(
+            candidate: candidate, account: account, allowKeychainPrompt: allowKeychainPrompt, promptMode: promptMode)
     }
 
     private static func loadClaudeKeychainLegacyData(
         allowKeychainPrompt: Bool,
         promptMode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current()) throws -> Data?
     {
+        // Resolve the exact item first so preflight and payload reads cannot select different entries.
+        guard let candidate = self.claudeKeychainLegacyCandidateWithoutPrompt(promptMode: promptMode),
+              let account = candidate.account else { return nil }
+        return try self.readClaudeKeychainData(
+            candidate: candidate, account: account, allowKeychainPrompt: allowKeychainPrompt, promptMode: promptMode)
+    }
+
+    private static func readClaudeKeychainData(
+        candidate: ClaudeKeychainCandidate,
+        account: String,
+        allowKeychainPrompt: Bool,
+        promptMode: ClaudeOAuthKeychainPromptMode) throws -> Data?
+    {
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode, allowKeychainPrompt: allowKeychainPrompt)
         else { return nil }
-        self.log.debug(
-            "Claude keychain legacy data read start",
-            metadata: [
-                "service": self.claudeKeychainService,
-                "interactive": "\(allowKeychainPrompt)",
-                "process": ProcessInfo.processInfo.processName,
-            ])
-
+        let requiresPrompt: Bool
+        switch KeychainAccessPreflight.checkGenericPassword(
+            service: self.claudeKeychainService, account: account, requirePartition: true)
+        {
+        case .allowed: requiresPrompt = false
+        case .interactionRequired: requiresPrompt = true
+        case .notFound, .temporarilyUnavailable, .failure: return nil
+        }
+        if requiresPrompt {
+            guard allowKeychainPrompt,
+                  ProviderInteractionContext.current == .userInitiated,
+                  ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(),
+                  BrowserCookieAccessGate.claimCredentialRead(service: self.claudeKeychainService)
+            else { return nil }
+        }
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.claudeKeychainService,
+            kSecValuePersistentRef as String: candidate.persistentRef,
             kSecMatchLimit as String: kSecMatchLimitOne,
             kSecReturnData as String: true,
         ]
-
-        if !allowKeychainPrompt {
-            KeychainNoUIQuery.apply(to: &query)
+        if !requiresPrompt { KeychainNoUIQuery.apply(to: &query) }
+        let (status, result, durationMs) = ClaudeOAuthKeychainQueryTiming.copyMatching(
+            query, interactionPolicy: requiresPrompt ? .userInitiatedPrompt : .nonInteractive)
+        if requiresPrompt, [errSecUserCanceled, errSecAuthFailed, errSecNoAccessForItem, errSecInteractionNotAllowed]
+            .contains(status)
+        {
+            BrowserCookieAccessGate.recordCredentialDenial(service: self.claudeKeychainService)
         }
-
-        var result: AnyObject?
-        let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = KeychainSecurity.copyMatching(
-            query as CFDictionary,
-            &result,
-            interactionPolicy: allowKeychainPrompt ? .userInitiatedPrompt : .nonInteractive)
-        let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
-        self.log.debug(
-            "Claude keychain legacy data read result",
-            metadata: [
-                "service": self.claudeKeychainService,
-                "interactive": "\(allowKeychainPrompt)",
-                "status": "\(status)",
-                "duration_ms": String(format: "%.2f", durationMs),
-                "process": ProcessInfo.processInfo.processName,
-            ])
-        return try self.claudeKeychainDataResult(
-            status: status,
-            result: result,
-            allowKeychainPrompt: allowKeychainPrompt)
+        self.log.debug("Claude keychain data read result", metadata: [
+            "service": self.claudeKeychainService,
+            "interactive": "\(requiresPrompt)",
+            "status": "\(status)",
+            "duration_ms": String(format: "%.2f", durationMs),
+            "process": ProcessInfo.processInfo.processName,
+        ])
+        return try self.claudeKeychainDataResult(status: status, result: result, allowKeychainPrompt: requiresPrompt)
     }
 
     static func claudeKeychainDataResult(

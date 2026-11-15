@@ -97,13 +97,15 @@ to another credential source.
 - Options:
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
-  - `Always allow prompts`: allows interactive prompts in both user and background flows.
+  - `Always allow prompts`: retains the stored policy, but interactive credential repair still requires explicit Refresh.
 - A user-initiated OAuth load can repair Claude Keychain access when direct-read consent is enabled and the policy
   allows prompts. Background OAuth loads remain noninteractive, including with `Always allow prompts`; that policy
-  still governs the existing delegated refresh and experimental reader paths.
+  also applies to delegated refresh and experimental reader paths.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
-- The experimental `/usr/bin/security` reader follows the stored policy: background reads that can prompt require
-  `Always allow prompts` and an explicitly permitted QuotaKit operation. `Never prompt` blocks this reader.
+- The experimental `/usr/bin/security` reader requires an explicitly permitted QuotaKit operation. `Never prompt` blocks this reader.
+- Direct Claude credential reads check both decrypt access and signing-team partitions. Unreadable checks stop before
+  accessing the secret; a missing grant can use the manual refresh action’s single shared Keychain allowance. Claude
+  Code can reset partitions on token refresh, so a previous grant may not persist.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
 - An expired cached token is checked against the live Claude Keychain entry when no-prompt access is available;
