@@ -273,7 +273,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(work.cacheDecodes == 1)
         #expect(work.transcriptParses == 2)
         let rebuilt = CostUsageClaudeCacheIO.loadArtifact(provider: .claude, cacheRoot: env.cacheRoot)
-        #expect(rebuilt.usage.version == 4)
+        #expect(rebuilt.usage.version == 5)
         #expect(rebuilt.usage.files.count == 2)
         #expect(rebuilt.usage.days.count == 2)
     }
