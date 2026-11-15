@@ -110,6 +110,7 @@ public enum KeychainAccessPreflight {
         let service: String
         let account: String?
         let requirePartition: Bool
+        let persistentRef: Data?
     }
 
     private final class GenericPasswordCheckMemo: @unchecked Sendable {
@@ -142,10 +143,10 @@ public enum KeychainAccessPreflight {
 
     #if DEBUG
     final class CheckGenericPasswordOverrideStore: @unchecked Sendable {
-        let check: (String, String?, Bool) -> Outcome
+        let check: (String, String?, Bool, Data?) -> Outcome
         let retryDelay: () -> Void
 
-        init(check: @escaping (String, String?, Bool) -> Outcome, retryDelay: @escaping () -> Void) {
+        init(check: @escaping (String, String?, Bool, Data?) -> Outcome, retryDelay: @escaping () -> Void) {
             self.check = check
             self.retryDelay = retryDelay
         }
@@ -165,7 +166,7 @@ public enum KeychainAccessPreflight {
         try self.$taskCheckGenericPasswordOverrideStore.withValue(
             override.map { check in
                 CheckGenericPasswordOverrideStore(
-                    check: { service, account, _ in check(service, account) }, retryDelay: retryDelay)
+                    check: { service, account, _, _ in check(service, account) }, retryDelay: retryDelay)
             }) {
                 try operation()
             }
@@ -180,7 +181,7 @@ public enum KeychainAccessPreflight {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
             override.map { check in
                 CheckGenericPasswordOverrideStore(
-                    check: { service, account, _ in check(service, account) }, retryDelay: retryDelay)
+                    check: { service, account, _, _ in check(service, account) }, retryDelay: retryDelay)
             }) {
                 try await operation()
             }
@@ -188,6 +189,23 @@ public enum KeychainAccessPreflight {
 
     static func withPartitionCheckOverrideForTesting<T>(
         _ check: @escaping (String, String?, Bool) -> Outcome,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskCheckGenericPasswordOverrideStore.withValue(
+            CheckGenericPasswordOverrideStore(check: { service, account, partition, _ in
+                check(service, account, partition)
+            }, retryDelay: {}), operation: operation)
+    }
+
+    static func withItemCheckOverrideForTesting<T>(
+        _ check: @escaping (String, String?, Bool, Data?) -> Outcome,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$taskCheckGenericPasswordOverrideStore.withValue(
+            CheckGenericPasswordOverrideStore(check: check, retryDelay: {}), operation: operation)
+    }
+    static func withItemCheckOverrideForTesting<T>(
+        _ check: @escaping (String, String?, Bool, Data?) -> Outcome,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
@@ -209,9 +227,11 @@ public enum KeychainAccessPreflight {
     public static func checkGenericPassword(
         service: String,
         account: String?,
-        requirePartition: Bool = false) -> Outcome
+        requirePartition: Bool = false,
+        persistentRef: Data? = nil) -> Outcome
     {
-        let key = GenericPasswordKey(service: service, account: account, requirePartition: requirePartition)
+        let key = GenericPasswordKey(
+            service: service, account: account, requirePartition: requirePartition, persistentRef: persistentRef)
         if let memo = self.genericPasswordCheckMemo {
             return memo.outcome(for: key) {
                 self.checkGenericPasswordUncached(key)
@@ -258,11 +278,12 @@ public enum KeychainAccessPreflight {
         let service = key.service
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
-            return override.check(service, key.account, key.requirePartition)
+            return override.check(service, key.account, key.requirePartition, key.persistentRef)
         }
         #endif
         guard !KeychainAccessGate.isDisabled else { return .notFound }
-        let query = self.makeGenericPasswordPreflightQuery(service: service, account: key.account)
+        let query = self.makeGenericPasswordPreflightQuery(
+            service: service, account: key.account, persistentRef: key.persistentRef)
 
         var result: AnyObject?
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
@@ -309,10 +330,11 @@ public enum KeychainAccessPreflight {
     #endif
 
     #if os(macOS)
-    static func makeGenericPasswordPreflightQuery(service: String, account: String?) -> [String: Any] {
+    static func makeGenericPasswordPreflightQuery(
+        service: String, account: String?, persistentRef: Data? = nil) -> [String: Any]
+    {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
             kSecMatchLimit as String: kSecMatchLimitOne,
             // Preflight should never trigger UI. Avoid requesting the secret payload (`kSecReturnData`) because
             // some macOS configurations have been observed to show the legacy keychain prompt even with UI-fail.
@@ -321,8 +343,11 @@ public enum KeychainAccessPreflight {
             kSecReturnRef as String: true,
         ]
         KeychainNoUIQuery.apply(to: &query)
-        if let account {
-            query[kSecAttrAccount as String] = account
+        if let persistentRef {
+            query[kSecValuePersistentRef as String] = persistentRef
+        } else {
+            query[kSecAttrService as String] = service
+            if let account { query[kSecAttrAccount as String] = account }
         }
         return query
     }

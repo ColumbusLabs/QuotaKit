@@ -2600,7 +2600,7 @@ public enum ClaudeOAuthCredentialsStore {
         allowKeychainPrompt: Bool,
         promptMode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current()) throws -> Data?
     {
-        // Resolve the exact item first so preflight and payload reads cannot select different entries.
+        // Resolve the exact item first so preflight and payload reads inspect the same persistent reference.
         guard let candidate = self.claudeKeychainLegacyCandidateWithoutPrompt(promptMode: promptMode),
               let account = candidate.account else { return nil }
         return try self.readClaudeKeychainData(
@@ -2617,7 +2617,8 @@ public enum ClaudeOAuthCredentialsStore {
         else { return nil }
         let requiresPrompt: Bool
         switch KeychainAccessPreflight.checkGenericPassword(
-            service: self.claudeKeychainService, account: account, requirePartition: true)
+            service: self.claudeKeychainService, account: account, requirePartition: true,
+            persistentRef: candidate.persistentRef)
         {
         case .allowed: requiresPrompt = false
         case .interactionRequired: requiresPrompt = true

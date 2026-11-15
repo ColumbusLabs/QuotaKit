@@ -92,7 +92,8 @@ struct ClaudeOAuthPartitionTests {
         let reads = LockIsolated(0)
         let partitions = try LockIsolated([KeychainAccessPreflightPartitionTests.description(["teamid:OURS"])])
         try await self.withFixture(reads: reads) {
-            try await KeychainAccessPreflight.withPartitionCheckOverrideForTesting { service, account, required in
+            try await KeychainAccessPreflight.withItemCheckOverrideForTesting { service, account, required, reference in
+                #expect(reference == Data("synthetic-ref".utf8))
                 #expect(service == "Claude Code-credentials")
                 #expect(account == "synthetic-account")
                 #expect(required)

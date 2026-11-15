@@ -62,6 +62,39 @@ struct KeychainAccessPreflightPartitionTests {
     }
 
     @Test
+    func `duplicate service and account preflight the selected persistent item and memoize separately`() {
+        let allowed = Data("allowed-item".utf8)
+        let rejected = Data("rejected-item".utf8)
+        let checks = LockIsolated(0)
+        let query = KeychainAccessPreflight.makeGenericPasswordPreflightQuery(
+            service: "same-service", account: "same-account", persistentRef: rejected)
+        #expect(query[kSecValuePersistentRef as String] as? Data == rejected)
+        #expect(query[kSecAttrService as String] == nil)
+        #expect(query[kSecAttrAccount as String] == nil)
+        #expect(query[kSecReturnData as String] == nil)
+        let museQuery = KeychainAccessPreflight.makeGenericPasswordPreflightQuery(
+            service: "muse-service", account: "muse-account")
+        #expect(museQuery[kSecAttrService as String] as? String == "muse-service")
+        #expect(museQuery[kSecAttrAccount as String] as? String == "muse-account")
+        KeychainAccessPreflight.withItemCheckOverrideForTesting { _, _, _, reference in
+            checks.setValue(checks.value + 1)
+            return reference == allowed ? .allowed : .interactionRequired
+        } operation: {
+            KeychainAccessPreflight.withMemoizedGenericPasswordChecks {
+                func check(_ reference: Data) -> KeychainAccessPreflight.Outcome {
+                    KeychainAccessPreflight.checkGenericPassword(
+                        service: "same-service", account: "same-account", requirePartition: true,
+                        persistentRef: reference)
+                }
+                #expect(check(allowed) == .allowed)
+                #expect(check(rejected) == .interactionRequired)
+                #expect(check(rejected) == .interactionRequired)
+            }
+        }
+        #expect(checks.value == 2)
+    }
+
+    @Test
     func `partition-aware checks do not reuse decrypt-only memo entries or previous grants`() async throws {
         let descriptions = try LockIsolated<[String]>([Self.description(["teamid:OURS"])])
         let checks = LockIsolated(0)
