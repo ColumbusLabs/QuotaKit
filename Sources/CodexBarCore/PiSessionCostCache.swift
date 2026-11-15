@@ -28,6 +28,39 @@ enum PiSessionCostCacheIO {
         return decoded
     }
 
+    /// A released v9 artifact can preserve the last known totals during an unsuccessful upgrade scan.
+    /// Its file checkpoints must never be used to construct v10 session metadata.
+    static func loadLegacyFallback(cacheRoot: URL? = nil) -> PiSessionCostCache? {
+        let url = self.cacheFileURL(cacheRoot: cacheRoot)
+            .deletingLastPathComponent().appendingPathComponent("pi-sessions-v9.json")
+        guard let data = try? Data(contentsOf: url),
+              let legacy = try? JSONDecoder().decode(LegacyCache.self, from: data),
+              legacy.version == 9
+        else { return nil }
+        var cache = PiSessionCostCache()
+        cache.lastScanUnixMs = legacy.lastScanUnixMs
+        cache.scanSinceKey = legacy.scanSinceKey
+        cache.scanUntilKey = legacy.scanUntilKey
+        cache.timeZoneIdentifier = legacy.timeZoneIdentifier
+        cache.pricingKey = legacy.pricingKey
+        cache.sessionRootsFingerprint = legacy.sessionRootsFingerprint
+        cache.daysByProvider = legacy.daysByProvider
+        cache.files = legacy.files
+        return cache
+    }
+
+    private struct LegacyCache: Decodable {
+        let version: Int
+        let lastScanUnixMs: Int64
+        let scanSinceKey: String?
+        let scanUntilKey: String?
+        let timeZoneIdentifier: String?
+        let pricingKey: String?
+        let sessionRootsFingerprint: String?
+        let daysByProvider: [String: [String: [String: PiPackedUsage]]]
+        let files: [String: PiSessionFileUsage]
+    }
+
     static func save(
         cache: PiSessionCostCache,
         cacheRoot: URL? = nil,

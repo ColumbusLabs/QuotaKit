@@ -32,6 +32,35 @@ struct PiSessionCostV9UpgradeTests {
     }
 
     @Test
+    func `incomplete v9 upgrade retains stale totals until a full reparse succeeds`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let fixture = try Self.seedReleasedArtifact(in: env, version: 9)
+        let original = try Data(contentsOf: fixture.sessionURL)
+        let handle = try FileHandle(forWritingTo: fixture.sessionURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{broken json}\n".utf8))
+        try handle.close()
+
+        let incomplete = try Self.scan(fixture)
+        #expect(!incomplete.isComplete)
+        #expect(!incomplete.detailsAreComplete)
+        #expect(incomplete.sessions.isEmpty)
+        #expect(incomplete.report.summary?.totalTokens == 15)
+        #expect(incomplete.lastScanAt == fixture.day)
+        #expect(incomplete.scopeFingerprint == PiSessionCostScanner.scopeFingerprint(options: fixture.options))
+        #expect(!FileManager.default.fileExists(atPath: PiSessionCostCacheIO.cacheFileURL(cacheRoot: env.cacheRoot).path))
+        #expect(try Data(contentsOf: fixture.cacheURL) == fixture.cacheBytes)
+
+        try original.write(to: fixture.sessionURL)
+        let recovered = try Self.scan(fixture)
+        #expect(recovered.isComplete)
+        #expect(recovered.detailsAreComplete)
+        #expect(recovered.report.summary?.totalTokens == 15)
+        #expect(recovered.sessions.map(\.title) == ["Refactor parser"])
+    }
+
+    @Test
     func `the same warm artifact at the current version is reused without reparsing`() throws {
         // Control for the upgrade test: the seed is a warm cache, so only the version forces the reparse.
         let env = try CostUsageTestEnvironment()
@@ -83,6 +112,7 @@ struct PiSessionCostV9UpgradeTests {
     private struct Fixture {
         let day: Date
         let cacheURL: URL
+        let sessionURL: URL
         let cacheBytes: Data
         let options: PiSessionCostScanner.Options
     }
@@ -194,7 +224,7 @@ struct PiSessionCostV9UpgradeTests {
         try FileManager.default.createDirectory(
             at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try cacheBytes.write(to: cacheURL)
-        return Fixture(day: day, cacheURL: cacheURL, cacheBytes: cacheBytes, options: options)
+        return Fixture(day: day, cacheURL: cacheURL, sessionURL: sessionURL, cacheBytes: cacheBytes, options: options)
     }
 
     private static func scan(_ fixture: Fixture) throws -> PiSessionCostScanner.DailyReportResult {

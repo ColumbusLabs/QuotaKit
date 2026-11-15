@@ -217,8 +217,16 @@ enum PiSessionCostScanner {
             until: until,
             calendar: options.calendar)
         var cache = PiSessionCostCacheIO.load(cacheRoot: options.cacheRoot)
+        var usingLegacyFallback = false
+        if cache.lastScanUnixMs == 0,
+           let legacy = PiSessionCostCacheIO.loadLegacyFallback(cacheRoot: options.cacheRoot)
+        {
+            cache = legacy
+            usingLegacyFallback = true
+        }
         if cache.timeZoneIdentifier != range.calendar.timeZone.identifier {
             cache = PiSessionCostCache()
+            usingLegacyFallback = false
         }
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
@@ -227,13 +235,18 @@ enum PiSessionCostScanner {
             options: options,
             previousSessionRootsFingerprint: cache.sessionRootsFingerprint)
         let sessionRootsFingerprint = self.sessionRootsFingerprint(roots)
+        // A legacy report is only attributable to the exact root set that produced it.
+        if usingLegacyFallback, cache.sessionRootsFingerprint != sessionRootsFingerprint {
+            cache = PiSessionCostCache()
+            usingLegacyFallback = false
+        }
         let windowExpanded = self.requestedWindowExpandsCache(range: range, cache: cache)
         let pricingChanged = cache.pricingKey != pricingContext.pricingKey
         let sessionRootsChanged = cache.sessionRootsFingerprint != sessionRootsFingerprint
         let invalidCache = cache.files.values.contains { $0.fileIdentity == nil }
             || self.checkedReports(cache: cache, range: range) == nil
         let cacheBeforeScan = cache
-        let shouldRefresh = options.forceRescan
+        let shouldRefresh = usingLegacyFallback || options.forceRescan
             || windowExpanded
             || pricingChanged
             || sessionRootsChanged
@@ -275,7 +288,8 @@ enum PiSessionCostScanner {
                     cache: &cache,
                     context: ScanContext(
                         range: range,
-                        forceRescan: options.forceRescan || windowExpanded || pricingChanged || invalidCache,
+                        forceRescan: usingLegacyFallback || options.forceRescan || windowExpanded || pricingChanged
+                            || invalidCache,
                         pricingContext: pricingContext,
                         checkCancellation: checkCancellation))
                 scanIsComplete = scanIsComplete && fileIsComplete
@@ -293,8 +307,8 @@ enum PiSessionCostScanner {
                     cache = cacheBeforeScan
                     scanIsComplete = false
                 }
-            } else if sessionRootsChanged || pricingChanged {
-                // Scope and pricing changes require one complete reparse. Keep the previous
+            } else if usingLegacyFallback || sessionRootsChanged || pricingChanged {
+                // Upgrades, scope changes and pricing changes require a complete reparse. Keep the previous
                 // report intact rather than mixing roots or catalog versions after a failure.
                 cache = cacheBeforeScan
             } else {
