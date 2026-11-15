@@ -150,29 +150,29 @@ struct ZedPluginTests {
     @MainActor
     func `app settings snapshot exposes the opt in without changing the editor default`() async {
         let settings = testSettingsStore(suiteName: "ZedPluginTests-settings")
-        let defaultSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let defaultSnapshot = ProviderRegistry.makeSettingsSnapshot(provider: .zed, settings: settings, tokenOverride: nil)
         #expect(defaultSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .off)
         #expect(await Self.strategyIDs(settings: defaultSnapshot) == ["zed.local"])
 
         settings.zedCookieHeader = "zed.session=fixture-only"
-        let inferredManualSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let inferredManualSnapshot = ProviderRegistry.makeSettingsSnapshot(provider: .zed, settings: settings, tokenOverride: nil)
         #expect(inferredManualSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .manual)
         #expect(inferredManualSnapshot[ZedProviderSettingsKey.self]?.manualCookieHeader == "zed.session=fixture-only")
         #expect(await Self.strategyIDs(settings: inferredManualSnapshot) == ["zed.web"])
 
         settings.zedCookieSource = .off
-        let explicitOffSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let explicitOffSnapshot = ProviderRegistry.makeSettingsSnapshot(provider: .zed, settings: settings, tokenOverride: nil)
         #expect(explicitOffSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .off)
         #expect(await Self.strategyIDs(settings: explicitOffSnapshot) == ["zed.local"])
 
         settings.zedCookieSource = .auto
-        let automaticSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let automaticSnapshot = ProviderRegistry.makeSettingsSnapshot(provider: .zed, settings: settings, tokenOverride: nil)
         #expect(automaticSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .auto)
         #expect(await Self.strategyIDs(settings: automaticSnapshot) == ["zed.web"])
 
         settings.zedCookieSource = .manual
         settings.zedCookieHeader = "zed.session=fixture-only"
-        let manualSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let manualSnapshot = ProviderRegistry.makeSettingsSnapshot(provider: .zed, settings: settings, tokenOverride: nil)
         #expect(manualSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .manual)
         #expect(manualSnapshot[ZedProviderSettingsKey.self]?.manualCookieHeader == "zed.session=fixture-only")
     }
