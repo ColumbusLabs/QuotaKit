@@ -88,7 +88,11 @@ defineProvider({
           dataConfidence: "exact",
         };
       } catch (error) {
-        if (error !== expired && error.failureKind !== "missing-credential") throw error;
+        if (
+          error !== expired &&
+          error.failureKind !== "missing-credential" &&
+          error.message !== "No session cookies match this request URL."
+        ) throw error;
         ctx.browser.rejectCookie(domain, session);
         rejected = true;
       }

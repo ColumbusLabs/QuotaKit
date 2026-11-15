@@ -116,6 +116,27 @@ struct GoogleDeveloperPluginTests {
         #expect(await fixture.sessions == 1)
     }
 
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `host only parent cookie does not block a later profile`(engine: ProviderPluginEngineKind) async throws {
+        let first = ProviderPluginCookieSession(
+            header: "",
+            source: "Synthetic",
+            origin: "https://me.developers.google.com",
+            records: [ProviderPluginCookieRecord(
+                name: "SID",
+                value: "parent-only",
+                domain: "google.com",
+                hostOnly: true,
+                path: "/",
+                secure: true,
+                expires: nil)])
+        let fixture = Fixture([[Self.applied], [Self.applied]], firstSession: first)
+        let usage = try await Self.fetch(engine, fixture: fixture)
+        #expect(usage.providerCost?.balance == 87.5)
+        #expect(await fixture.requests == ["GET 2/0", "POST 2/0"])
+        #expect(await fixture.rejections == 1)
+    }
+
     @Test(arguments: ["repeat", "no email", "cap"], BundledPluginTestSupport.engines)
     func `account traversal stops at a repeated email a missing email or eight accounts`(
         stop: String, engine: ProviderPluginEngineKind) async
@@ -281,6 +302,7 @@ struct GoogleDeveloperPluginTests {
 
     private actor Fixture: ProviderHTTPTransport {
         let profiles: [[Account]]
+        let firstSession: ProviderPluginCookieSession?
         let rejected = Counter()
         var sessions = 0
         var requests: [String] = []
@@ -288,17 +310,27 @@ struct GoogleDeveloperPluginTests {
             self.rejected.value
         }
 
-        init(_ profiles: [[Account]]) {
+        init(_ profiles: [[Account]], firstSession: ProviderPluginCookieSession? = nil) {
             self.profiles = profiles
+            self.firstSession = firstSession
         }
 
         func nextSession() -> ProviderPluginCookieSession? {
             self.sessions += 1
             guard self.sessions <= self.profiles.count else { return nil }
+            if self.sessions == 1, let firstSession { return firstSession }
             return .init(
-                header: "SID=fixture-\(self.sessions)",
+                header: "",
                 source: "Synthetic",
-                origin: "https://me.developers.google.com")
+                origin: "https://me.developers.google.com",
+                records: [ProviderPluginCookieRecord(
+                    name: "SID",
+                    value: "fixture-\(self.sessions)",
+                    domain: "me.developers.google.com",
+                    hostOnly: true,
+                    path: "/",
+                    secure: true,
+                    expires: nil)])
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {

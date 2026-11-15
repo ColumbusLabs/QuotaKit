@@ -82,11 +82,17 @@ defineProvider({
       const emails: string[] = [];
       // Each authuser index is one signed-in Google account, and only one of them may hold the credit.
       for (let account = 0; account < 8; account += 1) {
-        const page = await ctx.http.get(`${origin}/benefits?authuser=${account}`, {
-          cookieSession: session.id,
-          headers: { Accept: "text/html" },
-          retryPolicy: "transientIdempotent",
-        });
+        let page;
+        try {
+          page = await ctx.http.get(`${origin}/benefits?authuser=${account}`, {
+            cookieSession: session.id,
+            headers: { Accept: "text/html" },
+            retryPolicy: "transientIdempotent",
+          });
+        } catch (error) {
+          if (!(error instanceof Error) || error.message !== "No session cookies match this request URL.") throw error;
+          break;
+        }
         if (denied(page)) break;
         // Signed-out pages also omit the page tokens.
         const token = pageValue(page.bodyText, "SNlM0e");

@@ -193,11 +193,12 @@ struct SiliconFlowWebPluginTests {
         let runtime = try BundledPluginTestSupport.runtime("siliconflow-web", engine: engine, transport: fixture)
         let key = "Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit."
         let messages = try JSONEncoder().encode([key: "Localized fixture sign in."])
+        let encoded = try #require(String(bytes: messages, encoding: .utf8))
         await #expect(throws: ProviderFetchClassifiedError(
             kind: .authenticationExpired, message: "Localized fixture sign in."))
         {
             try await runtime.fetchUsage(
-                settings: ["MESSAGES": String(decoding: messages, as: UTF8.self)],
+                settings: ["MESSAGES": encoded],
                 sourceMode: .web,
                 cookieSessionResolver: { _, _ in await fixture.nextSession() })
         }
@@ -313,8 +314,17 @@ struct SiliconFlowWebPluginTests {
             guard self.sessions <= 2 else { return nil }
             if self.sessions == 1, let firstSession { return firstSession }
             return .init(
-                header: "__SF_auth.session-token=sf-session-\(self.sessions)",
-                source: "Synthetic", origin: "https://cloud.siliconflow.cn")
+                header: "",
+                source: "Synthetic",
+                origin: "https://cloud.siliconflow.cn",
+                records: [ProviderPluginCookieRecord(
+                    name: "__SF_auth.session-token",
+                    value: "sf-session-\(self.sessions)",
+                    domain: "siliconflow.cn",
+                    hostOnly: false,
+                    path: "/",
+                    secure: true,
+                    expires: nil)])
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
