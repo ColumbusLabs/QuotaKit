@@ -39,3 +39,5 @@ The retained assets are provider marks, not QuotaKit application icons. Source t
 | `Brand-ProviderIcon-vertexai.svg` | `17922247f3110026fd637c531d0604c67a00c9a58a6e152030f2242b9fd48a8e` |
 | `docs/logos/soniox.svg` | `3811c11ff1f9794cddbe76ffdf83b69bb8f3245fa45332a983436b62d2bd6e0f` |
 | `docs/logos/traecn.svg` | `567a5551a5204acbbfd4d89b5954c57128d605b64878169b1730b3a202067b97` |
+
+Google Developer Program uses a generic cloud glyph from upstream across the app, website, and CLI dashboard.

@@ -717,7 +717,8 @@ final class SyncCoordinator {
         let codexProjection = provider == .codex
             ? self.store.codexConsumerProjection(surface: .widget, snapshotOverride: snapshot, now: paceNow)
             : nil
-        if provider != .abliteration, let p = snapshot?.primary {
+        // Google Cloud credit is an expiring grant. Its numeric allowance syncs as billing.
+        if provider != .abliteration, provider != .googledeveloper, let p = snapshot?.primary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.primary,
@@ -2018,7 +2019,7 @@ final class SyncCoordinator {
              .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
              .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe, .atlascloud, .vercel, .llmman,
              .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi, .soniox, .traecn,
-             .chatbox, .abliteration, .opendesign, .siliconflow, .tripo,
+             .chatbox, .abliteration, .opendesign, .siliconflow, .tripo, .googledeveloper,
              // Provider-specific by design: these provider-native or balance-only cases bypass local model pricing;
              // the nearby Codex branch alone maps OpenAI dashboard breakdowns into Codex mobile costs.
              .aerostack, .cosmic, .exa, .fal, .flora, .linkup, .parallel, .claudeplatform, .sailresearch, .sofya,

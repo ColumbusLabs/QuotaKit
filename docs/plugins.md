@@ -25,6 +25,8 @@ It uses the same quota as the switcher gauge: the most-used seven-day window, or
 usage arrives, the plugin stays selected with unavailable usage. Other merged-icon sources retain their built-in
 provider behavior.
 
+[Google Developer Program](googledeveloper.md) reads the current monthly Cloud credit with scoped, nonpersistent Google cookies on both plugin engines.
+
 ## Bundled API-key provider registration
 
 For a bundled plugin with a simple API-key configuration, declare a public `PluginProviderSpec` named `spec` in its

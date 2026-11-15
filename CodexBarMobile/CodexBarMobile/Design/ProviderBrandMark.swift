@@ -108,6 +108,7 @@ enum ProviderBrandAsset {
         "munito",
         "siliconflow",
         "tripo",
+        "googledeveloper",
         "soniox",
         "traecn",
         "aiand",

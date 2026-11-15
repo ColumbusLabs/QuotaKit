@@ -28,7 +28,7 @@ struct ProviderArchitectureGatekeeperTests {
         .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
         .tavily, .exa, .linkup, .tinyapi, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
         .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow,
-        .tripo,
+        .tripo, .googledeveloper,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -171,6 +171,10 @@ struct ProviderArchitectureGatekeeperTests {
         #expect(widgetFingerprint == 15_257_423_529_364_337_610)
         #expect(burnDownFingerprint == 13_248_577_987_729_422_950)
 
+        let googleDeveloper = ProviderDescriptorRegistry.descriptor(for: .googledeveloper).branding
+        #expect(googleDeveloper.widgetColor.hexString == "#5B8DEF")
+        #expect(googleDeveloper.burnDownWidgetColor.hexString == "#999999")
+
         let museAI = ProviderDescriptorRegistry.descriptor(for: .museai).branding
         #expect(museAI.widgetColor.hexString == "#0668E1")
         #expect(museAI.burnDownWidgetColor.hexString == "#999999")
@@ -239,7 +243,7 @@ struct ProviderArchitectureGatekeeperTests {
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .perplexity, .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .chutes,
             .litellm, .longcat, .v0, .bifrost, .aixy, .raycast, .llmman, .manus, .mimo, .neuralwatt, .abacus,
-            .workbuddy, .claudeplatform, .abliteration,
+            .workbuddy, .claudeplatform, .abliteration, .googledeveloper,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.

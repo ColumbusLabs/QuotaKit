@@ -1,6 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Developer Program の Cloud クレジットが QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Developer Program 的 Cloud 赠金现可从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google Developer Program 的 Cloud 抵用金現在可從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota.": {
       "localizations": {
         "en": {

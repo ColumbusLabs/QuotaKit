@@ -232,7 +232,7 @@ struct AccountIdentityComputerTests {
             .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
             .fireworks, .ibmbob, .huggingface, .museai, .lithosai, .langdock,
             .tavily, .linkup, .tinyapi, .exa, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
-            .claudeplatform, .soniox, .traecn, .opendesign, .siliconflow, .tripo,
+            .claudeplatform, .soniox, .traecn, .opendesign, .siliconflow, .tripo, .googledeveloper,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
