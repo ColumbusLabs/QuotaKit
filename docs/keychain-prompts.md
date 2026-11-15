@@ -50,6 +50,10 @@ signing requirement keep the static validator. Requirement mismatches remain con
 errors stay inconclusive. Completed successful validations and transient failures are not retained across operations;
 the existing short, explicit operation memo can reuse preflight only within that operation.
 
+Muse Code also checks the item's explicit signing-team partition list before reading its login token. A missing
+team uses the same explained manual-refresh allowance; unreadable partition metadata or signing identity stops
+before the secret read. The Muse CLI can reset that list on token refresh; see [Muse authentication](muse.md#authentication).
+
 ## If the prompt appears after uninstalling QuotaKit
 
 Deleting `QuotaKit.app` prevents a new process from launching from that bundle, but it does not terminate a process
