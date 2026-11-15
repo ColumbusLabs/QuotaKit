@@ -13,7 +13,7 @@ final class UserPluginCardPresentationTests: XCTestCase {
         try Self.withLanguage("zh-Hans") {
             let hosting = Self.hosting(plugin: plugin, language: "zh-Hans", dark: false)
             _ = try XCTUnwrap(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
-            let text = MenuLayoutScreenshotRenderTests.accessibilityText(hosting)
+            let text = Self.accessibilityText(hosting)
             XCTAssertTrue(text.contains(plugin.manifest.name), text)
             XCTAssertFalse(text.contains(plugin.fileURL.lastPathComponent), text)
             XCTAssertTrue(text.contains(L("Plan")), text)
@@ -39,6 +39,27 @@ final class UserPluginCardPresentationTests: XCTestCase {
                 }
             }
         }
+    }
+
+    private static func accessibilityText(_ element: Any, depth: Int = 0) -> String {
+        guard depth < 30, let accessible = element as? NSObject else { return "" }
+        let fields = [
+            #selector(NSAccessibilityProtocol.accessibilityRole),
+            #selector(NSAccessibilityProtocol.accessibilityLabel),
+            #selector(NSAccessibilityProtocol.accessibilityValue),
+            #selector(NSAccessibilityProtocol.accessibilityValueDescription),
+            #selector(NSAccessibilityProtocol.accessibilityHelp),
+        ].compactMap { selector in
+            self.accessibilityProperty(accessible, selector: selector).map { String(describing: $0) }
+        }.joined(separator: " | ")
+        let children = self.accessibilityProperty(
+            accessible, selector: #selector(NSAccessibilityProtocol.accessibilityChildren)) as? [Any] ?? []
+        return ([fields] + children.map { self.accessibilityText($0, depth: depth + 1) }).joined(separator: "\n")
+    }
+
+    private static func accessibilityProperty(_ element: NSObject, selector: Selector) -> Any? {
+        guard element.responds(to: selector) else { return nil }
+        return element.perform(selector)?.takeUnretainedValue()
     }
 
     private static func withLanguage<T>(_ language: String, operation: () throws -> T) rethrows -> T {
@@ -85,6 +106,7 @@ final class UserPluginCardPresentationTests: XCTestCase {
             error: nil,
             isRefreshing: false,
             showUsed: true,
+            hidePersonalInfo: false,
             resetStyle: .countdown,
             width: 320,
             onRefresh: {})

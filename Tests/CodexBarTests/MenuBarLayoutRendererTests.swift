@@ -2674,6 +2674,7 @@ struct MenuBarLayoutRendererTests {
         colorByProvider: Bool = false,
         highContrast: Bool = false,
         appearanceName: String = "aqua",
+        isHighlighted: Bool = false,
         forceStackedStyle: Bool = false,
         monospacedDigits: Bool = false,
         showWindowLabels: Bool = true) -> MenuBarLayoutRenderOptions
@@ -2686,6 +2687,7 @@ struct MenuBarLayoutRendererTests {
             appearanceName: appearanceName,
             isDebugApp: isDebugApp,
             isStale: isStale,
+            isHighlighted: isHighlighted,
             now: now ?? self.now,
             verticalAdjustment: verticalAdjustment,
             forceStackedStyle: forceStackedStyle,
