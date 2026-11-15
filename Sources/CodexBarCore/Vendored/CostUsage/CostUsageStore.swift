@@ -223,6 +223,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "70daf0906645fd3a", // Terra and Luna Fast repricing preserves native rows and checkpoints.
         "f80230e162d75b65", // Claude-only pricing preserves native rows, checkpoints, and retained reports.
         "1a32d8d0c63060d2", // Symlink-root discovery preserves existing parsed rows and reports.
         "7d66d60c44b88609", // Resumed tier correction preserves parsed rows and checkpoints.
@@ -290,9 +291,8 @@ actor CostUsageStore {
         "7607317f30850961", // Lazy history materialization changes reads; persisted parser rows remain compatible.
         "d0d7da3636605240", // Read-only priority-database fallback changes no parsed session rows or checkpoints.
     ]
-    // All earlier reports may contain estimates made before the Fast pricing correction.
+    // Earlier reports may contain estimates made before Terra and Luna Fast repricing.
     static let incompatibleRetainedReportPredecessorParserHashes = CostUsageStore.compatiblePredecessorParserHashes
-        .subtracting(["f80230e162d75b65", "1a32d8d0c63060d2"])
 
     nonisolated static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!

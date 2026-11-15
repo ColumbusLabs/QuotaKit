@@ -2360,6 +2360,7 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "70daf0906645fd3a",
         "f80230e162d75b65",
         "1a32d8d0c63060d2",
         "8d37b5425fe86c2a",
@@ -2473,11 +2474,8 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        // Earlier reports predate the Fast pricing correction. The immediate QuotaKit
-        // predecessor already contains corrected reports, so preserve those bytes.
-        if !["f80230e162d75b65", "1a32d8d0c63060d2"].contains(predecessorHash) {
-            before.metadata.previousReportPayload = nil
-        }
+        // All predecessor reports predate Terra and Luna Fast repricing.
+        before.metadata.previousReportPayload = nil
 
         let current = CostUsageStore(cacheRoot: fixture.root)
         let after = await current.readSnapshot()
