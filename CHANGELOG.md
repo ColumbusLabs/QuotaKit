@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-15)
+
+- Track the Google Developer Program monthly Cloud grant on Mac and iPhone, including grants awaiting activation.
+- Show Helmcode billing-period credit usage and DeepSeek's current UTC-month Platform spend. Add an explicit Web source for SiliconFlow China balances.
+- Group local Pi and Claude cost by session and project. Add GPT-6.1 Terra and GPT-6 Luna Fast cost rates.
+- Include eligible community-plugin costs in local Usage & Spend and align plugin card headers.
+- Preserve full-height menu bar icons, keep Claude Overview on the displayed account, avoid repeated OAuth Keychain prompts, and stop cancelled provider retries.
+
 ## Unreleased upstream integration (2026-11-14)
 
 - Improve quota recovery and setup guidance for TypeSafe, Venice, MiniMax, MuseAI, Droid, and DeepInfra.

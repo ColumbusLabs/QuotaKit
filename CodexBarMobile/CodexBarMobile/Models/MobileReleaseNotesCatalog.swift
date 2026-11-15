@@ -31,7 +31,8 @@ enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone."),
+                        String(
+                            localized: "Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota."),
                         String(

@@ -2617,7 +2617,9 @@ public enum ClaudeOAuthCredentialsStore {
         else { return nil }
         let requiresPrompt: Bool
         switch KeychainAccessPreflight.checkGenericPassword(
-            service: self.claudeKeychainService, account: account, requirePartition: true,
+            service: self.claudeKeychainService,
+            account: account,
+            requirePartition: true,
             persistentRef: candidate.persistentRef)
         {
         case .allowed: requiresPrompt = false

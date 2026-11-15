@@ -83,7 +83,9 @@ struct KeychainAccessPreflightPartitionTests {
             KeychainAccessPreflight.withMemoizedGenericPasswordChecks {
                 func check(_ reference: Data) -> KeychainAccessPreflight.Outcome {
                     KeychainAccessPreflight.checkGenericPassword(
-                        service: "same-service", account: "same-account", requirePartition: true,
+                        service: "same-service",
+                        account: "same-account",
+                        requirePartition: true,
                         persistentRef: reference)
                 }
                 #expect(check(allowed) == .allowed)

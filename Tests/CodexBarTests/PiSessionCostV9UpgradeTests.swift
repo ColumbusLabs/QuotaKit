@@ -49,7 +49,8 @@ struct PiSessionCostV9UpgradeTests {
         #expect(incomplete.report.summary?.totalTokens == 15)
         #expect(incomplete.lastScanAt == fixture.day)
         #expect(incomplete.scopeFingerprint == PiSessionCostScanner.scopeFingerprint(options: fixture.options))
-        #expect(!FileManager.default.fileExists(atPath: PiSessionCostCacheIO.cacheFileURL(cacheRoot: env.cacheRoot).path))
+        #expect(!FileManager.default
+            .fileExists(atPath: PiSessionCostCacheIO.cacheFileURL(cacheRoot: env.cacheRoot).path))
         #expect(try Data(contentsOf: fixture.cacheURL) == fixture.cacheBytes)
 
         try original.write(to: fixture.sessionURL)

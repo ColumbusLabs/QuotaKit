@@ -204,6 +204,7 @@ public enum KeychainAccessPreflight {
         try self.$taskCheckGenericPasswordOverrideStore.withValue(
             CheckGenericPasswordOverrideStore(check: check, retryDelay: {}), operation: operation)
     }
+
     static func withItemCheckOverrideForTesting<T>(
         _ check: @escaping (String, String?, Bool, Data?) -> Outcome,
         operation: () async throws -> T) async rethrows -> T
