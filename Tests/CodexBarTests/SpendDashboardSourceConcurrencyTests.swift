@@ -783,7 +783,7 @@ struct SpendDashboardSourceConcurrencyTests {
 extension SpendDashboardSourceConcurrencyTests {
     @Test(arguments: [false, true])
     func `recovered plugin capture clears a forced failure`(hasCostUsage: Bool) async throws {
-        let gate = SpendDashboardPendingLoads<Void>()
+        let gate = PluginStatisticsPendingLoad<Void>()
         defer { gate.close() }
         let sourceID = "plugin/refresh-fixture"
         let failed = SpendDashboardConfiguration(
@@ -825,7 +825,7 @@ extension SpendDashboardSourceConcurrencyTests {
         try await gate.waitForPendingCount(1)
         controller.update(configuration: recovered)
         gate.resume()
-        try await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.failedSourceCount == 0)
         let model = controller.publication.model(
             requestedDays: 7,
@@ -838,7 +838,7 @@ extension SpendDashboardSourceConcurrencyTests {
 
     @Test
     func `failed plugin capture cannot restore a successful forced input`() async throws {
-        let gate = SpendDashboardPendingLoads<Void>()
+        let gate = PluginStatisticsPendingLoad<Void>()
         defer { gate.close() }
         let sourceID = "plugin/refresh-fixture"
         let initial = SpendDashboardConfiguration(
@@ -880,7 +880,7 @@ extension SpendDashboardSourceConcurrencyTests {
         try await gate.waitForPendingCount(1)
         controller.update(configuration: failed)
         gate.resume()
-        try await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(modes == [.forceRefresh, .captureOnly])
         #expect(controller.publication.inputs.isEmpty)
         #expect(controller.model.groups.isEmpty)
@@ -890,7 +890,7 @@ extension SpendDashboardSourceConcurrencyTests {
 
     @Test
     func `gate readiness tolerates a delayed producer`() async throws {
-        let gate = SpendDashboardPendingLoads<CostUsageTokenSnapshot>()
+        let gate = PluginStatisticsPendingLoad<CostUsageTokenSnapshot>()
         defer { gate.close() }
         let producer = Task {
             try await Task.sleep(for: .seconds(2))
@@ -904,6 +904,50 @@ extension SpendDashboardSourceConcurrencyTests {
         let snapshot = try await producer.value
         #expect(snapshot.last30DaysCostUSD == 5)
     }
+}
+
+@MainActor
+private final class PluginStatisticsPendingLoad<Value: Sendable> {
+    private var continuation: CheckedContinuation<Value, any Error>?
+    private var closed = false
+
+    var isSuspended: Bool {
+        self.continuation != nil
+    }
+
+    func load() async throws -> Value {
+        guard !self.closed else { throw CancellationError() }
+        return try await withCheckedThrowingContinuation { self.continuation = $0 }
+    }
+
+    func suspend() async where Value == Void {
+        _ = try? await self.load()
+    }
+
+    func waitForPendingCount(_ count: Int) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while !self.isSuspended, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try #require(count == 1 && self.isSuspended)
+    }
+
+    func resume(returning value: Value) {
+        let continuation = self.continuation
+        self.continuation = nil
+        continuation?.resume(returning: value)
+    }
+
+    func close() {
+        self.closed = true
+        let continuation = self.continuation
+        self.continuation = nil
+        continuation?.resume(throwing: CancellationError())
+    }
+}
+
+extension PluginStatisticsPendingLoad where Value == Void {
+    func resume() { self.resume(returning: ()) }
 }
 
 private enum SpendDashboardSyntheticError: Error {

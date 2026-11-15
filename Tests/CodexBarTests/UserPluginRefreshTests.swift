@@ -35,7 +35,7 @@ struct UserPluginRefreshTests {
         fixture.store.startSharedSpendDashboardPublication()
         defer { fixture.store.stopSharedSpendDashboardPublication() }
         let controller = fixture.store.sharedSpendDashboardController()
-        try await SpendDashboardStateWait.until { !controller.isRefreshing }
+        try await Self.waitForDashboardState { !controller.isRefreshing }
         #expect(controller.failedSourceCount == 1)
         #expect(controller.publication.inputs.isEmpty)
         #expect(await fixture.transport.requestCount == 0)
@@ -64,7 +64,7 @@ struct UserPluginRefreshTests {
             controller.update(
                 configuration: SpendDashboardSource.configuration(settings: fixture.settings, store: fixture.store),
                 force: true)
-            try await SpendDashboardStateWait.until { !controller.isRefreshing }
+            try await Self.waitForDashboardState { !controller.isRefreshing }
             #expect(await fixture.transport.requestCount == index + 1)
             #expect(controller.configuration?.providerIDs == ["plugin/refresh-fixture"])
             #expect(controller.publication.inputs.isEmpty == failure)
@@ -184,7 +184,7 @@ struct UserPluginRefreshTests {
         #expect(SpendDashboardSource.pluginInputs(store: fixture.store).count == 1)
         fixture.store.startSharedSpendDashboardPublication()
         defer { fixture.store.stopSharedSpendDashboardPublication() }
-        try await SpendDashboardStateWait.until {
+        try await Self.waitForDashboardState {
             fixture.store.spendDashboardPublication.inputs.contains { $0.provider == fixture.id }
         }
         let failed = Task { await fixture.store.refreshUserPlugin(fixture.id) }
@@ -193,8 +193,16 @@ struct UserPluginRefreshTests {
         await failed.value
         #expect(fixture.store.snapshots[fixture.id]?.primary?.usedPercent == 50)
         #expect(fixture.store.errors[fixture.id] != nil)
-        try await SpendDashboardStateWait.until { fixture.store.spendDashboardPublication.inputs.isEmpty }
+        try await Self.waitForDashboardState { fixture.store.spendDashboardPublication.inputs.isEmpty }
         #expect(SpendDashboardSource.pluginInputs(store: fixture.store).isEmpty)
+    }
+
+    private static func waitForDashboardState(_ condition: @MainActor () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try #require(condition())
     }
 
     enum Change: CaseIterable {
