@@ -52,7 +52,14 @@ struct CostUsageFetcherPiBreakdownTests {
         #expect(result.accounting == .nativeOnly)
         #expect(result.snapshot.projects.isEmpty)
         #expect(result.snapshot.sessions.isEmpty)
-        #expect(result.snapshot.daily.isEmpty)
+        // QuotaKit's verified native ledger publishes a zero observation for a scanned day.
+        #expect(result.snapshot.daily.count == 1)
+        let day = try #require(result.snapshot.daily.first)
+        #expect(day.date == "2026-04-10")
+        #expect(day.totalTokens == 0)
+        #expect(day.requestCount == 0)
+        #expect(day.costUSD == 0)
+        #expect(day.dayEvidence?.sourceKind == "codexLocalLedger")
     }
 
     @Test
