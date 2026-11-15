@@ -531,3 +531,9 @@ grant total and expiry. These values are not added to local cost history or fabr
 Local Claude cost coverage remains limited to usage-bearing local transcripts: cloud-backed Code Projects
 running remotely do not appear unless supported local JSONL records contain their token usage. Changing
 the quota fetch source does not expand that history coverage.
+
+### Local cost projects and conversations
+
+The Cost menu, Usage & Spend, and `quotakit cost --provider claude --group-by project|session` group native Claude history using the same reconciled rows as totals. Sessions use their recorded IDs; projects use the first working directory recorded for each session. Missing paths appear as Unknown project, and copied responses count once. Vertex history has no breakdown. Pi/OMP usage merged into Claude appears under Unknown project and hides native conversation rows; native-only reports keep them. Hide personal information masks project names and conversation identifiers in the app; CLI output is not masked.
+
+Claude and Vertex cache schema 5 rebuilds older transcript caches once to obtain session project paths. Report memos retain the grouped projections for unchanged sources.

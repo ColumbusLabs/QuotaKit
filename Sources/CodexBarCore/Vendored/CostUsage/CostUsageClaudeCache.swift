@@ -106,6 +106,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         let sourceInventory: [String: CostUsageClaudeFileStamp]
         let reportKey: CostUsageClaudeReportMemoKey
         let report: CostUsageDailyReport
+        let breakdowns: ClaudeReportBreakdowns?
+        /// Established by a full rebuild or continuation of certified rows for this memo's scan window.
         let hasWindowScopedRows: Bool
 
         func certifiesWindow(reportKey: CostUsageClaudeReportMemoKey, cache: CostUsageCache) -> Bool {
@@ -130,8 +132,9 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     static let shared = CostUsageClaudeReportMemo()
     #endif
     static let persistedVersion = 1
-    /// Bump when pricing, aliases, row identity, or report aggregation changes without new artifact stamps.
-    static let reportSemanticsVersion = 10
+    /// Bump when bundled pricing, model aliases, daily-report aggregation, or the persisted session/project
+    /// breakdown attribution changes without new artifact stamps.
+    static let reportSemanticsVersion = 11
 
     private struct StoredEntry {
         let entry: Entry
@@ -147,6 +150,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         var hourly: [CostUsageCodexPreviousReport.HourlyEntry]?
         var quotaSlices: QuotaSlices?
         var hasWindowScopedRows: Bool?
+        var breakdowns: ClaudeReportBreakdowns?
     }
 
     private struct QuotaSlices: Codable {
@@ -210,20 +214,22 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         sourceInventory: [String: CostUsageClaudeFileStamp],
         reportKey: CostUsageClaudeReportMemoKey,
         report: CostUsageDailyReport,
-        hasWindowScopedRows: Bool = false) -> CostUsageDailyReport
+        breakdowns: ClaudeReportBreakdowns? = nil,
+        hasWindowScopedRows: Bool = false) -> Entry
     {
         let key = "\(provider.rawValue)|\(canonicalCachePath)"
         let entry = Entry(
             sourceInventory: sourceInventory,
             reportKey: reportKey,
             report: report,
+            breakdowns: breakdowns,
             hasWindowScopedRows: hasWindowScopedRows)
         self.lock.lock()
         let shared = self.installUnlocked(key: key, entry: entry)
         self.lock.unlock()
         Self.persist(shared, canonicalCachePath: canonicalCachePath)
         CostUsageClaudeFragments.shared.evict(at: URL(fileURLWithPath: canonicalCachePath))
-        return shared.report
+        return shared
     }
 
     private func installUnlocked(key: String, entry: Entry) -> Entry {
@@ -248,6 +254,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
                     summary: entry.report.summary,
                     hourly: entry.report.hourly,
                     quotaSlices: prior.report.quotaSlices),
+                breakdowns: entry.breakdowns,
                 hasWindowScopedRows: entry.hasWindowScopedRows)
         }
         self.generation &+= 1
@@ -300,6 +307,7 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
                 summary: envelope.report.summary,
                 hourly: (envelope.hourly ?? []).map(\.hourlyValue),
                 quotaSlices: envelope.quotaSlices?.values ?? []),
+            breakdowns: envelope.breakdowns,
             hasWindowScopedRows: envelope.hasWindowScopedRows == true)
     }
 
@@ -318,8 +326,10 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
             report: entry.report,
             hourly: entry.report.hourly.map(CostUsageCodexPreviousReport.HourlyEntry.init),
             quotaSlices: QuotaSlices(values: entry.report.quotaSlices),
-            hasWindowScopedRows: entry.hasWindowScopedRows)
-        _ = try? CostUsageClaudeFragments.shared.save(header: envelope, values: entry.sourceInventory, at: url)
+            hasWindowScopedRows: entry.hasWindowScopedRows,
+            breakdowns: entry.breakdowns)
+        _ = try? CostUsageClaudeFragments.shared.save(
+            header: envelope, values: entry.sourceInventory, at: url)
     }
 }
 
@@ -362,25 +372,33 @@ struct CostUsageClaudeCacheArtifact: Codable {
         didSet { self.contentID = UUID() }
     }
 
+    /// First cwd per session key in each transcript, so one file can attribute several sessions.
+    var sourceProjectPaths: [String: [String: String]] = [:] {
+        didSet { self.contentID = UUID() }
+    }
+
     final class File: Codable, Equatable {
         let usage: CostUsageFileUsage?
         let sourceID: String?
         let sourceKey: String?
         let dayBounds: CostUsageClaudeDayBounds?
+        let projectPaths: [String: String]?
         private let metadata: Data
-        private enum CodingKeys: CodingKey { case usage, sourceID, sourceKey, dayBounds }
+        private enum CodingKeys: CodingKey { case usage, sourceID, sourceKey, dayBounds, projectPaths }
 
         init(
             usage: CostUsageFileUsage?,
             sourceID: String?,
             sourceKey: String?,
             dayBounds: CostUsageClaudeDayBounds? = nil,
+            projectPaths: [String: String]? = nil,
             encoder: JSONEncoder) throws
         {
             self.usage = usage
             self.sourceID = sourceID
             self.sourceKey = sourceKey
             self.dayBounds = dayBounds
+            self.projectPaths = projectPaths
             var metadata = usage
             metadata?.claudeRows = nil
             self.metadata = try encoder.encode(metadata)
@@ -395,14 +413,27 @@ struct CostUsageClaudeCacheArtifact: Codable {
                 sourceID: container.decodeIfPresent(String.self, forKey: .sourceID),
                 sourceKey: container.decodeIfPresent(String.self, forKey: .sourceKey),
                 dayBounds: container.decodeIfPresent(CostUsageClaudeDayBounds.self, forKey: .dayBounds),
+                projectPaths: container.decodeIfPresent([String: String].self, forKey: .projectPaths),
                 encoder: encoder)
+        }
+
+        private static func sameProjectPaths(_ lhs: [String: String]?, _ rhs: [String: String]?) -> Bool {
+            guard let lhs, let rhs else { return lhs == nil && rhs == nil }
+            guard lhs.count == rhs.count else { return false }
+            return lhs.allSatisfy { key, value in
+                guard let index = rhs.index(forKey: key) else { return false }
+                return key.utf8.elementsEqual(rhs[index].key.utf8)
+                    && value.utf8.elementsEqual(rhs[index].value.utf8)
+            }
         }
 
         static func == (lhs: File, rhs: File) -> Bool {
             if lhs === rhs { return true }
-            guard lhs.metadata == rhs.metadata, lhs.dayBounds == rhs.dayBounds,
-                  self.sameString(lhs.sourceID, rhs.sourceID),
-                  self.sameString(lhs.sourceKey, rhs.sourceKey) else { return false }
+            guard lhs.metadata == rhs.metadata, lhs.dayBounds == rhs.dayBounds, self.sameProjectPaths(
+                lhs.projectPaths,
+                rhs.projectPaths),
+                self.sameString(lhs.sourceID, rhs.sourceID),
+                self.sameString(lhs.sourceKey, rhs.sourceKey) else { return false }
             let left = lhs.usage?.claudeRows, right = rhs.usage?.claudeRows
             guard let left, let right else { return left == nil && right == nil }
             guard left.count == right.count else { return false }
@@ -424,7 +455,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
 
     private(set) var contentID = UUID() // Swift string equality is not byte identity for JSON.
 
-    private enum CodingKeys: String, CodingKey { case sourceFileIDs, sourceDayBounds }
+    private enum CodingKeys: String, CodingKey { case sourceFileIDs, sourceDayBounds, sourceProjectPaths }
 
     init() {}
 
@@ -444,6 +475,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
                 sourceID: self.sourceFileIDs[path],
                 sourceKey: sourceKey,
                 dayBounds: self.sourceDayBounds[path],
+                projectPaths: self.sourceProjectPaths[path],
                 encoder: encoder)
             files[path] = self.fileRecords[path].flatMap { $0 == file ? $0 : nil } ?? file
         }
@@ -451,6 +483,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
         header.usage.files = [:]
         header.sourceFileIDs = [:]
         header.sourceDayBounds = [:]
+        header.sourceProjectPaths = [:]
         header.fileRecords = [:]
         header.contentID = self.contentID
         return (header, files)
@@ -464,6 +497,9 @@ struct CostUsageClaudeCacheArtifact: Codable {
         }
         self.sourceDayBounds = files.reduce(into: .init(minimumCapacity: files.count)) { bounds, entry in
             bounds[entry.value.sourceKey ?? entry.key] = entry.value.dayBounds
+        }
+        self.sourceProjectPaths = files.reduce(into: [:]) { paths, entry in
+            paths[entry.value.sourceKey ?? entry.key] = entry.value.projectPaths
         }
         self.fileRecords = files
         self.contentID = contentID
@@ -492,6 +528,8 @@ struct CostUsageClaudeCacheArtifact: Codable {
             .decodeIfPresent([String: String].self, forKey: .sourceFileIDs) ?? [:]
         self.sourceDayBounds = try decoder.container(keyedBy: CodingKeys.self)
             .decodeIfPresent([String: CostUsageClaudeDayBounds].self, forKey: .sourceDayBounds) ?? [:]
+        self.sourceProjectPaths = try decoder.container(keyedBy: CodingKeys.self)
+            .decodeIfPresent([String: [String: String]].self, forKey: .sourceProjectPaths) ?? [:]
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -501,6 +539,9 @@ struct CostUsageClaudeCacheArtifact: Codable {
         if !self.sourceDayBounds.isEmpty {
             try container.encode(self.sourceDayBounds, forKey: .sourceDayBounds)
         }
+        if !self.sourceProjectPaths.isEmpty {
+            try container.encode(self.sourceProjectPaths, forKey: .sourceProjectPaths)
+        }
     }
 }
 
@@ -508,7 +549,7 @@ struct CostUsageClaudeCacheArtifact: Codable {
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
     /// Compact row keys; older artifacts rebuild from their source transcripts.
-    private static let schemaVersion = 4
+    private static let schemaVersion = 5
 
     #if DEBUG
     @TaskLocal static var readForTesting: (@Sendable (URL, Data.ReadingOptions) -> Data?)?

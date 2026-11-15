@@ -1457,6 +1457,11 @@ struct ProviderArchitectureGatekeeperTests {
             expectedProviderIDs: ["codex"],
             reason: "This Codex account projection passes its fixed provider identity to shared spend infrastructure."),
         SuppressedProviderReference(
+            path: "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift",
+            anchor: "provider: .claude,",
+            expectedProviderIDs: ["claude"],
+            reason: "The Claude projection entry point selects its provider in the shared transcript scanner."),
+        SuppressedProviderReference(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
             line: 391,
             anchor: "provider: .codex,",
@@ -2985,6 +2990,14 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: ["alibabatokenplan@0"],
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
+            path: "Sources/CodexBarCore/CostUsageFetcher.swift",
+            occurrence: 2,
+            anchor: "if provider == .codex || provider == .claude {",
+            expectedProviderIDs: ["claude", "codex"],
+            expectedReferenceCount: 2,
+            expectedReferenceFingerprint: ["claude@0", "codex@0"],
+            reason: "Codex and Claude project totals merge native-ledger and Pi contributions."),
+        AllowedProviderConstruct(
             path: "Sources/CodexBarCore/PiSessionCostScanner.swift",
             anchor: "report: provider == .codex ? reports.codex : reports.claude,",
             expectedProviderIDs: ["claude", "codex"],
@@ -2993,11 +3006,11 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Native Codex and Claude mirrors return their own backend partitions without standalone Pi groups."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            anchor: "static let costGroupingProviders: Set<UsageProvider> = [.codex, .pi]",
-            expectedProviderIDs: ["codex", "pi"],
-            expectedReferenceCount: 2,
-            expectedReferenceFingerprint: ["codex@0", "pi@0"],
-            reason: "Codex and Pi local ledgers publish project and session attribution."),
+            anchor: "static let costGroupingProviders: Set<UsageProvider> = [.codex, .claude, .pi]",
+            expectedProviderIDs: ["claude", "codex", "pi"],
+            expectedReferenceCount: 3,
+            expectedReferenceFingerprint: ["claude@0", "codex@0", "pi@0"],
+            reason: "Codex, Claude, and Pi local ledgers publish project and session attribution."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/LocalAgentSessionScanner.swift",
             line: 225,
@@ -5415,12 +5428,12 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
-            line: 1365,
-            anchor: "if provider == .codex {",
-            expectedProviderIDs: ["codex"],
+            occurrence: 3,
+            anchor: "if provider == .codex || provider == .claude {",
+            expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 2,
-            expectedReferenceFingerprint: ["codex@0", "codex@10"],
-            reason: "This exact shared construct handles provider-owned behavior at the integration boundary."),
+            expectedReferenceFingerprint: ["claude@0", "codex@0"],
+            reason: "Claude and Codex merge project contributions before publication."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/CostUsageFetcher.swift",
             line: 2005,

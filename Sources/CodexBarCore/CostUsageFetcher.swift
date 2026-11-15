@@ -1266,19 +1266,36 @@ public struct CostUsageFetcher: Sendable {
             scope: sourceScope, cacheRoot: scanOptions.cacheRoot, calendar: scanOptions.calendar)
         let sourceSummary = await OpenCodeLocalHistoryAdapter.readSummary(
             scope: sourceScope, cacheRoot: scanOptions.cacheRoot, purpose: .activity)
-        // Provider-specific by design: Codex owns project/session attribution and optional Pi merge state, while
-        // Claude/Vertex share the transcript scanner with mutually exclusive filters.
+
+        // Provider-specific by design: Codex and Claude own project/session attribution and optional Pi merge
+        // state, while Claude/Vertex share the transcript scanner with mutually exclusive filters.
         // These synchronous scans can run for minutes on large archives. The dedicated queue keeps
         // them off the cooperative pool and bridges task cancellation into scanner-level checks.
         return try await CostUsageScanExecutor.run { checkCancellation in
-            var daily = try CostUsageScanner.loadDailyReportCancellable(
-                provider: provider,
-                since: since,
-                until: now,
-                now: now,
-                options: scanOptions,
-                reportContext: options.reportContext,
-                checkCancellation: checkCancellation)
+            var projects: [CostUsageProjectBreakdown] = []
+            var sessions: [CostUsageSessionBreakdown] = []
+            var daily: CostUsageDailyReport
+            if provider == .claude {
+                let claude = try CostUsageScanner.loadClaudeReportProjectionsCancellable(
+                    since: since,
+                    until: now,
+                    now: now,
+                    options: scanOptions,
+                    reportContext: options.reportContext,
+                    checkCancellation: checkCancellation)
+                daily = claude.daily
+                projects = claude.projects
+                sessions = claude.sessions
+            } else {
+                daily = try CostUsageScanner.loadDailyReportCancellable(
+                    provider: provider,
+                    since: since,
+                    until: now,
+                    now: now,
+                    options: scanOptions,
+                    reportContext: options.reportContext,
+                    checkCancellation: checkCancellation)
+            }
             try checkCancellation()
 
             if provider == .vertexai,
@@ -1299,8 +1316,6 @@ public struct CostUsageFetcher: Sendable {
                 try checkCancellation()
             }
 
-            var projects: [CostUsageProjectBreakdown] = []
-            var sessions: [CostUsageSessionBreakdown] = []
             var projectSessionIDs: [String: Set<String>] = [:]
             var piScanIsComplete = true
             var nativeTemporalIsComplete = true
@@ -1353,7 +1368,9 @@ public struct CostUsageFetcher: Sendable {
                     staleSnapshotUpdatedAt = [staleSnapshotUpdatedAt, piLastScanAt]
                         .compactMap(\.self).min()
                 }
-                if provider == .codex {
+                // Provider-specific by design: only the Codex and Claude local ledgers attribute native rows to
+                // projects, so Pi rows join them as one unknown project and sessions stay native-only.
+                if provider == .codex || provider == .claude {
                     if let project = Self.unknownProjectBreakdown(from: piScanResult.report) {
                         projects.append(project)
                         sessions = []
@@ -1363,7 +1380,7 @@ public struct CostUsageFetcher: Sendable {
                 daily = CostUsageDailyReport.merged(
                     [daily, piScanResult.report], calendar: scanOptions.calendar)
             }
-            if provider == .codex {
+            if provider == .codex || provider == .claude {
                 projects = Self.mergedProjectBreakdowns(projects)
             }
             return LocalTokenScanResult(
