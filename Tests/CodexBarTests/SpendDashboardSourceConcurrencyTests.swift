@@ -833,7 +833,7 @@ extension SpendDashboardSourceConcurrencyTests {
             calendar: Calendar(identifier: .gregorian),
             preferredCurrencyCode: "USD")
         #expect(model.groups.isEmpty == !hasCostUsage)
-        #expect((ShareStatsBuilder.make(model: model) == nil) == !hasCostUsage)
+        #expect(ShareStatsBuilder.make(model: model) == nil)
     }
 
     @Test

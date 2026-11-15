@@ -378,7 +378,7 @@ extension UsageStore {
                fromProviderSnapshot: usage, provider: provider, historyDays: SpendDashboardSource.scanDays)
         {
             let calendar = SpendDashboardModel.bucketCalendar(
-                for: provider, displayCalendar: self.settings.costUsageBucketCalendar)
+                for: provider.instanceID, displayCalendar: self.settings.costUsageBucketCalendar)
             dashboardFingerprint = SpendDashboardSource.snapshotRevision(fullSnapshot, coverageCalendar: calendar)
         } else {
             dashboardFingerprint = nil

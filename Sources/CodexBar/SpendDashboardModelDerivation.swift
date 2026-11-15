@@ -172,7 +172,7 @@ private final class SpendDashboardSnapshotFingerprintCounter: @unchecked Sendabl
 struct SpendDashboardModelBuildKey: Hashable, Sendable {
     struct InputIdentity: Hashable, Sendable {
         let id: String
-        let provider: UsageProvider
+        let provider: ProviderInstanceID
         let displayName: String
         let modelProviderName: String
         let sourceKind: SpendDashboardModel.SourceKind
