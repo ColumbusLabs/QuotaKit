@@ -7,6 +7,15 @@ struct PiSessionCostBreakdownTests {
     func `pi sessions and projects partition the pi total`() throws {
         let fixture = try Fixture()
         defer { fixture.env.cleanup() }
+        let catalogJSON = """
+        {"amazon-bedrock":{"id":"amazon-bedrock","models":{
+          "global.anthropic.claude-sonnet-4-6":{
+            "id":"global.anthropic.claude-sonnet-4-6","cost":{"input":3,"output":15}
+          }
+        }}}
+        """
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(catalogJSON.utf8))
+        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: fixture.day, cacheRoot: fixture.env.cacheRoot))
         try fixture.write("--alpha--/2026-04-10T10-00-00-000Z_alpha.jsonl", [
             fixture.header(id: "alpha-session", cwd: "/Users/test/projects/alpha"),
             fixture.assistant(
@@ -26,7 +35,6 @@ struct PiSessionCostBreakdownTests {
         try fixture.write("--beta--/2026-04-10T11-00-00-000Z_beta.jsonl", [
             fixture.header(id: "beta-session", cwd: "/Users/test/projects/beta/"),
             fixture.assistant(id: "b1", provider: "anthropic", model: "claude-sonnet-4-6", input: 50, output: 25),
-            fixture.assistant(id: "b2", provider: "example-backend", model: "fixture-model", input: 7, output: 3),
         ])
         try fixture.write("2026-04-10T12-00-00-000Z_loose.jsonl", [
             fixture.header(id: "loose-session", cwd: nil),
@@ -64,6 +72,30 @@ struct PiSessionCostBreakdownTests {
         let loose = try #require(result.sessions.first { $0.sessionID == "loose-session" })
         #expect(loose.projectPath == nil)
         #expect(loose.projectName == nil)
+    }
+
+    @Test
+    func `unpriced Pi usage keeps grouped totals unknown while preserving known model costs`() throws {
+        let fixture = try Fixture()
+        defer { fixture.env.cleanup() }
+        try fixture.write("--alpha--/mixed.jsonl", [
+            fixture.header(id: "mixed-session", cwd: "/Users/test/projects/alpha"),
+            fixture.assistant(id: "priced", provider: "openai-codex", model: "gpt-5.4", input: 10, output: 5),
+            fixture.assistant(id: "unknown", provider: "example-backend", model: "fixture-model", input: 7, output: 3),
+        ])
+
+        let result = try fixture.scan()
+        #expect(result.report.summary?.totalTokens == 25)
+        #expect(result.report.summary?.totalCostUSD == nil)
+        #expect(result.report.data.first?.unpricedRequestCount == 1)
+        let session = try #require(result.sessions.first)
+        let project = try #require(result.projects.first)
+        #expect(session.totalTokens == 25)
+        #expect(session.costUSD == nil)
+        #expect(project.totalTokens == 25)
+        #expect(project.totalCostUSD == nil)
+        #expect(session.modelBreakdowns.first { $0.modelName == "gpt-5.4" }?.costUSD != nil)
+        #expect(session.modelBreakdowns.first { $0.modelName == "example-backend/fixture-model" }?.costUSD == nil)
     }
 
     @Test
