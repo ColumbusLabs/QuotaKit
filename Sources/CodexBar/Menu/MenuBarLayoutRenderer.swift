@@ -357,6 +357,7 @@ final class MenuBarLayoutRenderer {
     private struct TokenStyle {
         let font: NSFont
         let foregroundColor: NSColor
+        let providerTintColor: NSColor?
         let iconHeight: CGFloat
         let attributes: [NSAttributedString.Key: Any]
     }
@@ -598,10 +599,10 @@ final class MenuBarLayoutRenderer {
                     style: TokenStyle(
                         font: font,
                         foregroundColor: foregroundColor,
+                        providerTintColor: providerTintColor,
                         iconHeight: Self.iconHeight(size: options.size, isStacked: isStacked),
                         attributes: attributes),
-                    options: options,
-                    providerTintColor: providerTintColor)
+                    options: options)
                 renderedItem = Self.labelAutomaticItem(
                     renderedItem,
                     token: token,
@@ -774,8 +775,7 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData,
         icon: NSImage?,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions,
-        providerTintColor: NSColor?)
+        options: MenuBarLayoutRenderOptions)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         if let rendered = self.renderProviderTextItem(
@@ -783,7 +783,7 @@ final class MenuBarLayoutRenderer {
             data: data,
             showUsed: options.showUsed,
             attributes: style.attributes,
-            providerTintColor: providerTintColor)
+            providerTintColor: style.providerTintColor)
         {
             return rendered
         }
@@ -796,14 +796,14 @@ final class MenuBarLayoutRenderer {
 
         switch item {
         case .icon:
-            return self.renderIcon(icon, data: data, style: style, providerTintColor: providerTintColor)
+            return self.renderIcon(icon, data: data, style: style, providerTintColor: style.providerTintColor)
         case let .percent(window):
             return self.renderPercent(
                 window,
                 data: data,
                 style: style,
                 options: options,
-                providerTintColor: providerTintColor)
+                providerTintColor: style.providerTintColor)
         case let .pace(window):
             let accessibilityPrefix = Self.paceAccessibilityPrefix(window, data: data)
             let pace = Self.pace(window, data: data)
