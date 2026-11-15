@@ -268,8 +268,7 @@ enum SpendDashboardSource {
                     guard let publication = self.pluginPublication(plugin, store: store) else {
                         return prefix + "unavailable"
                     }
-                    guard let snapshot = publication.snapshot else { return prefix + "empty" }
-                    return prefix + self.snapshotRevision(snapshot)
+                    return prefix + (publication.dashboardFingerprint ?? "empty")
                 },
             sourcePublicationRevisions: providers.filter(UsageStore.tokenCostRequiresProviderSnapshot)
                 .map { store.tokenSnapshotPublicationRevision(for: $0) },

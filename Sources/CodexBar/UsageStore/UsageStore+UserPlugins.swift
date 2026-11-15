@@ -85,11 +85,14 @@ extension UsageStore {
                 approvalStore: self.pluginApprovalStore,
                 browserDetection: self.browserDetection)
             guard canPublish() else { return }
+            let dashboardFingerprint = snapshot.costUsage.map { SpendDashboardSource.snapshotRevision($0) }
             self.tokenSnapshotPublications[instanceID] = TokenSnapshotPublication(
+                dashboardFingerprint: dashboardFingerprint,
                 snapshot: snapshot.costUsage,
                 publicationRevision: 0,
                 providerConfigRevision: configRevision,
                 scopeSignature: self.userPluginStatisticsScope(plugin),
+                semanticFingerprint: nil,
                 accounting: nil)
             self.snapshots[instanceID] = snapshot
             self.errors[instanceID] = nil
