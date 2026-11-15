@@ -525,6 +525,9 @@ final class MenuBarLayoutRenderer {
         let providerTintColor = data.provider.flatMap { Self.effectiveProviderTintColor(for: $0, options: options) }
         let foregroundColor = providerTintColor ?? Self.neutralForegroundColor(options)
         let isTintActive = providerTintColor != nil
+        let renderedIcon = icon.map { image in
+            providerTintColor.map { Self.attachmentImage(image, tint: $0, isMonochrome: false) } ?? image
+        }
         let paragraphStyle = NSMutableParagraphStyle()
         if isStacked {
             let lineHeight: CGFloat = options.size == .large ? 11 : 9.5
@@ -552,12 +555,14 @@ final class MenuBarLayoutRenderer {
         let spanningIcon = options.highContrast && canSurfaceStackedIcon && renderedLines.first?.first == .icon
             ? icon : nil
         // High-contrast layouts keep icon + text together for consistent rendering.
-        // Provider-colored layouts keep the icon in attributed title to preserve the custom tint.
+        // Colored spanning icons carry their tint in the image; inline icons reuse it.
         // With a missing icon the token still renders its placeholder inside the title.
-        let leadingIcon: NSImage? = if options.highContrast || (isStacked && !canSurfaceStackedIcon) || isTintActive {
+        let leadingIcon: NSImage? = if options.highContrast || (isStacked && !canSurfaceStackedIcon)
+            || (isTintActive && !canSurfaceStackedIcon)
+        {
             nil
         } else if renderedLines.first?.first == .icon, icon != nil {
-            icon.map { Self.offsetLeadingIcon($0, adjustment: options.verticalAdjustment) }
+            renderedIcon.map { Self.offsetLeadingIcon($0, adjustment: options.verticalAdjustment) }
         } else {
             nil
         }
@@ -769,8 +774,7 @@ final class MenuBarLayoutRenderer {
         data: MenuBarLayoutRenderData,
         icon: NSImage?,
         style: TokenStyle,
-        options: MenuBarLayoutRenderOptions,
-        providerTintColor: NSColor? = nil)
+        options: MenuBarLayoutRenderOptions)
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         if let rendered = self.renderProviderTextItem(

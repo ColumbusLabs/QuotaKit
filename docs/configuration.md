@@ -474,4 +474,4 @@ Unreadable or malformed configuration is preserved for recovery. QuotaKit must n
 run legacy migration over it, or save termination/credential changes over it. After the file is repaired, the
 normal load/save path can resume. Credential migrations and test fixtures preserve their scoped no-UI policy.
 
-Custom two-line layouts show a single leading provider icon at full size beside both text rows, including in high-contrast mode. Merged-provider rows, multiple icons, icon-only rows, and provider-colored layouts retain inline icons.
+Custom two-line layouts show a single leading provider icon at full size beside both text rows, including in high-contrast mode and when colored by provider. Merged-provider rows, multiple icons, and icon-only rows retain inline icons.
