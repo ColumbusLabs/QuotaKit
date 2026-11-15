@@ -2958,3 +2958,5 @@
 "Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "Melde dich im Browser bei cloud.siliconflow.cn an und aktualisiere dann QuotaKit.";
 "The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "Die SiliconFlow-Guthaben-API für China wurde eingestellt. Stelle SiliconFlow auf Web um und melde dich bei cloud.siliconflow.cn an.";
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow hat den Zugriff auf das Konsolenguthaben verweigert (HTTP 403). Öffne cloud.siliconflow.cn, prüfe, ob dieses Konto die Abrechnung sehen darf, und aktualisiere dann.";
+"Credits per million tokens" = "Credits pro Million Token";
+"Paused during grace period" = "Während der Kulanzfrist pausiert";

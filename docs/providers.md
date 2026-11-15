@@ -82,7 +82,7 @@ complete when the available scan window covers fewer days.
 | Gemini | Gemini CLI OAuth quotas (`auto`/`api`, default), or opt-in Gemini app 5-hour/weekly limits via cookies (`web`). |
 | [Google Developer Program](googledeveloper.md) | Browser or manual Google session → current monthly Gen AI & Cloud credit grant. |
 | GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
-| Helmcode | Supported-browser or manual tenant cookies → Cloud/NaN model quotas and eligible premium tiers (`web`). |
+| Helmcode | Supported-browser or manual tenant cookies → Cloud/NaN billing-period credits or legacy model quotas and premium tiers (`web`). |
 | TypeSafe | Browser or manual console session → billing spend and credit balance (`web`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app or cursor-agent local auth (`web`). |

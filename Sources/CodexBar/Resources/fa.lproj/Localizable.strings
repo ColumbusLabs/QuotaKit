@@ -2962,3 +2962,5 @@
 "Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "در مرورگر خود وارد cloud.siliconflow.cn شوید، سپس QuotaKit را تازه‌سازی کنید.";
 "The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API موجودی SiliconFlow چین بازنشسته شده است. منبع SiliconFlow را به وب تغییر دهید و وارد cloud.siliconflow.cn شوید.";
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow دسترسی به موجودی کنسول را رد کرد (HTTP 403). cloud.siliconflow.cn را باز کنید، بررسی کنید که این حساب به صورت‌حساب دسترسی دارد، سپس تازه‌سازی کنید.";
+"Credits per million tokens" = "اعتبارات به‌ازای هر میلیون توکن";
+"Paused during grace period" = "در مهلت ارفاقی متوقف شده است";

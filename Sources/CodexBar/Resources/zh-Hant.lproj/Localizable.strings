@@ -2938,3 +2938,5 @@
 "Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "在瀏覽器中登入 cloud.siliconflow.cn，然後重新整理 QuotaKit。";
 "The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow 中國站餘額 API 已停用。請將 SiliconFlow 來源切換為 網頁，並登入 cloud.siliconflow.cn。";
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow 拒絕存取主控台餘額（HTTP 403）。請開啟 cloud.siliconflow.cn，確認此帳戶可以檢視帳單，然後重新整理。";
+"Credits per million tokens" = "每百萬 token 的額度";
+"Paused during grace period" = "寬限期內已暫停";

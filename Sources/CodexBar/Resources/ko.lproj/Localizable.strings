@@ -2926,3 +2926,5 @@
 "Sign in to cloud.siliconflow.cn in your browser, then refresh QuotaKit." = "브라우저에서 cloud.siliconflow.cn에 로그인한 다음 QuotaKit를 새로 고치세요.";
 "The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow 중국 잔액 API가 종료되었습니다. SiliconFlow 소스를 웹으로 변경하고 cloud.siliconflow.cn에 로그인하세요.";
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow가 콘솔 잔액 접근을 거부했습니다(HTTP 403). cloud.siliconflow.cn을 열어 이 계정이 결제 정보를 볼 수 있는지 확인한 다음 새로 고치세요.";
+"Credits per million tokens" = "100만 토큰당 크레딧";
+"Paused during grace period" = "유예 기간 동안 일시 중지됨";
