@@ -276,6 +276,7 @@ enum ShareStatsBuilder {
         model: SpendDashboardModel,
         subscriptionNames: [String: ShareStatsSubscriptionName] = [:]) -> ShareStatsPayload?
     {
+        // Provider-specific by design: keep unverified DeepSeek account spend inside the local dashboard.
         // Community plugin labels and model names are untrusted local data. DeepSeek
         // browser-account spend also lacks verified ownership of an API-key account.
         // Aggregates include their values, so do not export a mixed model either.

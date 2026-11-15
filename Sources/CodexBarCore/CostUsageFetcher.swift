@@ -1298,6 +1298,7 @@ public struct CostUsageFetcher: Sendable {
             }
             try checkCancellation()
 
+            // Provider-specific by design: Vertex AI may have legacy Claude logs without a provider marker.
             if provider == .vertexai,
                !options.allowVertexClaudeFallback,
                scanOptions.claudeLogProviderFilter == .vertexAIOnly,
