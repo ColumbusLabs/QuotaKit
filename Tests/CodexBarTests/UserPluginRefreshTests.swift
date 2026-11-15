@@ -69,8 +69,18 @@ struct UserPluginRefreshTests {
             #expect(controller.configuration?.providerIDs == ["plugin/refresh-fixture"])
             #expect(controller.publication.inputs.isEmpty == failure)
             #expect(controller.failedSourceCount == (failure ? 1 : 0))
-            #expect(controller.model.groups.isEmpty == failure)
-            #expect(ShareStatsBuilder.make(model: controller.model) == nil)
+            var readyModel: SpendDashboardModel?
+            try await Self.waitForDashboardState {
+                readyModel = controller.publication.modelIfReady(
+                    requestedDays: 7,
+                    now: now,
+                    calendar: fixture.settings.costUsageBucketCalendar,
+                    preferredCurrencyCode: "USD")
+                return readyModel != nil
+            }
+            let model = try #require(readyModel)
+            #expect(model.groups.isEmpty == failure)
+            #expect(ShareStatsBuilder.make(model: model) == nil)
             #expect((fixture.store.errors[fixture.id] != nil) == failure)
             #expect(fixture.store.snapshots[fixture.id]?.primary?.usedPercent == 42)
         }
