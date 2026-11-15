@@ -172,7 +172,9 @@ struct HelmcodePluginTests {
                 quota: body,
                 usageCredits: Self.fixture("credits-usage"))
             #expect(result.usage.primary?.quotaLimit == 7000)
-            #expect(result.requests.compactMap(\.url?.path) == ["/api/usage/credits"])
+            #expect(result.usage.providerCost?.used == 12.5)
+            #expect(result.usage.providerCost?.currencyCode == "EUR")
+            #expect(result.requests.compactMap(\.url?.path) == ["/api/usage/credits", "/api/billing/credits"])
         }
     }
 

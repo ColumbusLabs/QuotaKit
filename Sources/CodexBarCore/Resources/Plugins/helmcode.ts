@@ -80,6 +80,26 @@ defineProvider({
           throw ctx.fail.apiFailure(`Helmcode dashboard returned HTTP ${response.status}.`);
         return response;
       };
+      const optional = async (path: string): Promise<Record<string, unknown> | undefined> => {
+        try {
+          const result = await get(path, 2);
+          return result.status === 200 ? parse(result.bodyText) : undefined;
+        } catch (error) {
+          void error;
+          return undefined;
+        }
+      };
+      const prepaidBalance = async (): Promise<CodexBarCostSnapshot | undefined> => {
+        if (tenant.domain !== "helmcode.com") return undefined;
+        const billingCredits = await optional("/api/billing/credits");
+        if (!billingCredits) return undefined;
+        const balance = billingCredits.balanceMicros;
+        const rawCurrency = billingCredits.currency;
+        const currency = rawCurrency == null ? "EUR" : typeof rawCurrency === "string" ? rawCurrency.toUpperCase() : "";
+        if (typeof balance === "number" && Number.isSafeInteger(balance) && /^[A-Z]{3}$/.test(currency))
+          return { used: Math.max(0, balance / 1e6), limit: 0, currency, period: "Prepaid balance" };
+        return undefined;
+      };
       const creditResponse = await required("/api/usage/credits", true);
       if (!creditResponse) continue;
       const credits = creditResponse.status === 404 ? undefined : parse(creditResponse.bodyText);
@@ -127,6 +147,7 @@ defineProvider({
             },
             ...(planRows.length ? [{ title: "Credits", rows: planRows }] : []),
           ],
+          cost: await prepaidBalance(),
           identity: { organization: tenant.name, loginMethod: "Dashboard session" },
           dataConfidence: "exact",
         };
@@ -135,15 +156,6 @@ defineProvider({
       if (!response) continue;
       const quota = parse(response.bodyText);
       if (typeof quota.periodStart !== "string" || !Array.isArray(quota.models)) return fail("periodStart or models");
-      const optional = async (path: string): Promise<Record<string, unknown> | undefined> => {
-        try {
-          const result = await get(path, 2);
-          return result.status === 200 ? parse(result.bodyText) : undefined;
-        } catch (error) {
-          void error;
-          return undefined;
-        }
-      };
       const billing = await optional("/api/billing");
       const premium = object(billing?.subscription)?.premium === true;
       const start = /^(\d{4})-(\d{2})-(\d{2})(?:T|$)/.exec(quota.periodStart);
@@ -184,23 +196,10 @@ defineProvider({
             (row.credit > 0 ? ` · ${ctx.format.number(row.credit)} credit-funded` : ""),
         },
       }));
-      let cost: CodexBarCostSnapshot | undefined;
-      if (tenant.domain === "helmcode.com") {
-        const credits = await optional("/api/billing/credits");
-        const balance = credits?.balanceMicros;
-        const currency =
-          credits?.currency == null
-            ? "EUR"
-            : typeof credits.currency === "string"
-              ? credits.currency.toUpperCase()
-              : "";
-        if (typeof balance === "number" && Number.isSafeInteger(balance) && /^[A-Z]{3}$/.test(currency))
-          cost = { used: Math.max(0, balance / 1e6), limit: 0, currency, period: "Prepaid balance" };
-      }
       return {
         primary: windows[0]?.window,
         extraWindows: windows.slice(1),
-        cost,
+        cost: await prepaidBalance(),
         identity: { organization: tenant.name, loginMethod: "Dashboard session" },
         dataConfidence: "exact",
       };
