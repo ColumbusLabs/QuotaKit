@@ -437,6 +437,24 @@ struct CostUsageClaudeSessionProjectTests {
         #expect(projections.projects.map(\.path) == [Self.alpha])
     }
 
+    @Test
+    func `session activity excludes newer rows outside the display window`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 3, day: 10)
+        let nextDay = try env.makeLocalNoon(year: 2026, month: 3, day: 11)
+        try self.write(env, "alpha/session.jsonl", [
+            self.line(env, day, session: "session", message: "in-window", cwd: Self.alpha),
+            self.line(env, nextDay, session: "session", message: "later", cwd: Self.alpha),
+        ])
+
+        let (projections, _) = try self.load(env, day)
+        let session = try #require(projections.sessions.first)
+        #expect(session.lastActivity == day)
+        #expect(session.totalTokens == 110)
+        #expect(session.requestCount == 1)
+    }
+
     // MARK: - Fixtures
 
     private func line(

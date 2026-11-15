@@ -145,7 +145,10 @@ extension CostUsageScanner {
                 fallbackKeys[file] = sessionKey
             }
             rowIndexesBySession[sessionKey, default: []].append(Int32(rowIndex))
-            if row.timestampUnixMs == nil, let mtime = cache.files[filePaths[file]]?.mtimeUnixMs {
+            if row.timestampUnixMs == nil,
+               CostUsageDayRange.isInRange(dayKey: row.dayKey, since: range.sinceKey, until: range.untilKey),
+               let mtime = cache.files[filePaths[file]]?.mtimeUnixMs
+            {
                 latestFileMsBySession[sessionKey] = max(latestFileMsBySession[sessionKey] ?? mtime, mtime)
             }
         }
@@ -178,7 +181,12 @@ extension CostUsageScanner {
             guard !report.data.isEmpty else { continue }
             let summary = report.summary
             let projectPath = projectKey.isEmpty ? nil : projectKey
-            let latestMs = indexes.lazy.compactMap { rows[Int($0)].timestampUnixMs }.max()
+            let latestMs = indexes.lazy.compactMap { index -> Int64? in
+                let row = rows[Int(index)]
+                guard CostUsageDayRange.isInRange(
+                    dayKey: row.dayKey, since: range.sinceKey, until: range.untilKey) else { return nil }
+                return row.timestampUnixMs
+            }.max()
                 ?? latestFileMsBySession[sessionKey] ?? 0
             sessions.append(CostUsageSessionBreakdown(
                 sessionID: sessionKey,
