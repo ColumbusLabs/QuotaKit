@@ -195,6 +195,29 @@ enum PiSessionCostScanner {
             checkCancellation: checkCancellation).report
     }
 
+    private static func lastScanDate(_ cache: PiSessionCostCache) -> Date? {
+        guard cache.lastScanUnixMs > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
+    }
+
+    private static func initialCache(
+        options: Options,
+        range: CostUsageScanner.CostUsageDayRange) -> (PiSessionCostCache, Bool)
+    {
+        var cache = PiSessionCostCacheIO.load(cacheRoot: options.cacheRoot)
+        var usingLegacyFallback = false
+        if cache.lastScanUnixMs == 0,
+           let legacy = PiSessionCostCacheIO.loadLegacyFallback(cacheRoot: options.cacheRoot)
+        {
+            cache = legacy
+            usingLegacyFallback = true
+        }
+        guard cache.timeZoneIdentifier == range.calendar.timeZone.identifier else {
+            return (PiSessionCostCache(), false)
+        }
+        return (cache, usingLegacyFallback)
+    }
+
     static func loadDailyReportResultCancellable(
         provider: UsageProvider,
         since: Date,
@@ -216,18 +239,7 @@ enum PiSessionCostScanner {
             since: since,
             until: until,
             calendar: options.calendar)
-        var cache = PiSessionCostCacheIO.load(cacheRoot: options.cacheRoot)
-        var usingLegacyFallback = false
-        if cache.lastScanUnixMs == 0,
-           let legacy = PiSessionCostCacheIO.loadLegacyFallback(cacheRoot: options.cacheRoot)
-        {
-            cache = legacy
-            usingLegacyFallback = true
-        }
-        if cache.timeZoneIdentifier != range.calendar.timeZone.identifier {
-            cache = PiSessionCostCache()
-            usingLegacyFallback = false
-        }
+        var (cache, usingLegacyFallback) = self.initialCache(options: options, range: range)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
         let pricingContext = self.pricingContext(now: now, cacheRoot: options.cacheRoot)
@@ -356,9 +368,7 @@ enum PiSessionCostScanner {
             PiSessionCostCacheIO.save(cache: cache, cacheRoot: options.cacheRoot, calendar: range.calendar)
         }
         // Provider-specific by design: Pi aggregates native vendor mirrors and standalone backend sessions.
-        let lastScanAt = cache.lastScanUnixMs > 0
-            ? Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
-            : nil
+        let lastScanAt = self.lastScanDate(cache)
         if provider == .pi {
             let isComplete = scanIsComplete && !self.hasUnsupportedHistory(cache: cache, range: range)
             let breakdowns = try self.breakdowns(
@@ -903,6 +913,11 @@ enum PiSessionCostScanner {
         return true
     }
 
+    private static func hasParsedEntireFile(_ fileURL: URL, parsedBytes: Int64) -> Bool {
+        let size = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value
+        return size == parsedBytes
+    }
+
     private static func parsePiSessionFile(
         fileURL: URL,
         range: CostUsageScanner.CostUsageDayRange,
@@ -1060,10 +1075,7 @@ enum PiSessionCostScanner {
             // A scan can stop at the last complete newline while an active writer leaves a
             // partial JSON object at EOF. The committed offset then trails the file size, so
             // keep the cache incomplete and retry the tail on a later refresh.
-            let observedFileSize = (try? FileManager.default
-                .attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?
-                            .int64Value
-            if observedFileSize != parsedBytes {
+            if !self.hasParsedEntireFile(fileURL, parsedBytes: parsedBytes) {
                 isComplete = false
             }
         } catch is CancellationError {
