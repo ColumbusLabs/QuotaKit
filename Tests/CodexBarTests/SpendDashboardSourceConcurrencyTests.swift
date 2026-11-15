@@ -827,11 +827,17 @@ extension SpendDashboardSourceConcurrencyTests {
         gate.resume()
         await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.failedSourceCount == 0)
-        let model = controller.publication.model(
-            requestedDays: 7,
-            now: Date(timeIntervalSince1970: 1_784_179_200),
-            calendar: Calendar(identifier: .gregorian),
-            preferredCurrencyCode: "USD")
+        #expect(controller.publication.inputs.contains { $0.id == sourceID } == hasCostUsage)
+        var readyModel: SpendDashboardModel?
+        await Self.waitUntil {
+            readyModel = controller.publication.modelIfReady(
+                requestedDays: 7,
+                now: Date(timeIntervalSince1970: 1_784_179_200),
+                calendar: Calendar(identifier: .gregorian),
+                preferredCurrencyCode: "USD")
+            return readyModel != nil
+        }
+        let model = try #require(readyModel)
         #expect(model.groups.isEmpty == !hasCostUsage)
         #expect(ShareStatsBuilder.make(model: model) == nil)
     }
