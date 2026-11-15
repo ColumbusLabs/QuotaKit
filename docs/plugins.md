@@ -364,6 +364,16 @@ displayable usage or identity remains invalid unless `empty: true` is explicitly
 DeepInfra uses a bundled JavaScript plugin for API key billing.
 
 ZenMux uses the bundled `zenmux.js` plugin for management API usage.
+## Statistics and sharing
+
+Enabled, approved community plugins that already return `costUsage` also contribute to Usage & Spend,
+and token activity on this Mac. The existing unversioned contract and daily-window rules apply.
+Each plugin is counted once under its own instance ID, independently of its `iconProvider` branding.
+Plugins without `costUsage` contribute nothing. Statistics containing community plugins cannot be shared because plugin labels and model names may contain private information. Failed refreshes and changed configuration invalidate
+statistics until a successful refresh; the quota card keeps its existing last-known behavior.
+Statistics consume publications from the normal plugin refresh cadence and manual provider refreshes.
+Opening or refreshing Usage & Spend never fetches community plugins; successful quota-only results remain empty.
+
 ## External hooks
 
 Installed user plugins appear in the existing Hooks provider picker. Rules can select the manifest ID or match any

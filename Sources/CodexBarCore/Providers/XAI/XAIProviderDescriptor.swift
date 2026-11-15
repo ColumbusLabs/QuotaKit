@@ -73,7 +73,8 @@ public enum XAIProviderDescriptor {
                 noDataMessage: {
                     "xAI daily spend requires a Management API key and team ID. "
                         + "Prepaid balance is not treated as spend."
-                }),
+                },
+                isUsageUnavailable: { XAICostUsageMapping.isAnalyticsUnavailable($0) }),
             presentation: ProviderUsagePresentation(
                 identityPresenter: { provider, snapshot in
                     guard let plan = snapshot.loginMethod(for: provider), !plan.isEmpty else {

@@ -46,6 +46,8 @@ public struct PluginProviderSpec: Sendable {
     public var widgetColor: ProviderColor?
     public var progressColorStyle: ProviderBranding.ProgressColorStyle = .brand
     public let noDataMessage: String
+    public var supportsTokenCost = false
+    public var isCostUsageUnavailable: @Sendable (UsageSnapshot) -> Bool = { _ in false }
     public var environmentKey = ""
     public var environmentAliases: [String] = []
     public var apiKeyDebugLabel: String?
@@ -140,7 +142,10 @@ public struct PluginProviderSpec: Sendable {
                 confettiPalette: self.confetti.map { ProviderColor(hex: $0) },
                 widgetColor: self.widgetColor,
                 progressColorStyle: self.progressColorStyle),
-            tokenCost: ProviderTokenCostConfig(supportsTokenCost: false, noDataMessage: { self.noDataMessage }),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: self.supportsTokenCost,
+                noDataMessage: { self.noDataMessage },
+                isUsageUnavailable: self.isCostUsageUnavailable),
             history: self.history,
             snapshotExport: self.snapshotExport,
             presentation: self.presentation,

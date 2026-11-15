@@ -902,21 +902,7 @@ extension UsageStore {
         if provider == .deepseek {
             self.clearDeepSeekProfileTransition()
         }
-        if backfilled.opencodegoUsage?.localHistoryPending == true {
-            self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
-        } else if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
-            self.publishTokenSnapshot(tokenSnapshot, for: provider)
-            self.tokenErrors[provider.instanceID] = nil
-            self.tokenFailureGates[provider.instanceID]?.recordSuccess()
-        } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(backfilled) {
-            // Provider-specific by design: prepaid balance without usage history is unavailable,
-            // not a confirmed-empty $0 spend row.
-            self.clearTokenSnapshot(for: provider)
-            self.tokenErrors[provider.instanceID] = nil
-        } else if Self.tokenCostRequiresProviderSnapshot(provider) {
-            self.publishConfirmedEmptyTokenSnapshot(for: provider)
-            self.tokenErrors[provider.instanceID] = nil
-        }
+        self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
         self.lastSourceLabels[provider.instanceID] = result.sourceLabel
         self.settings.persistDiscoveredFireworksAccountSlug(result.fireworksDiscoveredAccountSlug)
         self.recordProviderFetchSuccessErrorState(provider: provider)

@@ -80,6 +80,7 @@ DeepSeek Platform in Chrome. Authentication failures returned as top-level or ne
   Models with missing or invalid costs are omitted; reported zero costs remain visible.
 - The amount and cost requests run concurrently. After balance arrives, QuotaKit waits up to five seconds for
   automatic Chrome resolution and detailed usage. The deadline remains bounded even if a local Chrome read does not
+- The same Platform data supplies menu-bar cost elements and Usage & Spend. The reporting period is this month in Gregorian UTC; missing detailed usage does not establish zero spend.
   respond to cancellation. If the optional work fails or times out, the balance and previously validated profile list
   remain available while the menu reports that detailed usage is unavailable.
 - With multiple configured API keys, browser-derived detailed usage is shown only with the active API-key account;
