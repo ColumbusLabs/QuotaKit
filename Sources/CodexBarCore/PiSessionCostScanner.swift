@@ -386,6 +386,7 @@ enum PiSessionCostScanner {
                 detailsAreComplete: isComplete && breakdowns != nil
                     && (reports.pi.data.isEmpty || !cache.sessions.isEmpty))
         }
+        // Provider-specific by design: Codex and Claude mirrors return only their own backend partition.
         return DailyReportResult(
             report: provider == .codex ? reports.codex : reports.claude,
             isComplete: scanIsComplete,
