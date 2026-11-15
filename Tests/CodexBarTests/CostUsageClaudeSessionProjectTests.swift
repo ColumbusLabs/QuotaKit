@@ -521,6 +521,28 @@ struct CostUsageClaudeSessionProjectTests {
     }
 
     @Test
+    func `new Claude generation rescans and preserves prior cache`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 3, day: 10)
+        try self.write(env, "alpha/session.jsonl", [
+            self.line(env, day, session: "session", message: "m1", cwd: Self.alpha),
+        ])
+        let currentURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: env.cacheRoot)
+        #expect(currentURL.lastPathComponent == "claude-v24.json")
+        let previousURL = currentURL.deletingLastPathComponent().appendingPathComponent("claude-v23.json")
+        try FileManager.default.createDirectory(
+            at: previousURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let previousBytes = Data("previous-generation".utf8)
+        try previousBytes.write(to: previousURL)
+
+        let (projections, metrics) = try self.load(env, day)
+        #expect(metrics.transcriptParses == 1)
+        #expect(projections.projects.first?.path == Self.alpha)
+        #expect(try Data(contentsOf: previousURL) == previousBytes)
+    }
+
+    @Test
     func `schema four cache rebuilds project metadata without changing totals`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
