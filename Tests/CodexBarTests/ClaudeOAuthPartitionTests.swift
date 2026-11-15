@@ -79,8 +79,10 @@ struct ClaudeOAuthPartitionTests {
                 return .allowed
             } operation: {
                 await ProviderInteractionContext.$current.withValue(.background) {
-                    #expect(ClaudeOAuthCredentialsStore.readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt()
-                        == nil)
+                    ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                        #expect(ClaudeOAuthCredentialsStore
+                            .readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt() == nil)
+                    }
                 }
                 #expect(reads.value == 0)
             }
@@ -101,14 +103,22 @@ struct ClaudeOAuthPartitionTests {
                     descriptions: partitions.value, callerTeam: "OURS") == .allowed ? .allowed : .interactionRequired
             } operation: {
                 await ProviderInteractionContext.$current.withValue(.background) {
-                    #expect(ClaudeOAuthCredentialsStore.readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt()
-                        == self.payload)
+                    // A background context without the explicit CLI capability must stop before the item read.
+                    #expect(ClaudeOAuthCredentialsStore
+                        .readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt() == nil)
+                    #expect(reads.value == 0)
+                    ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                        #expect(ClaudeOAuthCredentialsStore
+                            .readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt() == self.payload)
+                    }
                 }
                 #expect(reads.value == 1)
                 try partitions.setValue([KeychainAccessPreflightPartitionTests.description(["apple-tool:"])])
                 await ProviderInteractionContext.$current.withValue(.background) {
-                    #expect(ClaudeOAuthCredentialsStore.readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt()
-                        == nil)
+                    ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                        #expect(ClaudeOAuthCredentialsStore
+                            .readRawClaudeKeychainPayloadViaSecurityFrameworkWithoutPrompt() == nil)
+                    }
                 }
                 await ProviderInteractionContext.$current.withValue(.userInitiated) {
                     BrowserCookieKeychainAccessGate.withUserInteractionDisallowed {
