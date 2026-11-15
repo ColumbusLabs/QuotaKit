@@ -940,10 +940,11 @@ public struct CostUsageFetcher: Sendable {
                 calendar: piOptionsOnly.calendar,
                 historyCoverageIsEstablished: piScanResult.isComplete,
                 costProvenance: .listPriceEstimate,
-                projects: [],
-                sessions: [],
-                // An incomplete Pi scan may be serving a retained cache report. Preserve its
-                // scan time; if there is none, mark the age unknown rather than freshly read.
+                projects: piScanResult.projects,
+                sessions: piScanResult.sessions,
+                detailsAreComplete: piScanResult.detailsAreComplete,
+                // An incomplete Pi scan may be serving a retained cache report. Keep its
+                // original scan time so stale usage is not presented as freshly read.
                 updatedAt: piScanResult.isComplete ? now : piScanResult.lastScanAt ?? .distantPast)
             return CostUsageTokenResult(
                 snapshot: snapshot,

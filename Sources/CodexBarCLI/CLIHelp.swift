@@ -163,6 +163,7 @@ extension CodexBarCLI {
         Examples:
           quotakit cost
           quotakit cost --provider codex --group-by project
+          quotakit cost --provider pi --group-by session
           quotakit cost --provider claude --breakdown
           quotakit cost --provider opencodego --format json
           quotakit cost --provider claude --format json --pretty
