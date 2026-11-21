@@ -1,6 +1,9 @@
 # Upstream integration — 2026-11-21
 
-Status: implementing; final verification pending.
+Status: done after independent source verification; hosted merge qualification is tracked in PR #281.
+
+Delivery requires all applicable checks on the exact PR head; the PR and upstream-sync issue #280
+are the authoritative hosted verification and merge receipt.
 
 ## Design
 

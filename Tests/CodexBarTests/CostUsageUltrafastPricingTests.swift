@@ -138,12 +138,28 @@ struct CostUsageUltrafastPricingTests {
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
         let key = range.sinceKey
         var rows: [CostUsageScanner.CodexUsageRow] = [
-            .init(day: key, model: "gpt-6.1-sol", turnID: nil, eventIndex: 0,
-                  input: 10, cached: 0, output: 0, knownCostNanos: 0, pricingMode: "ultrafast"),
+            .init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 0,
+                pricingMode: "ultrafast"),
         ]
         if hasUnknown {
-            rows.append(.init(day: key, model: "gpt-6.1-sol", turnID: nil, eventIndex: 1,
-                              input: 10, cached: 0, output: 0, unpricedTokens: 10, pricingMode: "ultrafast"))
+            rows.append(.init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                unpricedTokens: 10,
+                pricingMode: "ultrafast"))
         }
         let usage = CostUsageScanner.makeFileUsage(
             mtimeUnixMs: 1, size: 1, days: [key: ["gpt-6.1-sol": [hasUnknown ? 20 : 10, 0, 0]]],
@@ -199,5 +215,4 @@ struct CostUsageUltrafastPricingTests {
             ],
         ])
     }
-
 }

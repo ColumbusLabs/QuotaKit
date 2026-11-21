@@ -20,8 +20,6 @@ public enum TrustedRouterProviderDescriptor {
         confetti: [0xA9CDB9, 0xEDE8DB],
         progressColorStyle: .label,
         noDataMessage: "No cost history data.",
-        history: .unavailable,
-        burnDownWidgetSelectable: false,
         environmentKey: "TRUSTEDROUTER_API_KEY",
         missingCredentialMessage: { _ in UsageFormatter.localized("Check your API key in Settings.") },
         menuBarMetrics: .init(supported: [.automatic, .primary]),
@@ -30,6 +28,8 @@ public enum TrustedRouterProviderDescriptor {
             menuCard: ProviderMenuCardPresentation(
                 primaryDescriptionPlacement: .detail,
                 hidesPrimaryResetWithoutDate: true)),
+        history: .unavailable,
+        burnDownWidgetSelectable: false,
         scriptSettings: { _ in
             let messages = Dictionary(uniqueKeysWithValues: Self.diagnosticMessages.map {
                 ($0, UsageFormatter.localized($0))

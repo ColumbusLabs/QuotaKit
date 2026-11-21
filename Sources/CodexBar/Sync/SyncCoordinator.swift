@@ -1023,7 +1023,7 @@ final class SyncCoordinator {
         metadata: ProviderMetadata?,
         snapshot: UsageSnapshot?) -> (primary: String?, secondary: String?, tertiary: String)
     {
-        if (provider == .gemini || provider == .notion), let metadata, let snapshot {
+        if provider == .gemini || provider == .notion, let metadata, let snapshot {
             let labels = ProviderDescriptorRegistry.descriptor(for: provider).presentation
                 .rateWindowLabels(metadata: metadata, snapshot: snapshot)
             return (labels.primary, labels.secondary, labels.tertiary)

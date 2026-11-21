@@ -52,7 +52,8 @@ struct LocalizationLanguageCatalogTests {
             .filter { $0.pathExtension == "lproj" }
         #expect(catalogs.count == AppLanguage.allCases.count - 1)
         let keys = [
-            "Skip cost refresh","Pace sign", "Ahead of pace is +", "Reserve is +"]
+            "Skip cost refresh", "Pace sign", "Ahead of pace is +", "Reserve is +",
+        ]
         for url in catalogs {
             let catalog = try #require(NSDictionary(contentsOf: url.appendingPathComponent("Localizable.strings"))
                 as? [String: String])
@@ -724,9 +725,9 @@ struct LocalizationLanguageCatalogTests {
             .deletingLastPathComponent()
             .appendingPathComponent("Sources/CodexBar/Resources")
         let english = try #require(NSDictionary(contentsOf: resourcesURL
-            .appendingPathComponent("en.lproj/Localizable.strings")) as? [String: String])
+                .appendingPathComponent("en.lproj/Localizable.strings")) as? [String: String])
         let localized = try #require(NSDictionary(contentsOf: resourcesURL
-            .appendingPathComponent("\(languageCode).lproj/Localizable.strings")) as? [String: String])
+                .appendingPathComponent("\(languageCode).lproj/Localizable.strings")) as? [String: String])
         return (english, localized)
     }
 

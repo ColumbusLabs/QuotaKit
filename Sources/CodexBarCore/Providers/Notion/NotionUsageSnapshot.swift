@@ -136,6 +136,7 @@ public struct NotionPersonalAllowance: Decodable, Sendable, Equatable {
         public let used: Double?
         public let limit: Double?
     }
+
     public let bucketId: String?
     public let cadence: String?
     public let state: String?
@@ -176,9 +177,13 @@ public struct NotionCreditRateLimitStatus: Decodable, Sendable, Equatable {
     public let enforcement: String?
     public let allowances: [NotionPersonalAllowance]?
 
-    init(status: String?, window: NotionRollingWindow?, resetsInSeconds: Double?,
-         billingPeriodWindow: NotionBillingPeriodWindow?, enforcement: String?,
-         allowances: [NotionPersonalAllowance]? = nil)
+    init(
+        status: String?,
+        window: NotionRollingWindow?,
+        resetsInSeconds: Double?,
+        billingPeriodWindow: NotionBillingPeriodWindow?,
+        enforcement: String?,
+        allowances: [NotionPersonalAllowance]? = nil)
     {
         self.status = status
         self.window = window
@@ -284,13 +289,17 @@ public struct NotionUsageSnapshot: Sendable {
         let primary = hasPersonal ? standard.flatMap { Self.personalWindow($0, title: "Standard") } : legacyPrimary
         let secondary = hasPersonal ? select.flatMap { Self.personalWindow($0, title: "Select") } : legacySecondary
         var details: [ProviderDetailSection] = []
-        let rows = [("Standard", standard), ("Select", select)].compactMap { title, entry -> ProviderDetailSection.Row? in
-            guard let credits = entry?.credits, let used = credits.used, used.isFinite, used >= 0,
-                  let limit = credits.limit, limit.isFinite, limit > 0, (used / limit * 100).isFinite
-            else { return nil }
-            return .makeRow(label: "\(title) remaining", value: "\(Self.formatNumber(max(0, limit - used))) credits",
-                            secondaryValue: "\(Self.formatNumber(used)) / \(Self.formatNumber(limit)) used", usageValue: used)
-        }
+        let rows = [("Standard", standard), ("Select", select)]
+            .compactMap { title, entry -> ProviderDetailSection.Row? in
+                guard let credits = entry?.credits, let used = credits.used, used.isFinite, used >= 0,
+                      let limit = credits.limit, limit.isFinite, limit > 0, (used / limit * 100).isFinite
+                else { return nil }
+                return .makeRow(
+                    label: "\(title) remaining",
+                    value: "\(Self.formatNumber(max(0, limit - used))) credits",
+                    secondaryValue: "\(Self.formatNumber(used)) / \(Self.formatNumber(limit)) used",
+                    usageValue: used)
+            }
         if !rows.isEmpty { details.append(.makeSection(title: "Personal credits", rows: rows)) }
         if let workspaceCredits, workspaceCredits.isFinite {
             details.append(.makeSection(title: "Notion Credits", rows: [
@@ -325,13 +334,17 @@ public struct NotionUsageSnapshot: Sendable {
             && ((credits!.used! / credits!.limit!) * 100).isFinite
         let percent = validCredits ? credits!.used! / credits!.limit! * 100 : used / limit * 100
         let duration = (entry.periodEndMs ?? 0) - (entry.periodStartMs ?? 0)
-        let minutes = duration / 60_000
+        let minutes = duration / 60000
         let validDuration = (entry.periodStartMs ?? 0) > 0 && minutes.isFinite && minutes > 0
             && minutes.rounded() == minutes && minutes < Double(Int.max)
-        return RateWindow(usedPercent: percent, windowMinutes: validDuration ? Int(minutes) : nil,
-                          resetsAt: Self.date(fromMilliseconds: entry.periodEndMs), resetDescription: nil,
-                          quotaLimit: validCredits ? credits?.limit : nil,
-                          quotaUnit: validCredits ? "credits" : nil, title: title)
+        return RateWindow(
+            usedPercent: percent,
+            windowMinutes: validDuration ? Int(minutes) : nil,
+            resetsAt: Self.date(fromMilliseconds: entry.periodEndMs),
+            resetDescription: nil,
+            quotaLimit: validCredits ? credits?.limit : nil,
+            quotaUnit: validCredits ? "credits" : nil,
+            title: title)
     }
 
     /// Returns nil when the window carries no measurable allowance. A missing or non-positive limit
@@ -393,7 +406,8 @@ public enum NotionUsageParser {
         // Every field is optional, so an unrelated 200 body (an error envelope, or a changed shape)
         // decodes cleanly into an all-nil status. Refuse it rather than reporting it as 0% used.
         guard status.isNotApplicable || status.window != nil || status.billingPeriodWindow != nil
-            || status.personalAllowance("auto") != nil || status.personalAllowance("flex") != nil else {
+            || status.personalAllowance("auto") != nil || status.personalAllowance("flex") != nil
+        else {
             throw NotionUsageError.parseFailed("getCreditRateLimitStatus returned no usage windows.")
         }
         return status

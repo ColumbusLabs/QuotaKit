@@ -1,5 +1,5 @@
-import Foundation
 import CoreFoundation
+import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -430,11 +430,14 @@ public struct NotionUsageFetcher: Sendable {
         let status = try NotionUsageParser.parseRateLimitStatus(data)
 
         let hasPersonal = status.personalAllowance("auto") != nil || status.personalAllowance("flex") != nil
-        if status.isNotApplicable && !hasPersonal {
+        if status.isNotApplicable, !hasPersonal {
             if status.hasPersonalSchema {
-                let legacy = NotionUsageSnapshot(rateLimit: status, workspace: workspace, account: account,
-                                                 updatedAt: now).toUsageSnapshot()
-                if legacy.primary == nil && legacy.secondary == nil {
+                let legacy = NotionUsageSnapshot(
+                    rateLimit: status,
+                    workspace: workspace,
+                    account: account,
+                    updatedAt: now).toUsageSnapshot()
+                if legacy.primary == nil, legacy.secondary == nil {
                     throw NotionUsageError.personalAllowanceUnavailable
                 }
             } else {
@@ -461,7 +464,8 @@ public struct NotionUsageFetcher: Sendable {
                 if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let premium = root["premiumCredits"] as? [String: Any],
                    let value = premium["totalCreditBalance"] as? NSNumber,
-                   CFGetTypeID(value) != CFBooleanGetTypeID(), value.doubleValue.isFinite {
+                   CFGetTypeID(value) != CFBooleanGetTypeID(), value.doubleValue.isFinite
+                {
                     credits = value.doubleValue
                 }
             } catch {
@@ -524,7 +528,7 @@ public struct NotionUsageFetcher: Sendable {
             }
             throw NotionUsageError.apiError("HTTP \(response.statusCode) from \(endpoint)")
         }
-        if (endpoint == "getSpaces" || endpoint == "getAIUsageEligibilityV2"),
+        if endpoint == "getSpaces" || endpoint == "getAIUsageEligibilityV2",
            response.data.count > Self.workspaceDiscoveryResponseLimit
         {
             throw NotionUsageError.responseTooLarge(endpoint: endpoint)

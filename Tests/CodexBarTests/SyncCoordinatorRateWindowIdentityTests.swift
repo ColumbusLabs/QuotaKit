@@ -53,10 +53,18 @@ extension SyncCoordinatorTests {
         let provider = try await self.syncedProvider(
             .notion,
             snapshot: UsageSnapshot(
-                primary: RateWindow(usedPercent: 10, windowMinutes: 44_640, resetsAt: now,
-                                    resetDescription: nil, title: "Standard"),
-                secondary: RateWindow(usedPercent: 20, windowMinutes: 44_640, resetsAt: now,
-                                      resetDescription: nil, title: "Select"),
+                primary: RateWindow(
+                    usedPercent: 10,
+                    windowMinutes: 44640,
+                    resetsAt: now,
+                    resetDescription: nil,
+                    title: "Standard"),
+                secondary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 44640,
+                    resetsAt: now,
+                    resetDescription: nil,
+                    title: "Select"),
                 updatedAt: now),
             suite: "SyncCoord-notion-personal-labels")
         #expect(provider.rateWindows.map(\.label) == ["Standard", "Select"])

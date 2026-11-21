@@ -268,7 +268,7 @@ struct NotionUsageFetcherTests {
     private struct StubTransport: ProviderHTTPTransport {
         let spaces: StubResponse
         let rateLimit: StubResponse
-        var credits: StubResponse? = nil
+        var credits: StubResponse?
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
             let stub = if request.url?.path.hasSuffix("getSpaces") == true {
@@ -462,11 +462,17 @@ struct NotionUsageFetcherTests {
         #expect(NotionUsageSnapshot.rollingMinutes(fromWindowToken: "43200m") == nil)
         #expect(NotionUsageSnapshot.rollingMinutes(fromWindowToken: "6h") == 360)
     }
+
     @Test
     func `migrated personal pools preserve exact credits and distinct labels`() throws {
-        let status = try NotionUsageParser.parseRateLimitStatus(Self.fixtureData("get-credit-rate-limit-status-migrated"))
-        let usage = NotionUsageSnapshot(rateLimit: status, workspace: nil, account: nil,
-                                        updatedAt: Self.now, workspaceCredits: 300).toUsageSnapshot()
+        let status = try NotionUsageParser
+            .parseRateLimitStatus(Self.fixtureData("get-credit-rate-limit-status-migrated"))
+        let usage = NotionUsageSnapshot(
+            rateLimit: status,
+            workspace: nil,
+            account: nil,
+            updatedAt: Self.now,
+            workspaceCredits: 300).toUsageSnapshot()
         let standard = try #require(usage.primary)
         let select = try #require(usage.secondary)
         #expect(standard.title == "Standard")
@@ -481,7 +487,9 @@ struct NotionUsageFetcherTests {
 
     @Test
     func `ambiguous or unresolved pools are not reported as measured usage`() throws {
-        let data = Data(#"{"status":"not_applicable","allowances":[{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":1,"limit":100},{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":2,"limit":100},{"bucketId":"flex","cadence":"billing_period","state":"not_exposed"}]}"#.utf8)
+        let data = Data(
+            #"{"status":"not_applicable","allowances":[{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":1,"limit":100},{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":2,"limit":100},{"bucketId":"flex","cadence":"billing_period","state":"not_exposed"}]}"#
+                .utf8)
         let status = try NotionUsageParser.parseRateLimitStatus(data)
         #expect(status.hasPersonalSchema)
         #expect(status.personalAllowance("auto") == nil)
@@ -500,8 +508,11 @@ struct NotionUsageFetcherTests {
             let path = try #require(request.url?.path)
             if path.hasSuffix("getAIUsageEligibilityV2") { try await Task.sleep(for: .seconds(10)) }
             let body = path.hasSuffix("getSpaces") ? spaces : usage
-            let response = try #require(HTTPURLResponse(url: #require(request.url), statusCode: 200,
-                                                       httpVersion: nil, headerFields: nil))
+            let response = try #require(HTTPURLResponse(
+                url: #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil))
             return (body, response)
         }
         let start = ContinuousClock.now
@@ -524,13 +535,20 @@ struct NotionUsageFetcherTests {
                 continuation.yield(())
                 try await Task.sleep(for: .seconds(10))
             }
-            let response = try #require(HTTPURLResponse(url: #require(request.url), statusCode: 200,
-                                                       httpVersion: nil, headerFields: nil))
+            let response = try #require(HTTPURLResponse(
+                url: #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil))
             return (path.hasSuffix("getSpaces") ? spaces : usage, response)
         }
         let task = Task {
-            try await NotionUsageFetcher.fetchUsage(cookieHeader: "token_v2=abc",
-                preferredSpaceID: Self.personalSpaceID, timeout: 3, now: Self.now, transport: transport)
+            try await NotionUsageFetcher.fetchUsage(
+                cookieHeader: "token_v2=abc",
+                preferredSpaceID: Self.personalSpaceID,
+                timeout: 3,
+                now: Self.now,
+                transport: transport)
         }
         var iterator = events.makeAsyncIterator()
         _ = await iterator.next()
@@ -544,8 +562,10 @@ struct NotionUsageFetcherTests {
         let transport = try StubTransport(
             spaces: StubResponse(statusCode: 200, body: Self.fixtureData("get-spaces")),
             rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status-migrated")),
-            credits: StubResponse(statusCode: 200, body: Data(repeating: 32,
-                count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)))
+            credits: StubResponse(statusCode: 200, body: Data(
+                repeating: 32,
+                count: NotionUsageFetcher
+                    .workspaceDiscoveryResponseLimit + 1)))
         let snapshot = try await Self.fetchUsage(transport: transport, preferredSpaceID: Self.personalSpaceID)
         #expect(snapshot.workspaceCredits == nil)
         #expect(snapshot.toUsageSnapshot().primary?.title == "Standard")
@@ -577,5 +597,4 @@ struct NotionUsageFetcherTests {
         #expect(snapshot.toUsageSnapshot().secondary?.title == "Select")
         #expect(snapshot.workspaceCredits == nil)
     }
-
 }

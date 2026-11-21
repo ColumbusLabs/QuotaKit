@@ -22,12 +22,28 @@ struct CostUsageStoreTests {
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day, calendar: calendar)
         let key = range.sinceKey
         var rows: [CostUsageScanner.CodexUsageRow] = [
-            .init(day: key, model: "gpt-6.1-sol", turnID: nil, eventIndex: 0,
-                  input: 10, cached: 0, output: 0, unpricedTokens: 10, pricingMode: "ultrafast"),
+            .init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                unpricedTokens: 10,
+                pricingMode: "ultrafast"),
         ]
         if withKnownZero {
-            rows.append(.init(day: key, model: "gpt-6.1-sol", turnID: nil, eventIndex: 1,
-                              input: 10, cached: 0, output: 0, knownCostNanos: 0, pricingMode: "ultrafast"))
+            rows.append(.init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 0,
+                pricingMode: "ultrafast"))
         }
         let usage = CostUsageScanner.makeFileUsage(
             mtimeUnixMs: 1, size: 1, days: [key: ["gpt-6.1-sol": [withKnownZero ? 20 : 10, 0, 0]]],
@@ -64,8 +80,15 @@ struct CostUsageStoreTests {
         var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [day: ["fixture-model": [10, 0, 2]]])
         usage.parsedBytes = 100
         usage.codexScanComplete = true
-        usage.codexRows = [.init(day: day, model: "fixture-model", turnID: nil, eventIndex: 0,
-                                 input: 10, cached: 0, output: 2, knownCostNanos: 500)]
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: nil,
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 2,
+            knownCostNanos: 500)]
         var cache = CostUsageCache()
         cache.files["/rollouts/migration.jsonl"] = usage
         cache.days = usage.days
