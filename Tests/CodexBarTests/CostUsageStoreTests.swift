@@ -2483,6 +2483,8 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "524695b9ecd9f16c",
+        "8ef06fff78a77e26",
         "70daf0906645fd3a",
         "f80230e162d75b65",
         "1a32d8d0c63060d2",
@@ -2597,7 +2599,7 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        // All predecessor reports predate Terra and Luna Fast repricing.
+        // Compatible predecessors retain saved rows but invalidate cached reports after repricing.
         before.metadata.previousReportPayload = nil
 
         let current = CostUsageStore(cacheRoot: fixture.root)

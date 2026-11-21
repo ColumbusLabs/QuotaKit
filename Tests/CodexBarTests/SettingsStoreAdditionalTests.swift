@@ -292,6 +292,7 @@ struct SettingsStoreAdditionalTests {
             .siliconflow: [.automatic],
             .tripo: [.automatic],
             .traecn: [.automatic, .primary],
+            .trustedrouter: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {
