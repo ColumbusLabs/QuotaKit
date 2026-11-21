@@ -32,7 +32,8 @@ public enum NotionUsageError: LocalizedError, Sendable, Equatable {
                     "Allowances apply to Business and Enterprise workspaces."
             }
         case .personalAllowanceUnavailable:
-            "Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit."
+            "Notion did not provide usable personal AI allowances for this workspace. " +
+                "Check AI usage in Notion, then refresh QuotaKit."
         case let .apiError(message):
             "Notion API error: \(message)"
         case let .parseFailed(message):

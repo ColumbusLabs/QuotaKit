@@ -433,7 +433,8 @@ extension CostUsageStore {
                standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                priority_resolved_cost_nanos, standard_unresolved_pricing_count,
                priority_unresolved_pricing_count,
-               ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens, ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
+               ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+               ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
         FROM verified_day_aggregates
         WHERE home = ?1
         """
@@ -507,7 +508,9 @@ extension CostUsageStore {
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
             priority_unresolved_pricing_count,
-            ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens, ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count, home
+            ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+            ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count,
+            home
         ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
             ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31)
@@ -1024,7 +1027,9 @@ extension CostUsageStore {
                            standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                            priority_resolved_cost_nanos, standard_unresolved_pricing_count,
                            priority_unresolved_pricing_count,
-                           ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens, ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
+                           ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens,
+                           ultrafast_tokens, ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos,
+                           ultrafast_unresolved_pricing_count
                     FROM day_aggregates WHERE home = ?1
                     """)
                     defer { sqlite3_finalize(copy) }

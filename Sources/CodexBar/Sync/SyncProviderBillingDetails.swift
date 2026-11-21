@@ -187,12 +187,7 @@ enum SyncProviderBillingDetails {
         case .signedNumber:
             return self.number(value) != nil
         case let .dollars(allowNegative):
-            // USD formatting is explicitly en-US in the source plugins. Reject currency ambiguity,
-            // suffixes, scientific notation, and arbitrary prose even under an allowed row label.
-            guard self.matches(value, #"^-?\$(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?$"#),
-                  let amount = self.number(value.replacingOccurrences(of: "$", with: ""))
-            else { return false }
-            return allowNegative || amount >= 0
+            return self.isValidDollars(value, allowNegative: allowNegative)
         case .credits:
             guard value.hasSuffix(" credits") else { return false }
             return self.number(String(value.dropLast(" credits".count))).map { $0 >= 0 } ?? false
@@ -227,6 +222,15 @@ enum SyncProviderBillingDetails {
         case let .fixed(values):
             return values.contains(value)
         }
+    }
+
+    private static func isValidDollars(_ value: String, allowNegative: Bool) -> Bool {
+        // USD formatting is explicitly en-US in the source plugins. Reject currency ambiguity,
+        // suffixes, scientific notation, and arbitrary prose even under an allowed row label.
+        guard self.matches(value, #"^-?\$(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]+)?$"#),
+              let amount = self.number(value.replacingOccurrences(of: "$", with: ""))
+        else { return false }
+        return allowNegative || amount >= 0
     }
 
     private static func isRemainingPair(_ value: String) -> Bool {

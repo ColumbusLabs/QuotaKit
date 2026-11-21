@@ -1280,7 +1280,8 @@ extension CostUsageStore {
                a.priority_resolved_cost_nanos, a.standard_unresolved_pricing_count,
                a.priority_unresolved_pricing_count,
                a.ultrafast_input_tokens, a.ultrafast_cached_tokens, a.ultrafast_output_tokens, a.ultrafast_tokens,
-               a.ultrafast_authoritative_cost_nanos, a.ultrafast_resolved_cost_nanos, a.ultrafast_unresolved_pricing_count
+               a.ultrafast_authoritative_cost_nanos, a.ultrafast_resolved_cost_nanos,
+               a.ultrafast_unresolved_pricing_count
         """
         // A source-specific window starts from its file key and uses the aggregate
         // table's (file_id, day, model) index. Preserve the existing native full scan.

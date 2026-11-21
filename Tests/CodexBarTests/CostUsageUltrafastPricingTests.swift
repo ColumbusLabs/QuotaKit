@@ -162,18 +162,26 @@ struct CostUsageUltrafastPricingTests {
                 pricingMode: "ultrafast"))
         }
         let usage = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 1, days: [key: ["gpt-6.1-sol": [hasUnknown ? 20 : 10, 0, 0]]],
-            parsedBytes: 1, codexRows: rows, codexScanComplete: true)
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [key: ["gpt-6.1-sol": [hasUnknown ? 20 : 10, 0, 0]]],
+            parsedBytes: 1,
+            codexRows: rows,
+            codexScanComplete: true)
         let aggregate = try #require(CostUsageStore.fileAggregatesForTesting(usage).first)
         let path = env.codexSessionsRoot.appendingPathComponent("ultrafast.jsonl").path
         var cache = CostUsageCache()
         cache.files[path] = usage
         cache.days = usage.days
         let projection = CostUsageStoreCodexReportProjection(
-            cache: cache, fileDayAggregates: [.init(path: path, aggregate: aggregate)])
+            cache: cache,
+            fileDayAggregates: [.init(path: path, aggregate: aggregate)])
         let report = CostUsageCodexReportProjectionBuilder.build(
-            projection: projection, roots: [env.codexSessionsRoot], range: range,
-            cacheRoot: env.cacheRoot, includeBreakdowns: false).report
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
         #expect(report.data.first?.costUSD == 0)
         #expect(report.data.first?.unpricedRequestCount == (hasUnknown ? 1 : nil))
     }

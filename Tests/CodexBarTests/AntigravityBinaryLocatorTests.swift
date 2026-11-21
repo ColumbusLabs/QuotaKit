@@ -93,12 +93,20 @@ struct AntigravityBinaryLocatorTests {
         let installed = "/custom/bin/agy"
         let manager = AntigravityLocatorMockFileManager(executables: [bundled, installed])
         let fallback = BinaryLocator.resolveAntigravityBinary(
-            env: [:], loginPATH: nil, commandV: { _, _, _, _ in nil },
-            aliasResolver: { _, _, _, _, _ in nil }, fileManager: manager, home: "/home/test")
+            env: [:],
+            loginPATH: nil,
+            commandV: { _, _, _, _ in nil },
+            aliasResolver: { _, _, _, _, _ in nil },
+            fileManager: manager,
+            home: "/home/test")
         #expect(fallback == bundled)
         let cli = BinaryLocator.resolveAntigravityBinary(
-            env: [:], loginPATH: nil, commandV: { _, _, _, _ in installed },
-            aliasResolver: { _, _, _, _, _ in nil }, fileManager: manager, home: "/home/test")
+            env: [:],
+            loginPATH: nil,
+            commandV: { _, _, _, _ in installed },
+            aliasResolver: { _, _, _, _, _ in nil },
+            fileManager: manager,
+            home: "/home/test")
         #expect(cli == installed)
     }
 

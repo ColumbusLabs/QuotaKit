@@ -11,7 +11,7 @@ import CSQLite3
 // Store invariants share one fixture/helper vocabulary across focused extensions.
 // swiftlint:disable file_length
 
-struct CostUsageStoreTests {
+extension CostUsageStoreTests {
     @Test(arguments: [false, true])
     func `aggregate only Ultrafast unknown prices never become standard prices`(withKnownZero: Bool) async throws {
         let fixture = try StoreFixture()
@@ -46,8 +46,12 @@ struct CostUsageStoreTests {
                 pricingMode: "ultrafast"))
         }
         let usage = CostUsageScanner.makeFileUsage(
-            mtimeUnixMs: 1, size: 1, days: [key: ["gpt-6.1-sol": [withKnownZero ? 20 : 10, 0, 0]]],
-            parsedBytes: 1, codexRows: rows, codexScanComplete: true)
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [key: ["gpt-6.1-sol": [withKnownZero ? 20 : 10, 0, 0]]],
+            parsedBytes: 1,
+            codexRows: rows,
+            codexScanComplete: true)
         var cache = CostUsageCache()
         let path = "/rollouts/ultrafast.jsonl"
         cache.files[path] = usage
@@ -128,7 +132,9 @@ struct CostUsageStoreTests {
             #expect(count == 1)
         }
     }
+}
 
+struct CostUsageStoreTests {
     @Test
     func `identical save does not retain a snapshot pruned by SQLite`() async throws {
         let fixture = try StoreFixture()

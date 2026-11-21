@@ -96,7 +96,8 @@ struct MiMoProviderImplementation: ProviderImplementation {
                         }
                         NSWorkspace.shared.open(url)
                     })],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "mimo-cookie",
                 title: "",

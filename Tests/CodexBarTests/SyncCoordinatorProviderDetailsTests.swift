@@ -9,17 +9,21 @@ import Testing
 struct SyncCoordinatorProviderDetailsTests {
     @Test
     func `Notion sync exports only personal and workspace credit amounts`() {
-        let snapshot = UsageSnapshot(primary: nil, secondary: nil, details: [
-            .makeSection(title: "Personal credits", rows: [
-                .makeRow(label: "Standard remaining", value: "1,365.331 credits"),
-                .makeRow(label: "Select remaining", value: "500 credits", secondaryValue: "private"),
-                .makeRow(label: "Account", value: "person@example.com"),
-            ]),
-            .makeSection(title: "Notion Credits", rows: [
-                .makeRow(label: "Remaining credits", value: "-300"),
-                .makeRow(label: "Workspace", value: "secret"),
-            ]),
-        ], updatedAt: Date())
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [
+                .makeSection(title: "Personal credits", rows: [
+                    .makeRow(label: "Standard remaining", value: "1,365.331 credits"),
+                    .makeRow(label: "Select remaining", value: "500 credits", secondaryValue: "private"),
+                    .makeRow(label: "Account", value: "person@example.com"),
+                ]),
+                .makeSection(title: "Notion Credits", rows: [
+                    .makeRow(label: "Remaining credits", value: "-300"),
+                    .makeRow(label: "Workspace", value: "secret"),
+                ]),
+            ],
+            updatedAt: Date())
         #expect(SyncCoordinator.mapProviderDetails(provider: .notion, snapshot: snapshot) == [
             .init(title: "Personal credits", rows: [
                 .init(label: "Standard remaining", value: "1,365.331 credits"),

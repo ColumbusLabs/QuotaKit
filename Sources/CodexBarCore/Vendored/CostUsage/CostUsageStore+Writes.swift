@@ -271,7 +271,8 @@ extension CostUsageStore {
                     priority_resolved_cost_nanos, standard_unresolved_pricing_count,
                     priority_unresolved_pricing_count,
                     ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
-                    ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
+                    ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos,
+                    ultrafast_unresolved_pricing_count
                 ) VALUES (
                     (SELECT id FROM files WHERE path = ? AND home = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?

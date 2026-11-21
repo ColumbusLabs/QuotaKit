@@ -223,6 +223,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "524695b9ecd9f16c", // Ultrafast parser before the row-breakdown extraction.
         "8ef06fff78a77e26", // Schema 7 before Ultrafast tier migration.
         "70daf0906645fd3a", // Terra and Luna Fast repricing preserves native rows and checkpoints.
         "f80230e162d75b65", // Claude-only pricing preserves native rows, checkpoints, and retained reports.

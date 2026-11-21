@@ -488,8 +488,12 @@ struct NotionUsageFetcherTests {
     @Test
     func `ambiguous or unresolved pools are not reported as measured usage`() throws {
         let data = Data(
-            #"{"status":"not_applicable","allowances":[{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":1,"limit":100},{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":2,"limit":100},{"bucketId":"flex","cadence":"billing_period","state":"not_exposed"}]}"#
-                .utf8)
+            #"""
+            {"status":"not_applicable","allowances":[
+              {"bucketId":"auto","cadence":"billing_period","state":"resolved","used":1,"limit":100},
+              {"bucketId":"auto","cadence":"billing_period","state":"resolved","used":2,"limit":100},
+              {"bucketId":"flex","cadence":"billing_period","state":"not_exposed"}]}
+            """#.utf8)
         let status = try NotionUsageParser.parseRateLimitStatus(data)
         #expect(status.hasPersonalSchema)
         #expect(status.personalAllowance("auto") == nil)
@@ -517,8 +521,11 @@ struct NotionUsageFetcherTests {
         }
         let start = ContinuousClock.now
         let snapshot = try await NotionUsageFetcher.fetchUsage(
-            cookieHeader: "token_v2=abc", preferredSpaceID: Self.personalSpaceID,
-            timeout: 0.05, now: Self.now, transport: transport)
+            cookieHeader: "token_v2=abc",
+            preferredSpaceID: Self.personalSpaceID,
+            timeout: 0.05,
+            now: Self.now,
+            transport: transport)
         #expect(start.duration(to: .now) < .seconds(2))
         #expect(snapshot.workspaceCredits == nil)
         #expect(snapshot.toUsageSnapshot().primary?.title == "Standard")
@@ -581,8 +588,12 @@ struct NotionUsageFetcherTests {
         #expect(snapshot.workspaceCredits == 300)
         #expect(snapshot.toUsageSnapshot().details.map(\.title) == ["Personal credits", "Notion Credits"])
         let disabled = try await NotionUsageFetcher.fetchUsage(
-            context: .init(cookieHeader: "token_v2=abc"), preferredSpaceID: Self.personalSpaceID,
-            includeOptionalUsage: false, timeout: 5, now: Self.now, transport: transport)
+            context: .init(cookieHeader: "token_v2=abc"),
+            preferredSpaceID: Self.personalSpaceID,
+            includeOptionalUsage: false,
+            timeout: 5,
+            now: Self.now,
+            transport: transport)
         #expect(disabled.workspaceCredits == nil)
         #expect(disabled.toUsageSnapshot().details.map(\.title) == ["Personal credits"])
     }

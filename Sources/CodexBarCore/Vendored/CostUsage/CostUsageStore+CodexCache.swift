@@ -2463,6 +2463,59 @@ extension CostUsageStore {
         return aggregate
     }
 
+    private static func addPricedRow(
+        _ row: CostUsageScanner.CodexUsageRow,
+        to aggregate: inout CostUsageStoreDayAggregate,
+        pricing: AggregatePricingContext,
+        isPriority: Bool,
+        isUltrafast: Bool)
+    {
+        if let cost = row.knownCostNanos {
+            aggregate.authoritativeCostNanos += cost
+            if isUltrafast {
+                aggregate.ultrafastAuthoritativeCostNanos += cost
+            } else if isPriority {
+                aggregate.priorityAuthoritativeCostNanos += cost
+            } else {
+                aggregate.standardAuthoritativeCostNanos += cost
+            }
+        } else {
+            let resolved = CostUsageScanner.codexResolvedCostNanos(
+                for: row,
+                modelsDevCatalog: pricing.catalog,
+                modelsDevCacheRoot: pricing.cacheRoot,
+                customPricing: pricing.customPricing)
+            if isUltrafast {
+                aggregate.ultrafastInputTokens += Int64(row.input)
+                aggregate.ultrafastCachedTokens += Int64(row.cached)
+                aggregate.ultrafastOutputTokens += Int64(row.output)
+                if let resolved {
+                    aggregate.ultrafastResolvedCostNanos += resolved
+                } else {
+                    aggregate.ultrafastUnresolvedPricingCount += 1
+                }
+            } else if isPriority {
+                aggregate.priorityInputTokens += Int64(row.input)
+                aggregate.priorityCachedTokens += Int64(row.cached)
+                aggregate.priorityOutputTokens += Int64(row.output)
+                if let resolved {
+                    aggregate.priorityResolvedCostNanos += resolved
+                } else {
+                    aggregate.priorityUnresolvedPricingCount += 1
+                }
+            } else {
+                aggregate.standardInputTokens += Int64(row.input)
+                aggregate.standardCachedTokens += Int64(row.cached)
+                aggregate.standardOutputTokens += Int64(row.output)
+                if let resolved {
+                    aggregate.standardResolvedCostNanos += resolved
+                } else {
+                    aggregate.standardUnresolvedPricingCount += 1
+                }
+            }
+        }
+    }
+
     private static func fileAggregates(
         _ usage: CostUsageFileUsage,
         pricing: AggregatePricingContext,
@@ -2539,50 +2592,8 @@ extension CostUsageStore {
                 values[key] = aggregate
                 continue
             }
-            if let cost = row.knownCostNanos {
-                aggregate.authoritativeCostNanos += cost
-                if isUltrafast {
-                    aggregate.ultrafastAuthoritativeCostNanos += cost
-                } else if isPriority {
-                    aggregate.priorityAuthoritativeCostNanos += cost
-                } else {
-                    aggregate.standardAuthoritativeCostNanos += cost
-                }
-            } else {
-                let resolved = CostUsageScanner.codexResolvedCostNanos(
-                    for: row,
-                    modelsDevCatalog: pricing.catalog,
-                    modelsDevCacheRoot: pricing.cacheRoot,
-                    customPricing: pricing.customPricing)
-                if isUltrafast {
-                    aggregate.ultrafastInputTokens += Int64(row.input)
-                    aggregate.ultrafastCachedTokens += Int64(row.cached)
-                    aggregate.ultrafastOutputTokens += Int64(row.output)
-                    if let resolved {
-                        aggregate.ultrafastResolvedCostNanos += resolved
-                    } else {
-                        aggregate.ultrafastUnresolvedPricingCount += 1
-                    }
-                } else if isPriority {
-                    aggregate.priorityInputTokens += Int64(row.input)
-                    aggregate.priorityCachedTokens += Int64(row.cached)
-                    aggregate.priorityOutputTokens += Int64(row.output)
-                    if let resolved {
-                        aggregate.priorityResolvedCostNanos += resolved
-                    } else {
-                        aggregate.priorityUnresolvedPricingCount += 1
-                    }
-                } else {
-                    aggregate.standardInputTokens += Int64(row.input)
-                    aggregate.standardCachedTokens += Int64(row.cached)
-                    aggregate.standardOutputTokens += Int64(row.output)
-                    if let resolved {
-                        aggregate.standardResolvedCostNanos += resolved
-                    } else {
-                        aggregate.standardUnresolvedPricingCount += 1
-                    }
-                }
-            }
+            self.addPricedRow(
+                row, to: &aggregate, pricing: pricing, isPriority: isPriority, isUltrafast: isUltrafast)
             values[key] = aggregate
         }
         for (key, coverage) in autoReviewCoverage {
