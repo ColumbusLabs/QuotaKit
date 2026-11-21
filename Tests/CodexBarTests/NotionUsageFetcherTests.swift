@@ -512,8 +512,9 @@ struct NotionUsageFetcherTests {
             let path = try #require(request.url?.path)
             if path.hasSuffix("getAIUsageEligibilityV2") { try await Task.sleep(for: .seconds(10)) }
             let body = path.hasSuffix("getSpaces") ? spaces : usage
+            let url = try #require(request.url)
             let response = try #require(HTTPURLResponse(
-                url: #require(request.url),
+                url: url,
                 statusCode: 200,
                 httpVersion: nil,
                 headerFields: nil))
@@ -542,8 +543,9 @@ struct NotionUsageFetcherTests {
                 continuation.yield(())
                 try await Task.sleep(for: .seconds(10))
             }
+            let url = try #require(request.url)
             let response = try #require(HTTPURLResponse(
-                url: #require(request.url),
+                url: url,
                 statusCode: 200,
                 httpVersion: nil,
                 headerFields: nil))
