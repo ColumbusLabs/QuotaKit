@@ -340,7 +340,8 @@ public struct NotionUsageFetcher: Sendable {
 
     public func debugRawProbe(
         cookieHeaderOverride: String? = nil,
-        preferredSpaceID: String? = nil) async -> String
+        preferredSpaceID: String? = nil,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async -> String
     {
         let stamp = ISO8601DateFormatter().string(from: Date())
         var lines: [String] = []
@@ -351,7 +352,9 @@ public struct NotionUsageFetcher: Sendable {
             let snapshot = try await self.fetch(
                 cookieHeaderOverride: cookieHeaderOverride,
                 preferredSpaceID: preferredSpaceID,
-                logger: { msg in lines.append(msg) })
+                includeOptionalUsage: false,
+                logger: { msg in lines.append(msg) },
+                transport: transport)
             lines.append("")
             lines.append("Fetch Success")
             lines.append("workspace=\(snapshot.workspace?.name ?? "nil")")
@@ -365,6 +368,11 @@ public struct NotionUsageFetcher: Sendable {
             lines.append("billingUsed=\(snapshot.rateLimit.billingPeriodWindow?.used?.description ?? "nil")")
             lines.append("billingLimit=\(snapshot.rateLimit.billingPeriodWindow?.limit?.description ?? "nil")")
             lines.append("periodEndMs=\(snapshot.rateLimit.billingPeriodWindow?.periodEndMs?.description ?? "nil")")
+            let usage = snapshot.toUsageSnapshot()
+            for window in [usage.primary, usage.secondary].compactMap(\.self) {
+                guard let title = window.title else { continue }
+                lines.append("\(title) used: \(window.usedPercent)")
+            }
         } catch {
             lines.append("")
             lines.append("Probe Failed: \(error.localizedDescription)")

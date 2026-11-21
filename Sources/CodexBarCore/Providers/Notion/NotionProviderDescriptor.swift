@@ -143,6 +143,12 @@ public enum NotionProviderDescriptor {
 }
 
 struct NotionWebFetchStrategy: ProviderFetchStrategy {
+    let transport: any ProviderHTTPTransport
+
+    init(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) {
+        self.transport = transport
+    }
+
     let id: String = "notion.web"
     let kind: ProviderFetchKind = .web
 
@@ -170,7 +176,8 @@ struct NotionWebFetchStrategy: ProviderFetchStrategy {
             preferredSpaceID: context.settings?.notion?.workspaceID,
             includeOptionalUsage: context.includeOptionalUsage,
             timeout: context.webTimeout,
-            logger: logger)
+            logger: logger,
+            transport: self.transport)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(),
             sourceLabel: "web")

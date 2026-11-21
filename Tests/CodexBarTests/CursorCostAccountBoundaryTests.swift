@@ -179,7 +179,7 @@ struct CursorCostAccountBoundaryTests {
     private static func automaticSnapshot(in cache: CursorJSONTestFixtures
         .Cache) async throws -> CostUsageTokenSnapshot
     {
-        try #require(TestProcessSafety.isRunning)
+        try #require(ProviderHTTPClient.isRunningTests)
         let registered = URLProtocol.registerClass(CursorCostManual401Protocol.self)
         try #require(registered)
         defer { URLProtocol.unregisterClass(CursorCostManual401Protocol.self) }

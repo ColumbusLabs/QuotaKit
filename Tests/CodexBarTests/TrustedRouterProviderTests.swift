@@ -63,6 +63,7 @@ struct TrustedRouterProviderTests {
                 snapshot: value,
                 credits: nil,
                 creditsError: nil,
+                dashboard: nil,
                 dashboardError: nil,
                 tokenSnapshot: nil,
                 tokenError: nil,

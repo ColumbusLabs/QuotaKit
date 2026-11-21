@@ -62,6 +62,7 @@ struct MiMoAPIIntegrationTests {
                 snapshot: after ? result.usage : nil,
                 credits: nil,
                 creditsError: nil,
+                dashboard: nil,
                 dashboardError: nil,
                 tokenSnapshot: nil,
                 tokenError: nil,

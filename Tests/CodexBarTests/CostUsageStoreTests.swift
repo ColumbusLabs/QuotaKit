@@ -62,7 +62,7 @@ extension CostUsageStoreTests {
         let store = CostUsageStore(cacheRoot: fixture.root)
         #expect(store.syncSaveCodexCache(
             cache, calendar: calendar, requestedScanWindow: (sinceKey: key, untilKey: key)).cacheWasPersisted)
-        await store.closeConnectionForTesting()
+        await store.reopenCodexScanConnection()
         let db = try SQLiteTestConnection(url: store.databaseURL)
         try db.execute("DELETE FROM usage_rows")
         let restored = store.syncLoadCodexCache(calendar: calendar)
@@ -106,7 +106,7 @@ extension CostUsageStoreTests {
         let before = await store.readSnapshot()
         let priorProjection = store.syncReadCodexReportProjection(calendar: calendar)
         #expect(!priorProjection.verifiedDayAggregates.isEmpty)
-        await store.closeConnectionForTesting()
+        await store.reopenCodexScanConnection()
         let db = try SQLiteTestConnection(url: store.databaseURL)
         for table in ["file_day_aggregates", "day_aggregates", "verified_day_aggregates"] {
             for column in [

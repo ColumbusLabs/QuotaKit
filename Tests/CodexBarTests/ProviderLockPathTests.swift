@@ -4,9 +4,9 @@ import Testing
 
 struct ProviderLockPathTests {
     @Test
-    func `provider locks use application support without creating files`() throws {
-        let root = try #require(FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first)
-            .appendingPathComponent("CodexBar", isDirectory: true)
+    func `provider locks preserve existing coordination paths without creating files`() {
+        let root = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+            .appendingPathComponent(".codexbar", isDirectory: true)
         let claude = ClaudeOAuthPendingCacheClearUserDefaultsStore(
             domain: "ProviderLockPathTests.\(UUID().uuidString)", key: "pending")
         let antigravity = AntigravityFileCLISessionLaunchLock()

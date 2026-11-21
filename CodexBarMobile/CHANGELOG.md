@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Notion personal allowances and optional workspace credits now sync from QuotaKit Mac.
+
 - TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone.
 
 - Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone.

@@ -226,7 +226,7 @@ struct NotionMenuCardModelTests {
         let allowances = try Data(contentsOf: fixtures
             .appendingPathComponent("get-credit-rate-limit-status-migrated.json"))
         let workspace = "11111111-2222-3333-4444-555555555555"
-        let strategy = NotionProviderDescriptor.webStrategy(transport: ProviderHTTPTransportHandler { request in
+        let strategy = NotionWebFetchStrategy(transport: ProviderHTTPTransportHandler { request in
             let endpoint = try #require(request.url?.lastPathComponent)
             #expect(request.value(forHTTPHeaderField: "Cookie") == "token_v2=synthetic-preview")
             let body: Data

@@ -21,7 +21,10 @@ struct NotionDebugTests {
                 return try (Data(body.utf8), #require(HTTPURLResponse(
                     url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
             })
-        #expect(result == "Notion plugin fetch succeeded\nRolling used: 42.0\nMonthly used: 18.0")
+        #expect(result.contains("Fetch Success"))
+        #expect(result.contains("rollingUsed=42.0"))
+        #expect(result.contains("billingUsed=18.0"))
+        #expect(!result.contains("synthetic"))
     }
 
     @Test
@@ -46,6 +49,9 @@ struct NotionDebugTests {
                 return try (Data(body.utf8), #require(HTTPURLResponse(
                     url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
             })
-        #expect(result == "Notion plugin fetch succeeded\nStandard used: 20.0\nSelect used: 0.0")
+        #expect(result.contains("Fetch Success"))
+        #expect(result.contains("Standard used: 20.0"))
+        #expect(result.contains("Select used: 0.0"))
+        #expect(!result.contains("synthetic"))
     }
 }

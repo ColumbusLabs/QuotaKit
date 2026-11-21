@@ -6,7 +6,8 @@ extension UsageStore {
         browserDetection: BrowserDetection,
         notionCookieSource: ProviderCookieSource,
         notionCookieHeader: String,
-        notionWorkspaceID: String) async -> String
+        notionWorkspaceID: String,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async -> String
     {
         await runWithTimeout(seconds: 15) {
             let fetcher = NotionUsageFetcher(browserDetection: browserDetection)
@@ -15,7 +16,8 @@ extension UsageStore {
                 : nil
             return await fetcher.debugRawProbe(
                 cookieHeaderOverride: manualHeader,
-                preferredSpaceID: notionWorkspaceID.isEmpty ? nil : notionWorkspaceID)
+                preferredSpaceID: notionWorkspaceID.isEmpty ? nil : notionWorkspaceID,
+                transport: transport)
         }
     }
 }

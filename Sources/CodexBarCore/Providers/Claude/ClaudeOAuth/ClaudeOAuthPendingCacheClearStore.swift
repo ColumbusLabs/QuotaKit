@@ -75,7 +75,7 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
 
     private let domain: String
     private let key: String
-    private let lockURL: URL
+    let lockURL: URL
 
     private var userDefaults: UserDefaults {
         ClaudeOAuthKeychainPromptPreference.resolveUserDefaults(

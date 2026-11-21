@@ -42,7 +42,7 @@ integration only; build numbers and shipped upstream provenance do not advance.
 - Notion remains native. Personal Standard/Select credit pools use exact periods,
   omit unmeasurable buckets, and sync their actual labels. Optional workspace credits
   have a cancellable wall deadline of at most three seconds, fail soft, and remain separate from quota.
-- Keep Claude’s existing lock path: changing it would allow old and new processes
+- Keep Claude’s and Antigravity’s existing lock paths: changing them would allow old and new processes
   to bypass each other’s locks. Codex detail decode and range/proof-aware retained
   report projection already exist in the fork; regression coverage preserves those paths.
 - Cursor canonical Tokscale JSON keeps QuotaKit’s unowned-local attribution and

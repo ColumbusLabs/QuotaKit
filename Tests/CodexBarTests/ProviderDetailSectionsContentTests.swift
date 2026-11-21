@@ -70,18 +70,18 @@ struct ProviderDetailSectionsContentTests {
         let hosting = NSHostingView(rootView: view.environment(\.accessibilityEnabled, true))
         _ = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
         let initialHeight = hosting.fittingSize.height
-        #expect(MenuLayoutScreenshotRenderTests.accessibilityText(hosting).contains(L("Hover a bar for details")))
+        #expect(Self.accessibilityText(hosting).contains(L("Hover a bar for details")))
 
         selected = "1"
         hosting.rootView = view.environment(\.accessibilityEnabled, true)
         _ = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
-        #expect(MenuLayoutScreenshotRenderTests.accessibilityText(hosting).contains("Tue: 24 tokens"))
+        #expect(Self.accessibilityText(hosting).contains("Tue: 24 tokens"))
         #expect(hosting.fittingSize.height == initialHeight)
 
         selected = nil
         hosting.rootView = view.environment(\.accessibilityEnabled, true)
         _ = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
-        #expect(MenuLayoutScreenshotRenderTests.accessibilityText(hosting).contains(L("Hover a bar for details")))
+        #expect(Self.accessibilityText(hosting).contains(L("Hover a bar for details")))
     }
 
     @Test
@@ -97,6 +97,27 @@ struct ProviderDetailSectionsContentTests {
         #expect(redacted.label == "Pool")
         #expect(redacted.severity == .critical)
         #expect(redacted.progress == row.progress)
+    }
+
+    private static func accessibilityText(_ element: Any, depth: Int = 0) -> String {
+        guard depth < 30, let accessible = element as? NSObject else { return "" }
+        let fields = [
+            #selector(NSAccessibilityProtocol.accessibilityRole),
+            #selector(NSAccessibilityProtocol.accessibilityLabel),
+            #selector(NSAccessibilityProtocol.accessibilityValue),
+            #selector(NSAccessibilityProtocol.accessibilityValueDescription),
+            #selector(NSAccessibilityProtocol.accessibilityHelp),
+        ].compactMap { selector in
+            self.accessibilityProperty(accessible, selector: selector).map { String(describing: $0) }
+        }.joined(separator: " | ")
+        let children = self.accessibilityProperty(
+            accessible, selector: #selector(NSAccessibilityProtocol.accessibilityChildren)) as? [Any] ?? []
+        return ([fields] + children.map { self.accessibilityText($0, depth: depth + 1) }).joined(separator: "\n")
+    }
+
+    private static func accessibilityProperty(_ element: NSObject, selector: Selector) -> Any? {
+        guard element.responds(to: selector) else { return nil }
+        return element.perform(selector)?.takeUnretainedValue()
     }
 
     private static func section(kind: ProviderDetailSection.Chart.Kind) throws -> ProviderDetailSection {

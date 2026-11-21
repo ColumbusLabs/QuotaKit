@@ -87,7 +87,7 @@ struct CostUsageUltrafastPricingTests {
             now: after,
             options: options)
         let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
-        await store.closeConnectionForTesting()
+        await store.reopenCodexScanConnection()
         let checkpoint = store.syncLoadCodexCache(calendar: calendar)
         #expect(checkpoint.files[file.path]?.codexRequestLedgerState?.threadUltrafast == true)
         let suffix = [
@@ -109,7 +109,7 @@ struct CostUsageUltrafastPricingTests {
             provider: .codex, since: before, until: after, now: after.addingTimeInterval(1), options: options)
         #expect(report.summary?.totalTokens == 930_000)
         #expect(try abs(#require(report.summary?.totalCostUSD) - 11.6) < 1e-9)
-        await store.closeConnectionForTesting()
+        await store.reopenCodexScanConnection()
         let reopened = store.syncLoadCodexCache(calendar: calendar)
         let rows = try #require(reopened.files[file.path]?.codexRows)
         #expect(rows.map(\.pricingMode) == ["ultrafast", "ultrafast", "standard"])
