@@ -109,6 +109,7 @@ enum ProviderBrandAsset {
         "siliconflow",
         "tripo",
         "googledeveloper",
+        "trustedrouter",
         "soniox",
         "traecn",
         "aiand",

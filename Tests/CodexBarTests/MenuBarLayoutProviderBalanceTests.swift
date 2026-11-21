@@ -231,6 +231,34 @@ struct MenuBarLayoutProviderBalanceTests {
     }
 
     @Test
+    func `Grok prepaid balance reaches explicit layout without replacing weekly quota`() {
+        let snapshot = UsageSnapshot(
+            primary: .init(usedPercent: 100, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 0, limit: 0, currencyCode: "USD", balance: 17.61, updatedAt: self.now),
+            updatedAt: self.now)
+        let data = self.data(provider: .grok, snapshot: snapshot)
+        #expect(data.balance == "$17.61")
+        #expect(data.automaticText == nil)
+        #expect(self.render(
+            layout: MenuBarLayout(lines: [[.balance, .separatorDot, .percent(window: .automatic)]]),
+            data: data).attributedTitle.string == "$17.61\u{2009}·\u{2009}100%")
+        #expect(MenuBarLayoutBalanceResolver.balanceAmountsUSD(provider: .grok, snapshot: snapshot).remaining == 17.61)
+        #expect(MenuBarLayoutBalanceResolver.balance(
+            provider: .grok, snapshot: snapshot, showsOptionalCredits: false) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balanceAmountsUSD(
+            provider: .grok, snapshot: snapshot, showsOptionalCredits: false).remaining == nil)
+        let zero = UsageSnapshot(
+            primary: snapshot.primary,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 0, limit: 0, currencyCode: "USD", balance: 0, updatedAt: self.now),
+            updatedAt: self.now)
+        #expect(self.data(provider: .grok, snapshot: zero).balance == "$0.00")
+    }
+
+    @Test
     func `prepaid balance with lowercase currency still feeds USD conditionals`() {
         let snapshot = UsageSnapshot(
             primary: nil,
@@ -260,7 +288,7 @@ struct MenuBarLayoutProviderBalanceTests {
         #expect(amounts.used == nil)
     }
 
-    @Test(arguments: [UsageProvider.grok, .opencode, .codex])
+    @Test(arguments: [UsageProvider.opencode, .codex])
     func `undeclared providers keep prepaid cost balances out of the balance token`(provider: UsageProvider) {
         let snapshot = UsageSnapshot(
             primary: nil,
@@ -338,7 +366,7 @@ struct MenuBarLayoutProviderBalanceTests {
     }
 
     @Test(arguments: [
-        (UsageProvider.grok, "–"), (.opencode, "–"), (.huggingface, "–"), (.replicate, "–"),
+        (UsageProvider.opencode, "–"), (.huggingface, "–"), (.replicate, "–"),
         (.typesafe, "$4.98"), (.xapi, "$4.98"), (.openrouter, "$12.34"),
     ])
     func `existing provider balance output ignores unrelated prepaid cost`(

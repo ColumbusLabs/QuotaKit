@@ -286,3 +286,5 @@ Mac-to-iPhone sync retains a wallet-only Grok provider through its existing stat
 quota budget.
 
 Unit contract: [official Grok billing source](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs).
+
+The menu bar Balance element shows the reported prepaid wallet, including zero, when optional credits are enabled. Missing balances remain unavailable.

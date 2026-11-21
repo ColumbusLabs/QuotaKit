@@ -9,11 +9,13 @@ struct MiMoProviderImplementation: ProviderImplementation {
 
     @MainActor
     func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
-        ProviderPresentation { _ in "web" }
+        ProviderPresentation { context in context.store.sourceLabel(for: context.provider) }
     }
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings[providerConfig: .mimo, field: .apiKey]
+        _ = settings[providerConfig: .mimo, field: .region]
         _ = settings.miMoCookieSource
         _ = settings.miMoCookieHeader
     }
@@ -47,6 +49,16 @@ struct MiMoProviderImplementation: ProviderImplementation {
 
         return [
             ProviderSettingsPickerDescriptor(
+                id: "mimo-api-region",
+                title: "API region",
+                subtitle: "",
+                binding: Binding(
+                    get: { context.settings.providerConfig(for: .mimo)?.sanitizedRegion ?? "cn" },
+                    set: { context.providerConfigBinding(.region).wrappedValue = $0 }),
+                options: [.init(id: "cn", title: "China mainland"), .init(id: "sgp", title: "Singapore")],
+                isVisible: nil,
+                onChange: nil),
+            ProviderSettingsPickerDescriptor(
                 id: "mimo-cookie-source",
                 title: "Cookie source",
                 subtitle: ProviderCookieSourceUI.browserImportSubtitle(
@@ -66,6 +78,25 @@ struct MiMoProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "mimo-api-key",
+                title: "API key",
+                subtitle: "Stored in the QuotaKit config file.",
+                kind: .secure,
+                placeholder: "Paste API key…",
+                binding: context.providerConfigBinding(.apiKey),
+                actions: [ProviderSettingsActionDescriptor(
+                    id: "mimo-open-token-plan",
+                    title: "Open Token Plan",
+                    style: .link,
+                    isVisible: nil,
+                    perform: {
+                        guard let url = URL(string: "https://mimo.mi.com/docs/en-US/api/asset/credits-get") else {
+                            return
+                        }
+                        NSWorkspace.shared.open(url)
+                    })],
+                isVisible: nil),
             ProviderSettingsFieldDescriptor(
                 id: "mimo-cookie",
                 title: "",

@@ -462,17 +462,18 @@ enum CostUsageScanner {
     }
 
     enum CodexNativePricingTier: Codable, Equatable {
-        case standard, priority, unknown
+        case standard, priority, ultrafast, unknown
 
         init(from decoder: Decoder) throws {
             let value = try decoder.singleValueContainer()
             if let legacy = try? value.decode(Bool.self) {
                 self = legacy ? .priority : .standard
             } else {
-                guard try value.decode(String.self) == "unknown" else {
+                let name = try value.decode(String.self)
+                guard name == "unknown" || name == "ultrafast" else {
                     throw DecodingError.dataCorruptedError(in: value, debugDescription: "Unknown pricing tier")
                 }
-                self = .unknown
+                self = name == "ultrafast" ? .ultrafast : .unknown
             }
         }
 
@@ -482,6 +483,7 @@ enum CostUsageScanner {
             case .standard: try value.encode(false)
             case .priority: try value.encode(true)
             case .unknown: try value.encode("unknown")
+            case .ultrafast: try value.encode("ultrafast")
             }
         }
     }
@@ -501,6 +503,8 @@ enum CostUsageScanner {
         /// Thread settings persist until replaced, including across resumed turns.
         var threadPriority: Bool?
         var priorityTurnIDs: Set<String>?
+        var threadUltrafast: Bool?
+        var ultrafastTurnIDs: Set<String>?
         var resumedTurnPriority: Bool?
         var sessionID: String?
         var pendingLedgerMirrors: Set<String>?
@@ -5552,6 +5556,7 @@ enum CostUsageScanner {
                 let tier: CodexNativePricingTier = switch Self.codexModelEvidence(suppliedTier as? String) {
                 case "default": .standard
                 case "priority": .priority
+                case "ultrafast": .ultrafast
                 default: settings != nil && suppliedTier == nil ? .standard : .unknown
                 }
                 return .threadSettingsApplied(priority: tier)
@@ -6430,7 +6435,9 @@ enum CostUsageScanner {
             // A typed mirror changes request identity, not the matching row's saved billing evidence.
             let pricing = retainedPricing.flatMap { $0.model == normalizedModel ? $0 : nil }
             let isPriority = self.requestLedger.priorityTurnIDs?.contains(turnID ?? "") == true
-            let observedMode: String? = if isPriority {
+            let observedMode: String? = if self.requestLedger.ultrafastTurnIDs?.contains(turnID ?? "") == true {
+                "ultrafast"
+            } else if isPriority {
                 "priority"
             } else if self.requestLedger.resumedTurnPriority == false,
                       turnID == (self.currentTurnID ?? self.requestLedger.activeTurnID)
@@ -6519,8 +6526,9 @@ enum CostUsageScanner {
                     cached: record.totals.cached,
                     output: record.totals.output,
                     reasoning: record.totals.reasoning,
-                    pricingMode: self.requestLedger.priorityTurnIDs?.contains(self.currentTurnID ?? "") == true
-                        ? "priority" : nil))
+                    pricingMode: self.requestLedger.ultrafastTurnIDs?.contains(self.currentTurnID ?? "") == true
+                        ? "ultrafast" : (self.requestLedger.priorityTurnIDs?.contains(self.currentTurnID ?? "") == true
+                            ? "priority" : nil)))
                 if let sourceEndOffset {
                     self.rowSourceEndOffsets[eventIndex] = sourceEndOffset
                 }
@@ -6979,6 +6987,12 @@ enum CostUsageScanner {
         }
 
         func observeThreadPriority(for turnID: String?) {
+            if self.requestLedger.threadUltrafast == true {
+                if self.requestLedger.ultrafastTurnIDs == nil { self.requestLedger.ultrafastTurnIDs = [] }
+                self.requestLedger.ultrafastTurnIDs?.insert(turnID ?? "")
+            } else {
+                self.requestLedger.ultrafastTurnIDs?.remove(turnID ?? "")
+            }
             if self.requestLedger.threadPriority == true {
                 if self.requestLedger.priorityTurnIDs == nil { self.requestLedger.priorityTurnIDs = [] }
                 self.requestLedger.priorityTurnIDs?.insert(turnID ?? "")
@@ -7006,7 +7020,10 @@ enum CostUsageScanner {
                     if let priority = self.requestLedger.threadPriority,
                        self.currentTurnID == nil || self.currentTurnID == turnID
                     {
-                        if priority != (self.requestLedger.priorityTurnIDs?.contains(turnID) == true) {
+                        if priority != (self.requestLedger.priorityTurnIDs?.contains(turnID) == true)
+                            || (self.requestLedger.threadUltrafast == true)
+                            != (self.requestLedger.ultrafastTurnIDs?.contains(turnID) == true)
+                        {
                             self.requestLedger.resumedTurnPriority = priority
                         }
                         self.observeThreadPriority(for: turnID)
@@ -7024,6 +7041,7 @@ enum CostUsageScanner {
                 break
             case let .threadSettingsApplied(tier):
                 self.requestLedger.threadPriority = tier == .priority
+                self.requestLedger.threadUltrafast = tier == .ultrafast ? true : nil
                 self.applyRequestPricingSettings(tier)
             case let .taskStarted(turnID):
                 self.requestLedger.clearPendingMirrors()
@@ -7575,6 +7593,8 @@ enum CostUsageScanner {
                     && self.requestLedger.turnModels.isEmpty && self.requestLedger.activeTurnID == nil
                     && self.requestLedger.sessionID == sessionId && self.requestLedger.threadPriority == nil
                     && self.requestLedger.priorityTurnIDs?.isEmpty != false
+                    && self.requestLedger.threadUltrafast != true
+                    && self.requestLedger.ultrafastTurnIDs?.isEmpty != false
                     && self.requestLedger.lastLedgerTotal == nil && self.requestLedger.lastLegacyTotal == nil
                     && (self.requestLedger.turnPerformance?.isEmpty ?? true)
                     ? nil : self.requestLedger,

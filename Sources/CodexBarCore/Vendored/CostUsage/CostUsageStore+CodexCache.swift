@@ -922,6 +922,13 @@ extension CostUsageStore {
         value.priorityResolvedCostNanos = -value.priorityResolvedCostNanos
         value.standardUnresolvedPricingCount = -value.standardUnresolvedPricingCount
         value.priorityUnresolvedPricingCount = -value.priorityUnresolvedPricingCount
+        value.ultrafastInputTokens = -value.ultrafastInputTokens
+        value.ultrafastCachedTokens = -value.ultrafastCachedTokens
+        value.ultrafastOutputTokens = -value.ultrafastOutputTokens
+        value.ultrafastTokens = -value.ultrafastTokens
+        value.ultrafastAuthoritativeCostNanos = -value.ultrafastAuthoritativeCostNanos
+        value.ultrafastResolvedCostNanos = -value.ultrafastResolvedCostNanos
+        value.ultrafastUnresolvedPricingCount = -value.ultrafastUnresolvedPricingCount
         return value
     }
 
@@ -2511,15 +2518,20 @@ extension CostUsageStore {
             if (row.unpricedTokens ?? 0) > 0 { aggregate.unpricedRequestCount += 1 }
             aggregate.reasoningTokens += Int64(row.reasoning ?? 0)
             let isPriority = row.pricingMode == "priority"
+            let isUltrafast = row.pricingMode == "ultrafast"
             let total = Int64(max(0, row.input) + max(0, row.output))
-            if isPriority {
+            if isUltrafast {
+                aggregate.ultrafastTokens += total
+            } else if isPriority {
                 aggregate.priorityTokens += total
             } else {
                 aggregate.standardTokens += total
             }
             if (row.unpricedTokens ?? 0) > 0 {
                 // Explicitly unknown historical pricing excludes this row from every priced subtotal.
-                if isPriority {
+                if isUltrafast {
+                    aggregate.ultrafastUnresolvedPricingCount += 1
+                } else if isPriority {
                     aggregate.priorityUnresolvedPricingCount += 1
                 } else {
                     aggregate.standardUnresolvedPricingCount += 1
@@ -2529,7 +2541,9 @@ extension CostUsageStore {
             }
             if let cost = row.knownCostNanos {
                 aggregate.authoritativeCostNanos += cost
-                if isPriority {
+                if isUltrafast {
+                    aggregate.ultrafastAuthoritativeCostNanos += cost
+                } else if isPriority {
                     aggregate.priorityAuthoritativeCostNanos += cost
                 } else {
                     aggregate.standardAuthoritativeCostNanos += cost
@@ -2540,7 +2554,16 @@ extension CostUsageStore {
                     modelsDevCatalog: pricing.catalog,
                     modelsDevCacheRoot: pricing.cacheRoot,
                     customPricing: pricing.customPricing)
-                if isPriority {
+                if isUltrafast {
+                    aggregate.ultrafastInputTokens += Int64(row.input)
+                    aggregate.ultrafastCachedTokens += Int64(row.cached)
+                    aggregate.ultrafastOutputTokens += Int64(row.output)
+                    if let resolved {
+                        aggregate.ultrafastResolvedCostNanos += resolved
+                    } else {
+                        aggregate.ultrafastUnresolvedPricingCount += 1
+                    }
+                } else if isPriority {
                     aggregate.priorityInputTokens += Int64(row.input)
                     aggregate.priorityCachedTokens += Int64(row.cached)
                     aggregate.priorityOutputTokens += Int64(row.output)
@@ -2641,6 +2664,13 @@ extension CostUsageStore {
                 value.priorityResolvedCostNanos += aggregate.priorityResolvedCostNanos
                 value.standardUnresolvedPricingCount += aggregate.standardUnresolvedPricingCount
                 value.priorityUnresolvedPricingCount += aggregate.priorityUnresolvedPricingCount
+                value.ultrafastInputTokens += aggregate.ultrafastInputTokens
+                value.ultrafastCachedTokens += aggregate.ultrafastCachedTokens
+                value.ultrafastOutputTokens += aggregate.ultrafastOutputTokens
+                value.ultrafastTokens += aggregate.ultrafastTokens
+                value.ultrafastAuthoritativeCostNanos += aggregate.ultrafastAuthoritativeCostNanos
+                value.ultrafastResolvedCostNanos += aggregate.ultrafastResolvedCostNanos
+                value.ultrafastUnresolvedPricingCount += aggregate.ultrafastUnresolvedPricingCount
                 values[key] = value
             }
         }
@@ -2689,8 +2719,30 @@ extension CostUsageStore {
                     output: aggregate.priorityOutputTokens,
                     mode: "priority")
             }
-            func appendKnownCost(_ cost: Int64, mode: String) {
-                guard cost != 0 else { return }
+            if aggregate.ultrafastUnresolvedPricingCount > 0 {
+                append(
+                    input: aggregate.ultrafastInputTokens,
+                    cached: aggregate.ultrafastCachedTokens,
+                    output: aggregate.ultrafastOutputTokens,
+                    mode: "ultrafast")
+            }
+            if aggregate.ultrafastUnresolvedPricingCount > 0, aggregate.ultrafastTokens > 0 {
+                // Unknown row amounts may not have per-tier token subtotals. Keep an explicit
+                // marker so aggregate-only restoration cannot infer Standard list prices.
+                rows.append(CostUsageScanner.CodexUsageRow(
+                    day: aggregate.day,
+                    model: aggregate.model,
+                    turnID: nil,
+                    eventIndex: nil,
+                    input: 0,
+                    cached: 0,
+                    output: 0,
+                    unpricedTokens: Self.int(aggregate.ultrafastTokens),
+                    pricingModel: aggregate.model,
+                    pricingMode: "ultrafast"))
+            }
+            func appendKnownCost(_ cost: Int64, mode: String, hasEvidence: Bool = false) {
+                guard cost != 0 || hasEvidence else { return }
                 rows.append(CostUsageScanner.CodexUsageRow(
                     day: aggregate.day,
                     model: aggregate.model,
@@ -2709,6 +2761,10 @@ extension CostUsageStore {
             appendKnownCost(
                 aggregate.priorityAuthoritativeCostNanos + aggregate.priorityResolvedCostNanos,
                 mode: "priority")
+            appendKnownCost(
+                aggregate.ultrafastAuthoritativeCostNanos + aggregate.ultrafastResolvedCostNanos,
+                mode: "ultrafast",
+                hasEvidence: aggregate.ultrafastTokens > 0 && aggregate.ultrafastUnresolvedPricingCount == 0)
             return rows
         }
     }

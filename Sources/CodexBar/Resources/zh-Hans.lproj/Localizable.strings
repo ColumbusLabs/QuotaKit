@@ -2898,6 +2898,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "未找到 TypeSafe 会话 Cookie。请在 console.typesafe.ai/billing 登录或粘贴 Cookie 请求头。";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "显示 TrustedRouter 用量";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter 正在限制请求频率。请稍后重试。";
+"TrustedRouter request failed. Try refreshing later." = "TrustedRouter 请求失败。请稍后尝试刷新。";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "授权 GitHub 设备代码以保存 Copilot 令牌账户。";
 "Supply a GitHub token accepted by the Copilot usage API." = "提供 Copilot 用量 API 接受的 GitHub 令牌。";
@@ -2952,3 +2958,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow 拒绝访问控制台余额（HTTP 403）。请打开 cloud.siliconflow.cn，确认此账户可以查看账单，然后刷新。";
 "Credits per million tokens" = "每百万 token 的额度";
 "Paused during grace period" = "宽限期内已暂停";
+
+"Skip cost refresh" = "跳过费用刷新";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo 返回了无法识别的响应。请更新 QuotaKit 后重试。";
+"China mainland" = "中国大陆";
+"Singapore" = "新加坡";
+"MiMo is rate limiting requests. Try again later." = "MiMo 正在限制请求频率。请稍后重试。";
+"MiMo request failed. Try refreshing later." = "MiMo 请求失败。请稍后尝试刷新。";
+"Personal credits" = "个人额度";
+"Standard remaining" = "Standard 剩余额度";
+"Select remaining" = "Select 剩余额度";
+"Remaining credits" = "剩余额度";
+"Notion Credits" = "Notion 额度";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion 未提供此工作区可用的个人 AI 额度。请在 Notion 中检查所选工作区的 AI 用量，然后重新刷新 QuotaKit。";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

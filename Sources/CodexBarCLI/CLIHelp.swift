@@ -202,7 +202,7 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit dashboard [--pretty] [--timeout <seconds>]
+          quotakit dashboard [--pretty] [--timeout <seconds>] [--no-cost]
                              [--identity <redacted|full>] [--output <path>]
                              [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                              [-v|--verbose]
@@ -213,6 +213,7 @@ extension CodexBarCLI {
           failures as row-level errors without dropping healthy rows.
           Stdout contains only the JSON document; diagnostics are written to stderr.
           --timeout accepts 0...86400 seconds and defaults to 30; 0 disables the deadline.
+          --no-cost: \(UsageFormatter.localized("Skip cost refresh")).
           --identity full includes real account emails in the snapshot; reserve it for
           trusted, private output destinations.
           --output atomically writes the snapshot to a file (0644) instead of stdout;
@@ -541,7 +542,7 @@ extension CodexBarCLI {
                        [--days <days>] [--period month-to-date|all] [--group-by project]
           quotakit sessions [--json|--json-v2] [--pretty]
           quotakit sessions focus <id>
-          quotakit dashboard [--pretty] [--timeout <seconds>] [--identity <redacted|full>] [--output <path>]
+          quotakit dashboard [--pretty] [--timeout <seconds>] [--no-cost] [--identity <redacted|full>] [--output <path>]
           quotakit serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
                        [--dashboard-token <token>] [--allow-plain-http]

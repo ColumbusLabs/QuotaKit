@@ -185,6 +185,7 @@ For Claude Platform setup or renewal, pipe a Console Cookie header containing `s
   - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
   - Exit code is non-zero when any provider fetch fails.
 - `quotakit dashboard` prints one dashboard-v1 JSON snapshot and exits.
+  - `--no-cost` skips cost collection while preserving quota and account collection.
   - Honors enabled providers in stable order, carries configured display sort keys, and redacts account identity by default. `--identity full` includes real account emails and should be used only with trusted, private output destinations.
   - Provider failures remain row-level errors alongside healthy rows; a valid partial snapshot exits `0`.
   - Claude's unavailable per-model breakdown adds `providers[].warnings: ["model-breakdown-unavailable"]` while retaining session and all-model weekly quotas. This optional schema-v1 field carries fixed codes only, never provider notice text, in every identity mode. It is omitted after recovery and from shell rows; an account with no model-specific limit does not receive the warning.
@@ -209,6 +210,7 @@ For Claude Platform setup or renewal, pipe a Console Cookie header containing `s
   - `--identity full` includes real account emails in snapshots served to every authorized dashboard client; the default is redacted. Reserve full identity for trusted private networks.
   - On a **non-loopback** host the token gates **all data routes** — `/usage`, `/cost`, and `/dashboard/v1/snapshot` all require `Authorization: Bearer YOUR_TOKEN`, so account data is never exposed to the network unauthenticated. The static web UI at `/` and `/health` are always open. On the default loopback bind, `/usage` and `/cost` stay unauthenticated.
   - `--allow-plain-http` is the explicit acknowledgment that the bearer token crosses the network **in cleartext on every request** when serving on a non-loopback host. `serve` refuses to start on a non-loopback host without it.
+  - `/usage?allAccounts=true` requests all configured token accounts; `1` and `yes` are also accepted, case-insensitively. Responses use separate cache keys from the default selected-account request.
   - Provider config is reloaded for each usage/cost request; cache entries are keyed by the loaded config so provider toggles and source changes do not require restarting `serve`.
   - Forced refreshes also prune expired response variants, so repeated configuration changes do not retain obsolete snapshots indefinitely.
   - Transient refresh failures fall back to the last good response for up to ten refresh intervals (minimum five minutes) so polling clients do not flicker between data and errors; disabled when `--refresh-interval 0`.

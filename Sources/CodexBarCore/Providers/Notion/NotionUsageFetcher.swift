@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -187,6 +188,7 @@ public struct NotionUsageFetcher: Sendable {
     public func fetch(
         cookieHeaderOverride: String? = nil,
         preferredSpaceID: String? = nil,
+        includeOptionalUsage: Bool = true,
         timeout: TimeInterval = 15,
         logger: ((String) -> Void)? = nil,
         now: Date = Date(),
@@ -195,6 +197,7 @@ public struct NotionUsageFetcher: Sendable {
         let log: (String) -> Void = { msg in logger?("[notion] \(msg)") }
         let options = FetchOptions(
             preferredSpaceID: preferredSpaceID,
+            includeOptionalUsage: includeOptionalUsage,
             timeout: timeout,
             logger: logger,
             now: now,
@@ -299,6 +302,7 @@ public struct NotionUsageFetcher: Sendable {
     /// The per-call inputs that stay the same across every attempt a single `fetch` makes.
     private struct FetchOptions {
         let preferredSpaceID: String?
+        let includeOptionalUsage: Bool
         let timeout: TimeInterval
         let logger: ((String) -> Void)?
         let now: Date
@@ -324,6 +328,7 @@ public struct NotionUsageFetcher: Sendable {
         let snapshot = try await Self.fetchUsage(
             context: context,
             preferredSpaceID: preferredSpaceID,
+            includeOptionalUsage: options.includeOptionalUsage,
             timeout: timeout,
             now: now,
             transport: transport)
@@ -371,6 +376,7 @@ public struct NotionUsageFetcher: Sendable {
     public static func fetchUsage(
         cookieHeader: String,
         preferredSpaceID: String? = nil,
+        includeOptionalUsage: Bool = true,
         timeout: TimeInterval = 15,
         now: Date = Date(),
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> NotionUsageSnapshot
@@ -378,6 +384,7 @@ public struct NotionUsageFetcher: Sendable {
         try await self.fetchUsage(
             context: RequestContext(cookieHeader: cookieHeader),
             preferredSpaceID: preferredSpaceID,
+            includeOptionalUsage: includeOptionalUsage,
             timeout: timeout,
             now: now,
             transport: transport)
@@ -386,6 +393,7 @@ public struct NotionUsageFetcher: Sendable {
     static func fetchUsage(
         context: RequestContext,
         preferredSpaceID: String?,
+        includeOptionalUsage: Bool = true,
         timeout: TimeInterval,
         now: Date,
         transport: any ProviderHTTPTransport) async throws -> NotionUsageSnapshot
@@ -421,15 +429,54 @@ public struct NotionUsageFetcher: Sendable {
             transport: transport)
         let status = try NotionUsageParser.parseRateLimitStatus(data)
 
-        guard !status.isNotApplicable else {
-            throw NotionUsageError.allowanceNotApplicable(workspace: workspace.name)
+        let hasPersonal = status.personalAllowance("auto") != nil || status.personalAllowance("flex") != nil
+        if status.isNotApplicable && !hasPersonal {
+            if status.hasPersonalSchema {
+                let legacy = NotionUsageSnapshot(rateLimit: status, workspace: workspace, account: account,
+                                                 updatedAt: now).toUsageSnapshot()
+                if legacy.primary == nil && legacy.secondary == nil {
+                    throw NotionUsageError.personalAllowanceUnavailable
+                }
+            } else {
+                throw NotionUsageError.allowanceNotApplicable(workspace: workspace.name)
+            }
+        }
+
+        var credits: Double?
+        if includeOptionalUsage {
+            do {
+                let budget = max(0.001, min(timeout, 3))
+                let data = try await RPCRequestTimeout.run(
+                    seconds: budget,
+                    timeoutError: URLError(.timedOut),
+                    onTimeout: {},
+                    operation: {
+                        try await self.post(
+                            endpoint: "getAIUsageEligibilityV2",
+                            body: ["spaceId": workspace.id],
+                            context: context,
+                            timeout: budget,
+                            transport: transport)
+                    })
+                if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let premium = root["premiumCredits"] as? [String: Any],
+                   let value = premium["totalCreditBalance"] as? NSNumber,
+                   CFGetTypeID(value) != CFBooleanGetTypeID(), value.doubleValue.isFinite {
+                    credits = value.doubleValue
+                }
+            } catch {
+                if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                    throw CancellationError()
+                }
+            }
         }
 
         return NotionUsageSnapshot(
             rateLimit: status,
             workspace: workspace,
             account: account,
-            updatedAt: now)
+            updatedAt: now,
+            workspaceCredits: credits)
     }
 
     static func fetchAccount(
@@ -477,7 +524,9 @@ public struct NotionUsageFetcher: Sendable {
             }
             throw NotionUsageError.apiError("HTTP \(response.statusCode) from \(endpoint)")
         }
-        if endpoint == "getSpaces", response.data.count > Self.workspaceDiscoveryResponseLimit {
+        if (endpoint == "getSpaces" || endpoint == "getAIUsageEligibilityV2"),
+           response.data.count > Self.workspaceDiscoveryResponseLimit
+        {
             throw NotionUsageError.responseTooLarge(endpoint: endpoint)
         }
         return response.data

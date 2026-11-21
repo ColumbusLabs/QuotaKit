@@ -2897,6 +2897,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Файли cookie сеансу TypeSafe не знайдено. Увійдіть на console.typesafe.ai/billing або вставте заголовок Cookie.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Показувати використання TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter обмежує частоту запитів. Спробуйте пізніше.";
+"TrustedRouter request failed. Try refreshing later." = "Запит до TrustedRouter не виконано. Спробуйте оновити пізніше.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Підтвердьте код пристрою GitHub, щоб зберегти обліковий запис із токеном Copilot.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Укажіть токен GitHub, який приймає API використання Copilot.";
@@ -2951,3 +2957,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow відмовив у доступі до балансу консолі (HTTP 403). Відкрийте cloud.siliconflow.cn, переконайтеся, що цьому обліковому запису доступні рахунки, і оновіть.";
 "Credits per million tokens" = "Кредити за мільйон токенів";
 "Paused during grace period" = "Призупинено на час пільгового періоду";
+
+"Skip cost refresh" = "Пропустити оновлення вартості";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo повернув невідому відповідь. Оновіть QuotaKit і спробуйте знову.";
+"China mainland" = "Материковий Китай";
+"Singapore" = "Сінгапур";
+"MiMo is rate limiting requests. Try again later." = "MiMo обмежує частоту запитів. Спробуйте пізніше.";
+"MiMo request failed. Try refreshing later." = "Запит до MiMo не виконано. Спробуйте оновити пізніше.";
+"Personal credits" = "Особисті кредити";
+"Standard remaining" = "Залишок Standard";
+"Select remaining" = "Залишок Select";
+"Remaining credits" = "Залишок кредитів";
+"Notion Credits" = "Кредити Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion не надав доступних особистих лімітів ШІ для цього робочого простору. Перевірте використання ШІ для вибраного робочого простору в Notion, а потім знову оновіть QuotaKit.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

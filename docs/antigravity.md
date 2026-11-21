@@ -478,3 +478,5 @@ five-hour quota suppresses a contradictory Free label; weekly-only Starter quota
 No extra identity request is required.
 
 Known `agy` versions are reused while the executable path, size, modification time, and file identity remain unchanged. Unknown versions and failures are retried on the next refresh; account and usage data are not cached.
+
+After other CLI lookup paths, QuotaKit discovers the `agy` helper bundled in `/Applications/Gemini.app` or `~/Applications/Gemini.app`. An explicit CLI path remains authoritative.

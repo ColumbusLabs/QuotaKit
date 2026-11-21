@@ -10,7 +10,7 @@ read_when:
 
 Automatic Notion cookies can come from Microsoft Edge profiles as well as Chrome. If workspace discovery exceeds the plugin response cap, configure the Business or Enterprise Workspace ID explicitly. The plugin can then query that workspace without loading the oversized workspace list, while retaining session authority checks.
 
-The Notion AI provider tracks the **Rolling** (6-hour) and **Monthly** (billing period) usage allowance
+The Notion AI provider tracks the **Rolling** (6-hour) and **Monthly** (billing period) usage allowance, or personal **Standard** and **Select** billing-period pools,
 windows that Notion shows in **Settings → Notion AI → Usage**.
 
 Notion begins enforcing the AI usage allowance on **August 3, 2026**. Before that date the same endpoint
@@ -22,9 +22,7 @@ either way.
 
 ## Requirements
 
-The usage allowance only exists on **Business** and **Enterprise** workspaces. Free, Plus, and personal
-workspaces make the endpoint answer `{"status":"not_applicable"}`, and QuotaKit surfaces that as a clear
-provider error rather than an empty gauge.
+Business and Enterprise workspaces can report rolling and monthly allowances. Personal workspaces can report separate Standard and Select billing-period allowances even when the legacy status is `not_applicable`. QuotaKit displays only verified, resolved pools and reports an error when personal allowance data is unavailable.
 
 ## Setup
 
@@ -70,12 +68,13 @@ only manual paths are the Settings fields above and `config.json`.
 
 ## Data Source
 
-QuotaKit sends two POST requests per refresh, both to `https://app.notion.com`:
+QuotaKit sends two required POST requests per refresh to `https://app.notion.com`, plus an optional, three-second workspace credit lookup when optional usage is enabled:
 
 1. `/api/v3/getSpaces` — resolves the signed-in user (email, name) and the workspaces the account can see,
    including each workspace's `plan_type` and `subscription_tier`. This is what makes automatic workspace
    selection and the account identity line possible.
 2. `/api/v3/getCreditRateLimitStatus` with `{"spaceId": "<uuid>"}` — the allowance itself.
+3. `/api/v3/getAIUsageEligibilityV2` — optional workspace credit balance, separate from personal allowances. A failure does not hide the required allowance.
 
 The rate-limit response looks like this:
 

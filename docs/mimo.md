@@ -106,3 +106,7 @@ exit $_exit
 - **Local accounting only** — this is not real platform quota. The Xiaomi platform may rate-limit your account before your local counter reflects it.
 - Override the session root with `MIMO_CLAUDE_HOME` and the cache path with `MIMO_LOCAL_USAGE_PATH` when a wrapper uses non-default locations.
 - Cache schema (`~/.codexbar/mimo-local-usage.json`) is internal; do not rely on the JSON shape for external tooling.
+
+### Token Plan API
+
+Select API and enter a dedicated Token Plan key and region (China mainland `cn` or Singapore `sgp`). Auto prefers a configured key and does not silently fall back to another account on API failure. The API reports token credits, not cash. Web retains the existing account balance and browser-session behavior.

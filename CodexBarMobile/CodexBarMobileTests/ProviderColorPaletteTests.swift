@@ -8,6 +8,7 @@ struct ProviderColorPaletteTests {
         expectColor("codex", red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor("chatbox", red: 34 / 255, green: 139 / 255, blue: 230 / 255)
         expectColor("googledeveloper", red: 91 / 255, green: 141 / 255, blue: 239 / 255)
+        expectColor("trustedrouter", red: 169 / 255, green: 205 / 255, blue: 185 / 255)
         expectColor("abliteration", red: 27 / 255, green: 27 / 255, blue: 27 / 255)
         expectColor("claude", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("claudeplatform", red: 204 / 255, green: 124 / 255, blue: 94 / 255)

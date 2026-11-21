@@ -2905,6 +2905,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Inga sessionskakor för TypeSafe hittades. Logga in på console.typesafe.ai/billing eller klistra in ett Cookie-huvud.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Visa TrustedRouter-användning";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter begränsar antalet förfrågningar. Försök igen senare.";
+"TrustedRouter request failed. Try refreshing later." = "TrustedRouter-förfrågan misslyckades. Försök uppdatera senare.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Godkänn GitHubs enhetskod för att spara ett Copilot-tokenkonto.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Ange en GitHub-token som accepteras av Copilots användnings-API.";
@@ -2959,3 +2965,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow nekade åtkomst till konsolsaldot (HTTP 403). Öppna cloud.siliconflow.cn, kontrollera att kontot kan se fakturering och uppdatera sedan.";
 "Credits per million tokens" = "Krediter per miljon token";
 "Paused during grace period" = "Pausad under anståndsperioden";
+
+"Skip cost refresh" = "Hoppa över kostnadsuppdatering";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo returnerade ett okänt svar. Uppdatera QuotaKit och försök igen.";
+"China mainland" = "Fastlandskina";
+"Singapore" = "Singapore";
+"MiMo is rate limiting requests. Try again later." = "MiMo begränsar antalet förfrågningar. Försök igen senare.";
+"MiMo request failed. Try refreshing later." = "MiMo-förfrågan misslyckades. Försök uppdatera senare.";
+"Personal credits" = "Personliga krediter";
+"Standard remaining" = "Standard kvar";
+"Select remaining" = "Select kvar";
+"Remaining credits" = "Återstående krediter";
+"Notion Credits" = "Notion-krediter";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion tillhandahöll inga användbara personliga AI-kvoter för den här arbetsytan. Kontrollera AI-användningen för den valda arbetsytan i Notion och uppdatera sedan QuotaKit igen.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

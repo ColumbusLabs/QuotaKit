@@ -2906,6 +2906,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Keine TypeSafe-Sitzungscookies gefunden. Melde dich unter console.typesafe.ai/billing an oder füge einen Cookie-Header ein.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Nutzung von TrustedRouter anzeigen";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter begrenzt die Anzahl der Anfragen. Versuche es später erneut.";
+"TrustedRouter request failed. Try refreshing later." = "Die Anfrage an TrustedRouter ist fehlgeschlagen. Versuche es später erneut.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter hat eine unbekannte Antwort zurückgegeben. Aktualisiere QuotaKit und versuche es erneut.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Autorisiere den Gerätecode von GitHub, um ein Copilot-Tokenkonto zu speichern.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Gib ein GitHub-Token an, das die Copilot-Nutzungs-API akzeptiert.";
@@ -2960,3 +2966,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow hat den Zugriff auf das Konsolenguthaben verweigert (HTTP 403). Öffne cloud.siliconflow.cn, prüfe, ob dieses Konto die Abrechnung sehen darf, und aktualisiere dann.";
 "Credits per million tokens" = "Credits pro Million Token";
 "Paused during grace period" = "Während der Kulanzfrist pausiert";
+
+"Skip cost refresh" = "Kostenaktualisierung überspringen";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo hat eine unbekannte Antwort zurückgegeben. Aktualisiere QuotaKit und versuche es erneut.";
+"China mainland" = "Festlandchina";
+"Singapore" = "Singapur";
+"MiMo is rate limiting requests. Try again later." = "MiMo begrenzt die Anzahl der Anfragen. Versuche es später erneut.";
+"MiMo request failed. Try refreshing later." = "Die Anfrage an MiMo ist fehlgeschlagen. Versuche es später erneut.";
+"Personal credits" = "Persönliche Credits";
+"Standard remaining" = "Standard verbleibend";
+"Select remaining" = "Select verbleibend";
+"Remaining credits" = "Verbleibende Credits";
+"Notion Credits" = "Notion-Credits";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion hat keine nutzbaren persönlichen KI-Kontingente für diesen Arbeitsbereich bereitgestellt. Prüfe die KI-Nutzung des ausgewählten Arbeitsbereichs in Notion und aktualisiere QuotaKit erneut.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

@@ -28,7 +28,7 @@ struct ProviderArchitectureGatekeeperTests {
         .atlascloud, .vercel, .llmman, .nous, .muse, .pi, .museai, .lithosai, .workbuddy, .langdock, .xapi,
         .tavily, .exa, .linkup, .tinyapi, .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel,
         .claudeplatform, .futureagi, .munito, .soniox, .traecn, .chatbox, .abliteration, .opendesign, .siliconflow,
-        .tripo, .googledeveloper,
+        .tripo, .googledeveloper, .trustedrouter,
     ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
@@ -243,7 +243,7 @@ struct ProviderArchitectureGatekeeperTests {
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .perplexity, .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .chutes,
             .litellm, .longcat, .v0, .bifrost, .aixy, .raycast, .llmman, .manus, .mimo, .neuralwatt, .abacus,
-            .workbuddy, .claudeplatform, .abliteration, .googledeveloper,
+            .workbuddy, .claudeplatform, .abliteration, .googledeveloper, .trustedrouter,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.

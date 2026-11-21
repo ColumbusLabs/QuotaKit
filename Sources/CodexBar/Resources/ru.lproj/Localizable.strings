@@ -2907,6 +2907,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Файлы cookie сеанса TypeSafe не найдены. Войдите на console.typesafe.ai/billing или вставьте заголовок Cookie.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Показывать использование TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter ограничивает частоту запросов. Повторите попытку позже.";
+"TrustedRouter request failed. Try refreshing later." = "Запрос к TrustedRouter не выполнен. Попробуйте обновить позже.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter вернул неизвестный ответ. Обновите QuotaKit и повторите попытку.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Подтвердите код устройства GitHub, чтобы сохранить учётную запись с токеном Copilot.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Укажите токен GitHub, принимаемый API использования Copilot.";
@@ -2961,3 +2967,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow отказал в доступе к балансу консоли (HTTP 403). Откройте cloud.siliconflow.cn, убедитесь, что этой учётной записи доступен биллинг, затем обновите.";
 "Credits per million tokens" = "Кредиты за миллион токенов";
 "Paused during grace period" = "Приостановлено на время льготного периода";
+
+"Skip cost refresh" = "Пропустить обновление стоимости";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo вернул неизвестный ответ. Обновите QuotaKit и повторите попытку.";
+"China mainland" = "Материковый Китай";
+"Singapore" = "Сингапур";
+"MiMo is rate limiting requests. Try again later." = "MiMo ограничивает частоту запросов. Повторите попытку позже.";
+"MiMo request failed. Try refreshing later." = "Запрос к MiMo не выполнен. Попробуйте обновить позже.";
+"Personal credits" = "Личные кредиты";
+"Standard remaining" = "Остаток Standard";
+"Select remaining" = "Остаток Select";
+"Remaining credits" = "Оставшиеся кредиты";
+"Notion Credits" = "Кредиты Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion не предоставил доступные личные лимиты ИИ для этого рабочего пространства. Проверьте использование ИИ для выбранного рабочего пространства в Notion, затем обновите QuotaKit ещё раз.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

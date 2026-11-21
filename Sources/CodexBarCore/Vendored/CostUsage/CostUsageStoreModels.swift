@@ -125,6 +125,13 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
     var priorityResolvedCostNanos: Int64 = 0
     var standardUnresolvedPricingCount: Int64 = 0
     var priorityUnresolvedPricingCount: Int64 = 0
+    var ultrafastInputTokens: Int64 = 0
+    var ultrafastCachedTokens: Int64 = 0
+    var ultrafastOutputTokens: Int64 = 0
+    var ultrafastTokens: Int64 = 0
+    var ultrafastAuthoritativeCostNanos: Int64 = 0
+    var ultrafastResolvedCostNanos: Int64 = 0
+    var ultrafastUnresolvedPricingCount: Int64 = 0
     /// Read-time provenance only; SQL aggregates retain their original values during adoption.
     var partialPricingIsSafe: Bool?
 

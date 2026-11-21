@@ -12,7 +12,7 @@ read_when:
 - Gemini + Antigravity: Google Workspace incidents feed for the Gemini product.
 
 ## Behavior
-- Toggle: Settings → Advanced → “Check provider status”.
+- Toggle: Settings → General → Refreshing → “Check provider status”.
 - `UsageStore` polls status and stores `ProviderStatus` for indicator/description.
 - Overlapping checks publish in request order per provider. An older result cannot replace a newer
   successful status or trigger recovery from an obsolete failure; if a newer check fails, an older

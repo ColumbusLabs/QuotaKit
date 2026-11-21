@@ -9,7 +9,7 @@ extension UsageMenuCardView.Model {
         // Provider-specific by design: DeepSeek, z.ai, Kiro, and Kimi rewrite unit phrasing.
         // Other providers localize section titles and row labels through the shared catalog; values stay canonical.
         guard provider == .deepseek || provider == .zai || provider == .kiro || provider == .kimi ||
-            provider == .googledeveloper
+            provider == .googledeveloper || provider == .notion
         else {
             return details.compactMap { section in
                 let rows = section.rows.compactMap { row in
@@ -128,6 +128,8 @@ extension UsageMenuCardView.Model {
             return L("Not applied")
         case .kiro:
             return self.localizedKiroCapPhrase(value)
+        case .notion:
+            return self.localizedZaiValue(self.localizedKiroCapPhrase(value))
         case .kimi:
             if value.hasPrefix("Expires ") {
                 return L("Expires %@", String(value.dropFirst("Expires ".count)))

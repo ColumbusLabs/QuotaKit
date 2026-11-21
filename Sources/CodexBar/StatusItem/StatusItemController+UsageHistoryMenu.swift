@@ -37,8 +37,8 @@ extension StatusItemController {
         provider: UsageProvider,
         width: CGFloat) -> Bool
     {
-        let histories = self.store.planUtilizationHistory(for: provider)
-        let snapshot = self.store.snapshot(for: provider.instanceID)
+        let (selection, snapshot) = self.usageHistorySource(for: provider)
+        let histories = selection.histories
 
         if !self.menuCardRenderingEnabledForController {
             let chartItem = NSMenuItem()
@@ -69,6 +69,38 @@ extension StatusItemController {
             width: width)
         self.appendUsageHistoryChart(chartView, to: submenu, provider: provider, width: width)
         return true
+    }
+
+    func usageHistorySource(
+        for provider: UsageProvider) -> (selection: PlanUtilizationHistorySelection, snapshot: UsageSnapshot?)
+    {
+        if let account = self.store.claudeSwapMenuDisplay(
+            for: provider,
+            inspectedAccountID: self.claudeSwapInspectedAccountID)?.displayedAccount,
+            self.fleetAccountProjection(for: provider).fallback == nil
+        {
+            return (self.store.claudeSwapPlanUtilizationHistorySelection(for: account), account.snapshot)
+        }
+        return (
+            self.store.planUtilizationHistorySelection(for: provider),
+            self.store.snapshot(for: provider.instanceID))
+    }
+
+    func appendHistoryChart(
+        _ chartView: some View,
+        to submenu: NSMenu,
+        id: String,
+        width: CGFloat)
+    {
+        let hosting = MenuHostingView(rootView: chartView)
+        hosting.frame = NSRect(
+            origin: .zero,
+            size: NSSize(width: width, height: self.hostedSubviewFittingHeight(for: hosting, width: width)))
+        let item = NSMenuItem()
+        item.view = hosting
+        item.isEnabled = true
+        item.representedObject = id
+        submenu.addItem(item)
     }
 
     private func appendUsageHistoryChart(

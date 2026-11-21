@@ -1,6 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter のキー上限と使用状況の詳細が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter 密钥限额和用量详情现可从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter 金鑰額度和用量詳細資訊現在可從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Not applied": {
       "localizations": {
         "en": {

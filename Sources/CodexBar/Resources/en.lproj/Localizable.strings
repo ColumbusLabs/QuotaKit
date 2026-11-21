@@ -2908,6 +2908,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Show TrustedRouter usage";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter is rate limiting requests. Try again later.";
+"TrustedRouter request failed. Try refreshing later." = "TrustedRouter request failed. Try refreshing later.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter returned an unrecognized response. Update QuotaKit and try again.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Authorize GitHub's device code to save a Copilot token account.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Supply a GitHub token accepted by the Copilot usage API.";
@@ -2962,3 +2968,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh.";
 "Credits per million tokens" = "Credits per million tokens";
 "Paused during grace period" = "Paused during grace period";
+
+"Skip cost refresh" = "Skip cost refresh";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo returned an unrecognized response. Update QuotaKit and try again.";
+"China mainland" = "China mainland";
+"Singapore" = "Singapore";
+"MiMo is rate limiting requests. Try again later." = "MiMo is rate limiting requests. Try again later.";
+"MiMo request failed. Try refreshing later." = "MiMo request failed. Try refreshing later.";
+"Personal credits" = "Personal credits";
+"Standard remaining" = "Standard remaining";
+"Select remaining" = "Select remaining";
+"Remaining credits" = "Remaining credits";
+"Notion Credits" = "Notion Credits";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

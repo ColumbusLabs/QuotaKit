@@ -216,13 +216,14 @@ actor CostUsageStore {
     // a tier split for their combined historical cost.
     // v6 persists resolved non-authoritative pricing. It is rebuilt whenever the pricing key
     // changes, preserving routed pricing-model and historical-date semantics compactly.
-    static let baseSchemaVersion = 7
+    static let baseSchemaVersion = 8
     static let schemaVersion = CostUsageStore.combinedSchemaVersion(
         base: CostUsageStore.baseSchemaVersion,
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "8ef06fff78a77e26", // Schema 7 before Ultrafast tier migration.
         "70daf0906645fd3a", // Terra and Luna Fast repricing preserves native rows and checkpoints.
         "f80230e162d75b65", // Claude-only pricing preserves native rows, checkpoints, and retained reports.
         "1a32d8d0c63060d2", // Symlink-root discovery preserves existing parsed rows and reports.
@@ -1009,10 +1010,12 @@ extension CostUsageStore {
             base: Self.baseSchemaVersion,
             parserHash: storedHash)
         let legacyVersion = Self.combinedSchemaVersion(base: 6, parserHash: storedHash)
+        let previousVersion = Self.combinedSchemaVersion(base: 7, parserHash: storedHash)
         let canAdoptPredecessor = self.expectedParserHash == CodexParserHash.value
             && self.expectedSchemaVersion == Self.schemaVersion
             && (Self.compatiblePredecessorParserHashes.contains(storedHash) || storedHash == self.expectedParserHash)
-            && (actualVersion == Int64(predecessorVersion) || actualVersion == Int64(legacyVersion))
+            && (actualVersion == Int64(predecessorVersion) || actualVersion == Int64(legacyVersion)
+                || actualVersion == Int64(previousVersion))
         return (storedHash, isCurrent, canAdoptPredecessor)
     }
 
@@ -1033,6 +1036,26 @@ extension CostUsageStore {
                 try self.migrateHomeScope(database)
             } catch {
                 throw StoreError.migration(error)
+            }
+        }
+        // Preserve old aggregate/verified rows while adding the new tier. Individual
+        // files reparse within the existing bounded parser upgrade.
+        for table in ["file_day_aggregates", "day_aggregates", "verified_day_aggregates"] {
+            let exists = try Self.scalarInt(
+                database,
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '\(table)'") > 0
+            guard exists else { continue }
+            for column in [
+                "ultrafast_input_tokens", "ultrafast_cached_tokens", "ultrafast_output_tokens",
+                "ultrafast_tokens", "ultrafast_authoritative_cost_nanos", "ultrafast_resolved_cost_nanos",
+                "ultrafast_unresolved_pricing_count",
+            ] {
+                let found = try Self.scalarInt(
+                    database,
+                    "SELECT COUNT(*) FROM pragma_table_info('\(table)') WHERE name = '\(column)'")
+                if found == 0 {
+                    try Self.execute(database, "ALTER TABLE \(table) ADD COLUMN \(column) INTEGER NOT NULL DEFAULT 0")
+                }
             }
         }
         if Self.incompatibleRetainedReportPredecessorParserHashes.contains(storedHash) {
@@ -1322,6 +1345,13 @@ extension CostUsageStore {
         priority_resolved_cost_nanos INTEGER NOT NULL,
         standard_unresolved_pricing_count INTEGER NOT NULL,
         priority_unresolved_pricing_count INTEGER NOT NULL,
+        ultrafast_input_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_cached_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_output_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_authoritative_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_resolved_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_unresolved_pricing_count INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(file_id, day, model)
     );
     CREATE INDEX file_day_aggregates_day_idx ON file_day_aggregates(day);
@@ -1351,6 +1381,13 @@ extension CostUsageStore {
         priority_resolved_cost_nanos INTEGER NOT NULL,
         standard_unresolved_pricing_count INTEGER NOT NULL,
         priority_unresolved_pricing_count INTEGER NOT NULL,
+        ultrafast_input_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_cached_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_output_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_authoritative_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_resolved_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_unresolved_pricing_count INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(home, day, model)
     );
     CREATE INDEX day_aggregates_day_idx ON day_aggregates(day);
@@ -1381,6 +1418,13 @@ extension CostUsageStore {
         priority_resolved_cost_nanos INTEGER NOT NULL,
         standard_unresolved_pricing_count INTEGER NOT NULL,
         priority_unresolved_pricing_count INTEGER NOT NULL,
+        ultrafast_input_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_cached_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_output_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_tokens INTEGER NOT NULL DEFAULT 0,
+        ultrafast_authoritative_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_resolved_cost_nanos INTEGER NOT NULL DEFAULT 0,
+        ultrafast_unresolved_pricing_count INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(home, day, model)
     );
     CREATE INDEX verified_day_aggregates_day_idx ON verified_day_aggregates(day);

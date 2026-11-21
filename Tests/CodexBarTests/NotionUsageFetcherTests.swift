@@ -268,9 +268,16 @@ struct NotionUsageFetcherTests {
     private struct StubTransport: ProviderHTTPTransport {
         let spaces: StubResponse
         let rateLimit: StubResponse
+        var credits: StubResponse? = nil
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-            let stub = (request.url?.path.hasSuffix("getSpaces") ?? false) ? self.spaces : self.rateLimit
+            let stub = if request.url?.path.hasSuffix("getSpaces") == true {
+                self.spaces
+            } else if request.url?.path.hasSuffix("getAIUsageEligibilityV2") == true {
+                self.credits ?? StubResponse(statusCode: 404, body: Data())
+            } else {
+                self.rateLimit
+            }
             guard let url = request.url,
                   let response = HTTPURLResponse(
                       url: url,
@@ -455,4 +462,120 @@ struct NotionUsageFetcherTests {
         #expect(NotionUsageSnapshot.rollingMinutes(fromWindowToken: "43200m") == nil)
         #expect(NotionUsageSnapshot.rollingMinutes(fromWindowToken: "6h") == 360)
     }
+    @Test
+    func `migrated personal pools preserve exact credits and distinct labels`() throws {
+        let status = try NotionUsageParser.parseRateLimitStatus(Self.fixtureData("get-credit-rate-limit-status-migrated"))
+        let usage = NotionUsageSnapshot(rateLimit: status, workspace: nil, account: nil,
+                                        updatedAt: Self.now, workspaceCredits: 300).toUsageSnapshot()
+        let standard = try #require(usage.primary)
+        let select = try #require(usage.secondary)
+        #expect(standard.title == "Standard")
+        #expect(select.title == "Select")
+        #expect(abs(standard.usedPercent - 134.66869 / 1500 * 100) < 0.0000001)
+        #expect(standard.quotaLimit == 1500)
+        #expect(select.quotaLimit == 500)
+        #expect(standard.windowMinutes == 31 * 24 * 60)
+        #expect(usage.details.map(\.title) == ["Personal credits", "Notion Credits"])
+        #expect(usage.details.first?.rows.first?.usageValue == 134.66869)
+    }
+
+    @Test
+    func `ambiguous or unresolved pools are not reported as measured usage`() throws {
+        let data = Data(#"{"status":"not_applicable","allowances":[{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":1,"limit":100},{"bucketId":"auto","cadence":"billing_period","state":"resolved","used":2,"limit":100},{"bucketId":"flex","cadence":"billing_period","state":"not_exposed"}]}"#.utf8)
+        let status = try NotionUsageParser.parseRateLimitStatus(data)
+        #expect(status.hasPersonalSchema)
+        #expect(status.personalAllowance("auto") == nil)
+        #expect(status.personalAllowance("flex") == nil)
+        let usage = NotionUsageSnapshot(rateLimit: status, workspace: nil, account: nil, updatedAt: Self.now)
+            .toUsageSnapshot()
+        #expect(usage.primary == nil)
+        #expect(usage.secondary == nil)
+    }
+
+    @Test
+    func `slow optional credits time out without hiding personal pools`() async throws {
+        let spaces = try Self.fixtureData("get-spaces")
+        let usage = try Self.fixtureData("get-credit-rate-limit-status-migrated")
+        let transport = ProviderHTTPTransportHandler { request in
+            let path = try #require(request.url?.path)
+            if path.hasSuffix("getAIUsageEligibilityV2") { try await Task.sleep(for: .seconds(10)) }
+            let body = path.hasSuffix("getSpaces") ? spaces : usage
+            let response = try #require(HTTPURLResponse(url: #require(request.url), statusCode: 200,
+                                                       httpVersion: nil, headerFields: nil))
+            return (body, response)
+        }
+        let start = ContinuousClock.now
+        let snapshot = try await NotionUsageFetcher.fetchUsage(
+            cookieHeader: "token_v2=abc", preferredSpaceID: Self.personalSpaceID,
+            timeout: 0.05, now: Self.now, transport: transport)
+        #expect(start.duration(to: .now) < .seconds(2))
+        #expect(snapshot.workspaceCredits == nil)
+        #expect(snapshot.toUsageSnapshot().primary?.title == "Standard")
+    }
+
+    @Test
+    func `cancelling optional credit request cancels the whole fetch`() async throws {
+        let spaces = try Self.fixtureData("get-spaces")
+        let usage = try Self.fixtureData("get-credit-rate-limit-status-migrated")
+        let (events, continuation) = AsyncStream<Void>.makeStream()
+        let transport = ProviderHTTPTransportHandler { request in
+            let path = try #require(request.url?.path)
+            if path.hasSuffix("getAIUsageEligibilityV2") {
+                continuation.yield(())
+                try await Task.sleep(for: .seconds(10))
+            }
+            let response = try #require(HTTPURLResponse(url: #require(request.url), statusCode: 200,
+                                                       httpVersion: nil, headerFields: nil))
+            return (path.hasSuffix("getSpaces") ? spaces : usage, response)
+        }
+        let task = Task {
+            try await NotionUsageFetcher.fetchUsage(cookieHeader: "token_v2=abc",
+                preferredSpaceID: Self.personalSpaceID, timeout: 3, now: Self.now, transport: transport)
+        }
+        var iterator = events.makeAsyncIterator()
+        _ = await iterator.next()
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        continuation.finish()
+    }
+
+    @Test
+    func `oversized optional credits do not hide personal pools`() async throws {
+        let transport = try StubTransport(
+            spaces: StubResponse(statusCode: 200, body: Self.fixtureData("get-spaces")),
+            rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status-migrated")),
+            credits: StubResponse(statusCode: 200, body: Data(repeating: 32,
+                count: NotionUsageFetcher.workspaceDiscoveryResponseLimit + 1)))
+        let snapshot = try await Self.fetchUsage(transport: transport, preferredSpaceID: Self.personalSpaceID)
+        #expect(snapshot.workspaceCredits == nil)
+        #expect(snapshot.toUsageSnapshot().primary?.title == "Standard")
+    }
+
+    @Test
+    func `optional workspace credits remain separate from personal allowances`() async throws {
+        let transport = try StubTransport(
+            spaces: StubResponse(statusCode: 200, body: Self.fixtureData("get-spaces")),
+            rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status-migrated")),
+            credits: StubResponse(statusCode: 200, body: Data(#"{"premiumCredits":{"totalCreditBalance":300}}"#.utf8)))
+        let snapshot = try await Self.fetchUsage(transport: transport, preferredSpaceID: Self.personalSpaceID)
+        #expect(snapshot.workspaceCredits == 300)
+        #expect(snapshot.toUsageSnapshot().details.map(\.title) == ["Personal credits", "Notion Credits"])
+        let disabled = try await NotionUsageFetcher.fetchUsage(
+            context: .init(cookieHeader: "token_v2=abc"), preferredSpaceID: Self.personalSpaceID,
+            includeOptionalUsage: false, timeout: 5, now: Self.now, transport: transport)
+        #expect(disabled.workspaceCredits == nil)
+        #expect(disabled.toUsageSnapshot().details.map(\.title) == ["Personal credits"])
+    }
+
+    @Test
+    func `personal pools survive legacy not applicable status and optional failure`() async throws {
+        let transport = try StubTransport(
+            spaces: StubResponse(statusCode: 200, body: Self.fixtureData("get-spaces")),
+            rateLimit: StubResponse(statusCode: 200, body: Self.fixtureData("get-credit-rate-limit-status-migrated")))
+        let snapshot = try await Self.fetchUsage(transport: transport, preferredSpaceID: Self.personalSpaceID)
+        #expect(snapshot.toUsageSnapshot().primary?.title == "Standard")
+        #expect(snapshot.toUsageSnapshot().secondary?.title == "Select")
+        #expect(snapshot.workspaceCredits == nil)
+    }
+
 }

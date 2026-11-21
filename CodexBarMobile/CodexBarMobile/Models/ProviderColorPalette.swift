@@ -227,6 +227,7 @@ enum ProviderColorPalette {
             (["sailresearch"], RawColor(red: 44 / 255, green: 70 / 255, blue: 129 / 255)),
             (["sofya"], RawColor(red: 176 / 255, green: 184 / 255, blue: 32 / 255)),
             (["googledeveloper"], RawColor(red: 91 / 255, green: 141 / 255, blue: 239 / 255)),
+            (["trustedrouter"], RawColor(red: 169 / 255, green: 205 / 255, blue: 185 / 255)),
             // Balance-only providers retain their published Mac descriptor colors.
             (["fal"], RawColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255)),
             (["flora"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),

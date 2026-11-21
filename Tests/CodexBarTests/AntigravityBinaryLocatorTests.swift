@@ -8,7 +8,10 @@ struct AntigravityBinaryLocatorTests {
         // The ambient binary exists on every lookup channel; an unusable explicit
         // override must still fail so a background fetch cannot spawn another agy.
         let ambient = "/opt/homebrew/bin/agy"
-        let fileManager = AntigravityLocatorMockFileManager(executables: [ambient])
+        let fileManager = AntigravityLocatorMockFileManager(executables: [
+            ambient,
+            "/Applications/Gemini.app/Contents/Helpers/agy",
+        ])
         let commandV: (String, String?, TimeInterval, FileManager) -> String? = { _, _, _, _ in
             Issue.record("An unusable override must not run shell lookup")
             return ambient
@@ -82,6 +85,21 @@ struct AntigravityBinaryLocatorTests {
             home: "/home/test")
 
         #expect(resolved == expected)
+    }
+
+    @Test(arguments: ["/Applications", "/home/test/Applications"])
+    func `Gemini bundled helper is the last fallback`(applications: String) {
+        let bundled = "\(applications)/Gemini.app/Contents/Helpers/agy"
+        let installed = "/custom/bin/agy"
+        let manager = AntigravityLocatorMockFileManager(executables: [bundled, installed])
+        let fallback = BinaryLocator.resolveAntigravityBinary(
+            env: [:], loginPATH: nil, commandV: { _, _, _, _ in nil },
+            aliasResolver: { _, _, _, _, _ in nil }, fileManager: manager, home: "/home/test")
+        #expect(fallback == bundled)
+        let cli = BinaryLocator.resolveAntigravityBinary(
+            env: [:], loginPATH: nil, commandV: { _, _, _, _ in installed },
+            aliasResolver: { _, _, _, _, _ in nil }, fileManager: manager, home: "/home/test")
+        #expect(cli == installed)
     }
 
     @Test

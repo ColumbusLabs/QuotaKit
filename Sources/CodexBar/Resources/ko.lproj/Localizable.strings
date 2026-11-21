@@ -2874,6 +2874,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "TypeSafe 세션 쿠키를 찾을 수 없습니다. console.typesafe.ai/billing 에 로그인하거나 Cookie 헤더를 붙여 넣으세요.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "TrustedRouter 사용량 표시";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter가 요청 빈도를 제한하고 있습니다. 나중에 다시 시도하세요.";
+"TrustedRouter request failed. Try refreshing later." = "TrustedRouter 요청에 실패했습니다. 나중에 다시 새로 고침하세요.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter가 알 수 없는 응답을 반환했습니다. QuotaKit를 업데이트하고 다시 시도하세요.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "GitHub 기기 코드를 승인하여 Copilot 토큰 계정을 저장하세요.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Copilot 사용량 API에서 허용하는 GitHub 토큰을 입력하세요.";
@@ -2928,3 +2934,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow가 콘솔 잔액 접근을 거부했습니다(HTTP 403). cloud.siliconflow.cn을 열어 이 계정이 결제 정보를 볼 수 있는지 확인한 다음 새로 고치세요.";
 "Credits per million tokens" = "100만 토큰당 크레딧";
 "Paused during grace period" = "유예 기간 동안 일시 중지됨";
+
+"Skip cost refresh" = "비용 새로 고침 건너뛰기";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo가 알 수 없는 응답을 반환했습니다. QuotaKit를 업데이트하고 다시 시도하세요.";
+"China mainland" = "중국 본토";
+"Singapore" = "싱가포르";
+"MiMo is rate limiting requests. Try again later." = "MiMo가 요청 빈도를 제한하고 있습니다. 나중에 다시 시도하세요.";
+"MiMo request failed. Try refreshing later." = "MiMo 요청에 실패했습니다. 나중에 다시 새로 고침하세요.";
+"Personal credits" = "개인 크레딧";
+"Standard remaining" = "남은 Standard";
+"Select remaining" = "남은 Select";
+"Remaining credits" = "남은 크레딧";
+"Notion Credits" = "Notion 크레딧";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion에서 이 워크스페이스의 사용 가능한 개인 AI 할당량을 제공하지 않았습니다. Notion에서 선택한 워크스페이스의 AI 사용량을 확인한 후 QuotaKit를 다시 새로 고치세요.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

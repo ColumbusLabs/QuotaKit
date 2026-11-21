@@ -76,3 +76,5 @@ The Mac Live Usage window shows 15-minute, 1-hour or 6-hour views of one-minute 
 Set organization model limits in Settings. Each provider API key and saved token account keeps its own list; selecting another credential never inherits those limits. Project caps provide context separately from configured organization utilization. Limit accounting includes cached input plus other input and output, excludes Batch traffic, and pools dated model snapshots under the matching configured limit.
 
 Live windows and stacked account cards retain their credential ownership. Old sync peers that omit manual limits preserve existing choices; an explicit empty list clears them. Existing usage and cost totals remain available if optional cached throughput cannot be decoded.
+
+The legacy credit fallback accepts `OPENAI_ORGANIZATION_ID` (or `OPENAI_ORG_ID`) and sends it only to the credit-grants endpoint. A configured `pluginSettings.OPENAI_ORGANIZATION_ID` takes precedence. Selected token accounts do not inherit the provider organization or project. The response preserves the reported remaining credit balance.
