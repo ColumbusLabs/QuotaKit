@@ -2910,6 +2910,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "هیچ کوکی نشست TypeSafe پیدا نشد. در console.typesafe.ai/billing وارد شوید یا یک سرآیند Cookie جای‌گذاری کنید.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "نمایش مصرف TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter تعداد درخواست‌ها را محدود کرده است. بعداً دوباره امتحان کنید.";
+"TrustedRouter request failed. Try refreshing later." = "درخواست TrustedRouter ناموفق بود. بعداً دوباره تازه‌سازی کنید.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter پاسخی ناشناخته برگرداند. QuotaKit را به‌روز کنید و دوباره امتحان کنید.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "کد دستگاه GitHub را تأیید کنید تا حساب توکن Copilot ذخیره شود.";
 "Supply a GitHub token accepted by the Copilot usage API." = "توکن GitHub مورد پذیرش API مصرف Copilot را وارد کنید.";
@@ -2964,3 +2970,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow دسترسی به موجودی کنسول را رد کرد (HTTP 403). cloud.siliconflow.cn را باز کنید، بررسی کنید که این حساب به صورت‌حساب دسترسی دارد، سپس تازه‌سازی کنید.";
 "Credits per million tokens" = "اعتبارات به‌ازای هر میلیون توکن";
 "Paused during grace period" = "در مهلت ارفاقی متوقف شده است";
+
+"Skip cost refresh" = "رد کردن به‌روزرسانی هزینه";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo پاسخی ناشناخته برگرداند. QuotaKit را به‌روز کنید و دوباره امتحان کنید.";
+"China mainland" = "سرزمین اصلی چین";
+"Singapore" = "سنگاپور";
+"MiMo is rate limiting requests. Try again later." = "MiMo تعداد درخواست‌ها را محدود کرده است. بعداً دوباره امتحان کنید.";
+"MiMo request failed. Try refreshing later." = "درخواست MiMo ناموفق بود. بعداً دوباره تازه‌سازی کنید.";
+"Personal credits" = "اعتبارهای شخصی";
+"Standard remaining" = "Standard باقی‌مانده";
+"Select remaining" = "Select باقی‌مانده";
+"Remaining credits" = "اعتبارهای باقی‌مانده";
+"Notion Credits" = "اعتبارهای Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion سهمیه‌های شخصی هوش مصنوعی قابل استفاده‌ای برای این فضای کاری ارائه نکرد. مصرف هوش مصنوعی فضای کاری انتخاب‌شده را در Notion بررسی کنید، سپس QuotaKit را دوباره تازه‌سازی کنید.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

@@ -187,6 +187,23 @@ extension UsageStore {
         await self.planUtilizationPersistenceCoordinator.enqueue(self.planUtilizationHistory)
     }
 
+    func claudeSwapMenuDisplay(
+        for provider: UsageProvider,
+        inspectedAccountID: ProviderAccountIdentity?) -> ClaudeSwapAccountMenuDisplay?
+    {
+        guard ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+            provider: provider,
+            accountCount: self.claudeSwapAccountSnapshots.count,
+            showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        else { return nil }
+        return ClaudeSwapAccountMenuDisplay(
+            accounts: self.claudeSwapAccountSnapshots,
+            layout: self.settings.multiAccountMenuLayout,
+            switchingAccountID: self.claudeSwapTransientState.switchingAccountID,
+            errorAccountID: self.claudeSwapTransientState.lastErrorAccountID,
+            inspectedAccountID: inspectedAccountID)
+    }
+
     func claudeSwapPlanUtilizationHistorySelection(
         for account: ProviderAccountUsageSnapshot) -> PlanUtilizationHistorySelection
     {

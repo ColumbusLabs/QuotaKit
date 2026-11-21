@@ -7,6 +7,7 @@ public enum NotionUsageError: LocalizedError, Sendable, Equatable {
     case noWorkspace
     case responseTooLarge(endpoint: String)
     case allowanceNotApplicable(workspace: String?)
+    case personalAllowanceUnavailable
     case apiError(String)
     case parseFailed(String)
 
@@ -30,6 +31,9 @@ public enum NotionUsageError: LocalizedError, Sendable, Equatable {
                 "Notion AI usage allowance is not tracked for this workspace. " +
                     "Allowances apply to Business and Enterprise workspaces."
             }
+        case .personalAllowanceUnavailable:
+            "Notion did not provide usable personal AI allowances for this workspace. " +
+                "Check AI usage in Notion, then refresh QuotaKit."
         case let .apiError(message):
             "Notion API error: \(message)"
         case let .parseFailed(message):
@@ -54,7 +58,7 @@ public struct NotionWorkspace: Sendable, Equatable {
         self.subscriptionTier = subscriptionTier
     }
 
-    /// Only paid team plans carry a Notion AI usage allowance; free/personal spaces report `not_applicable`.
+    /// Prefer established team allowances when selecting a workspace automatically.
     public var mayHaveAllowance: Bool {
         switch self.subscriptionTier?.lowercased() {
         case "business", "enterprise": true
@@ -128,6 +132,43 @@ public struct NotionBillingPeriodWindow: Decodable, Sendable, Equatable {
     public let periodEndMs: Double?
 }
 
+public struct NotionPersonalAllowance: Decodable, Sendable, Equatable {
+    public struct Credits: Decodable, Sendable, Equatable {
+        public let used: Double?
+        public let limit: Double?
+    }
+
+    public let bucketId: String?
+    public let cadence: String?
+    public let state: String?
+    public let used: Double?
+    public let limit: Double?
+    public let periodStartMs: Double?
+    public let periodEndMs: Double?
+    public let credits: Credits?
+
+    private enum CodingKeys: String, CodingKey {
+        case bucketId, cadence, state, used, limit, periodStartMs, periodEndMs, credits
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.bucketId = try? c.decode(String.self, forKey: .bucketId)
+        self.cadence = try? c.decode(String.self, forKey: .cadence)
+        self.state = try? c.decode(String.self, forKey: .state)
+        self.used = try? c.decode(Double.self, forKey: .used)
+        self.limit = try? c.decode(Double.self, forKey: .limit)
+        self.periodStartMs = try? c.decode(Double.self, forKey: .periodStartMs)
+        self.periodEndMs = try? c.decode(Double.self, forKey: .periodEndMs)
+        self.credits = try? c.decode(Credits.self, forKey: .credits)
+    }
+}
+
+private struct LossyNotionAllowance: Decodable {
+    let value: NotionPersonalAllowance?
+    init(from decoder: Decoder) throws { self.value = try? NotionPersonalAllowance(from: decoder) }
+}
+
 /// Response of `POST /api/v3/getCreditRateLimitStatus`.
 public struct NotionCreditRateLimitStatus: Decodable, Sendable, Equatable {
     public let status: String?
@@ -135,6 +176,50 @@ public struct NotionCreditRateLimitStatus: Decodable, Sendable, Equatable {
     public let resetsInSeconds: Double?
     public let billingPeriodWindow: NotionBillingPeriodWindow?
     public let enforcement: String?
+    public let allowances: [NotionPersonalAllowance]?
+
+    init(
+        status: String?,
+        window: NotionRollingWindow?,
+        resetsInSeconds: Double?,
+        billingPeriodWindow: NotionBillingPeriodWindow?,
+        enforcement: String?,
+        allowances: [NotionPersonalAllowance]? = nil)
+    {
+        self.status = status
+        self.window = window
+        self.resetsInSeconds = resetsInSeconds
+        self.billingPeriodWindow = billingPeriodWindow
+        self.enforcement = enforcement
+        self.allowances = allowances
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case status, window, resetsInSeconds, billingPeriodWindow, enforcement, allowances
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.status = try? c.decode(String.self, forKey: .status)
+        self.window = try? c.decode(NotionRollingWindow.self, forKey: .window)
+        self.resetsInSeconds = try? c.decode(Double.self, forKey: .resetsInSeconds)
+        self.billingPeriodWindow = try? c.decode(NotionBillingPeriodWindow.self, forKey: .billingPeriodWindow)
+        self.enforcement = try? c.decode(String.self, forKey: .enforcement)
+        self.allowances = (try? c.decode([LossyNotionAllowance].self, forKey: .allowances))?.compactMap(\.value)
+    }
+
+    var hasPersonalSchema: Bool {
+        self.allowances?.contains { $0.bucketId == "auto" || $0.bucketId == "flex" } ?? false
+    }
+
+    func personalAllowance(_ bucket: String) -> NotionPersonalAllowance? {
+        let matches = self.allowances?.filter { $0.bucketId == bucket && $0.cadence == "billing_period" } ?? []
+        guard matches.count == 1, let entry = matches.first, entry.state == "resolved",
+              let used = entry.used, used.isFinite, used >= 0,
+              let limit = entry.limit, limit.isFinite, limit > 0, (used / limit * 100).isFinite
+        else { return nil }
+        return entry
+    }
 
     /// Notion returns this when the workspace plan has no allowance to report.
     public var isNotApplicable: Bool {
@@ -149,23 +234,29 @@ public struct NotionUsageSnapshot: Sendable {
     public let workspace: NotionWorkspace?
     public let account: NotionAccount?
     public let updatedAt: Date
+    public let workspaceCredits: Double?
 
     public init(
         rateLimit: NotionCreditRateLimitStatus,
         workspace: NotionWorkspace?,
         account: NotionAccount?,
-        updatedAt: Date)
+        updatedAt: Date,
+        workspaceCredits: Double? = nil)
     {
         self.rateLimit = rateLimit
         self.workspace = workspace
         self.account = account
         self.updatedAt = updatedAt
+        self.workspaceCredits = workspaceCredits
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
         // Only report a window we could actually measure. Fabricating 0% for a missing or
         // unmeasurable window reads as "plenty of headroom" on a workspace that may be at its cap.
-        let primary: RateWindow? = self.rateLimit.window.flatMap { window in
+        let standard = self.rateLimit.personalAllowance("auto")
+        let select = self.rateLimit.personalAllowance("flex")
+        let hasPersonal = standard != nil || select != nil
+        let legacyPrimary: RateWindow? = self.rateLimit.window.flatMap { window in
             Self.percent(used: window.used, limit: window.limit).map { percent in
                 RateWindow(
                     usedPercent: percent,
@@ -175,7 +266,7 @@ public struct NotionUsageSnapshot: Sendable {
             }
         }
 
-        let secondary: RateWindow? = self.rateLimit.billingPeriodWindow.flatMap { billing in
+        let legacySecondary: RateWindow? = self.rateLimit.billingPeriodWindow.flatMap { billing in
             Self.percent(used: billing.used, limit: billing.limit).map { percent in
                 RateWindow(
                     usedPercent: percent,
@@ -196,6 +287,27 @@ public struct NotionUsageSnapshot: Sendable {
             }
         }
 
+        let primary = hasPersonal ? standard.flatMap { Self.personalWindow($0, title: "Standard") } : legacyPrimary
+        let secondary = hasPersonal ? select.flatMap { Self.personalWindow($0, title: "Select") } : legacySecondary
+        var details: [ProviderDetailSection] = []
+        let rows = [("Standard", standard), ("Select", select)]
+            .compactMap { title, entry -> ProviderDetailSection.Row? in
+                guard let credits = entry?.credits, let used = credits.used, used.isFinite, used >= 0,
+                      let limit = credits.limit, limit.isFinite, limit > 0, (used / limit * 100).isFinite
+                else { return nil }
+                return .makeRow(
+                    label: "\(title) remaining",
+                    value: "\(Self.formatNumber(max(0, limit - used))) credits",
+                    secondaryValue: "\(Self.formatNumber(used)) / \(Self.formatNumber(limit)) used",
+                    usageValue: used)
+            }
+        if !rows.isEmpty { details.append(.makeSection(title: "Personal credits", rows: rows)) }
+        if let workspaceCredits, workspaceCredits.isFinite {
+            details.append(.makeSection(title: "Notion Credits", rows: [
+                .makeRow(label: "Remaining credits", value: Self.formatNumber(workspaceCredits)),
+            ]))
+        }
+
         let identity = ProviderIdentitySnapshot(
             providerID: .notion,
             accountEmail: self.account?.email,
@@ -206,8 +318,34 @@ public struct NotionUsageSnapshot: Sendable {
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
+            details: details,
             updatedAt: self.updatedAt,
             identity: identity)
+    }
+
+    private static func formatNumber(_ value: Double) -> String {
+        value.formatted(.number.locale(Locale(identifier: "en_US")).precision(.fractionLength(0...3)))
+    }
+
+    private static func personalWindow(_ entry: NotionPersonalAllowance, title: String) -> RateWindow? {
+        guard let used = entry.used, let limit = entry.limit else { return nil }
+        let credits = entry.credits
+        let validCredits = credits?.used.map { $0.isFinite && $0 >= 0 } == true
+            && credits?.limit.map { $0.isFinite && $0 > 0 } == true
+            && ((credits!.used! / credits!.limit!) * 100).isFinite
+        let percent = validCredits ? credits!.used! / credits!.limit! * 100 : used / limit * 100
+        let duration = (entry.periodEndMs ?? 0) - (entry.periodStartMs ?? 0)
+        let minutes = duration / 60000
+        let validDuration = (entry.periodStartMs ?? 0) > 0 && minutes.isFinite && minutes > 0
+            && minutes.rounded() == minutes && minutes < Double(Int.max)
+        return RateWindow(
+            usedPercent: percent,
+            windowMinutes: validDuration ? Int(minutes) : nil,
+            resetsAt: Self.date(fromMilliseconds: entry.periodEndMs),
+            resetDescription: nil,
+            quotaLimit: validCredits ? credits?.limit : nil,
+            quotaUnit: validCredits ? "credits" : nil,
+            title: title)
     }
 
     /// Returns nil when the window carries no measurable allowance. A missing or non-positive limit
@@ -251,7 +389,7 @@ public struct NotionUsageSnapshot: Sendable {
     }
 
     static func date(fromMilliseconds raw: Double?) -> Date? {
-        guard let raw, raw > 0 else { return nil }
+        guard let raw, raw.isFinite, raw > 0 else { return nil }
         return Date(timeIntervalSince1970: raw / 1000)
     }
 }
@@ -268,7 +406,9 @@ public enum NotionUsageParser {
         }
         // Every field is optional, so an unrelated 200 body (an error envelope, or a changed shape)
         // decodes cleanly into an all-nil status. Refuse it rather than reporting it as 0% used.
-        guard status.isNotApplicable || status.window != nil || status.billingPeriodWindow != nil else {
+        guard status.isNotApplicable || status.window != nil || status.billingPeriodWindow != nil
+            || status.personalAllowance("auto") != nil || status.personalAllowance("flex") != nil
+        else {
             throw NotionUsageError.parseFailed("getCreditRateLimitStatus returned no usage windows.")
         }
         return status

@@ -248,6 +248,12 @@ is limited, using additional rows when needed.
 
 ## Cost usage (local log scan)
 
+Native Ultrafast requests keep their own pricing tier through checkpoints, SQLite
+reopening and compact daily reports. Date-specific rates remain distinct from
+Priority rates; unknown prices stay unpriced and verified zero-cost usage stays zero.
+The additive schema upgrade preserves prior aggregates and verified history while
+existing bounded source recovery refreshes pricing metadata.
+
 For a manual comparison with another development machine, run `quotakit cost --provider codex --remote <ssh-host>`.
 Both hosts scan their own native Codex logs once and return separate summaries, retaining their own day boundaries,
 pricing provenance, missing values, and incomplete-request counts. Only bounded totals cross SSH. A remote error keeps

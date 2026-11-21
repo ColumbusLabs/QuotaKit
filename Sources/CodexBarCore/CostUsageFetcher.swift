@@ -2505,6 +2505,31 @@ public struct CostUsageFetcher: Sendable {
         calendar: Calendar = .current,
         paths overridePaths: [URL]? = nil) async -> CostUsageTokenSnapshot?
     {
+        #if os(macOS)
+        if overridePaths == nil {
+            let since = CostReportingPeriod.rolling(days: historyDays).bounds(now: now, calendar: calendar).lowerBound
+            switch CursorLocalJSONReader.load(since: since, until: now, calendar: calendar) {
+            case .absent:
+                break
+            case .unavailable:
+                return nil
+            case let .report(report):
+                guard !report.daily.data.isEmpty || report.meteredCostUSD != nil else { return nil }
+                return Self.tokenSnapshot(
+                    from: report.daily,
+                    now: now,
+                    historyDays: historyDays,
+                    useCurrentLocalDayForSession: true,
+                    calendar: calendar,
+                    historyCoverageIsEstablished: report.isComplete,
+                    historyScanIsPartial: !report.isComplete,
+                    meteredCostUSD: report.meteredCostUSD,
+                    costProvenance: Self.cursorCostProvenance(
+                        meteredCostUSD: report.meteredCostUSD, daily: report.daily.data),
+                    ownership: .machineLocalUnowned)
+            }
+        }
+        #endif
         let paths = overridePaths ?? CursorLocalCSVReader.cachedCSVPaths()
         guard !paths.isEmpty else { return nil }
         var allRows: [CursorLocalCSVReader.Row] = []

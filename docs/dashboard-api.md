@@ -80,6 +80,8 @@ client. Full identity is an explicit trusted-surface option: use it only for pri
 networks, and remember that `--output` publishes snapshots with mode `0644`.
 
 `quotakit serve --all-accounts` expands dashboard snapshots to visible Codex profiles and configured token accounts.
+Raw `/usage?allAccounts=true` requests all configured token accounts without changing the active selection. `1` and `yes` are also accepted, case-insensitively. This has its own response and provider-operation cache keys. For Claude it uses configured token accounts even when Claude Swap supplies dashboard rows.
+
 The option affects `/dashboard/v1/snapshot` only; `/usage` keeps its existing Codex enumeration and `/cost` is
 unchanged. Expanded snapshots default to no identity, neutral numbered labels, and generic account/provider errors,
 independently of the ordinary redacted default. Explicit `--identity redacted` retains masked email domains and plan

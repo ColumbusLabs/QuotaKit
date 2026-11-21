@@ -2909,6 +2909,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Nie znaleziono plików cookie sesji TypeSafe. Zaloguj się na console.typesafe.ai/billing lub wklej nagłówek Cookie.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Pokaż użycie TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"TrustedRouter request failed. Try refreshing later." = "Żądanie TrustedRouter nie powiodło się. Spróbuj odświeżyć później.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter zwrócił nierozpoznaną odpowiedź. Zaktualizuj QuotaKit i spróbuj ponownie.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Zatwierdź kod urządzenia GitHub, aby zapisać konto z tokenem Copilot.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Podaj token GitHub akceptowany przez API użycia Copilot.";
@@ -2963,3 +2969,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow odmówił dostępu do salda konsoli (HTTP 403). Otwórz cloud.siliconflow.cn, sprawdź, czy to konto może wyświetlać rozliczenia, a następnie odśwież.";
 "Credits per million tokens" = "Kredyty na milion tokenów";
 "Paused during grace period" = "Wstrzymano na czas okresu prolongaty";
+
+"Skip cost refresh" = "Pomiń odświeżanie kosztów";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo zwrócił nierozpoznaną odpowiedź. Zaktualizuj QuotaKit i spróbuj ponownie.";
+"China mainland" = "Chiny kontynentalne";
+"Singapore" = "Singapur";
+"MiMo is rate limiting requests. Try again later." = "MiMo ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"MiMo request failed. Try refreshing later." = "Żądanie MiMo nie powiodło się. Spróbuj odświeżyć później.";
+"Personal credits" = "Kredyty osobiste";
+"Standard remaining" = "Pozostałe Standard";
+"Select remaining" = "Pozostałe Select";
+"Remaining credits" = "Pozostałe kredyty";
+"Notion Credits" = "Kredyty Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion nie udostępnił użytecznych osobistych limitów AI dla tego obszaru roboczego. Sprawdź użycie AI w wybranym obszarze roboczym w Notion, a następnie ponownie odśwież QuotaKit.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

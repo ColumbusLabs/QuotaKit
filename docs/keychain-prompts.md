@@ -187,3 +187,7 @@ operation so changes to sealed app resources cannot rely on stale approval.
 - Whether System Settings -> General -> Login Items still lists QuotaKit.
 - Whether `/Applications/QuotaKit.app`, Homebrew cask metadata, or Spotlight finds another copy.
 - A screenshot of the Keychain prompt showing the requested item and requesting app/path, with secrets redacted.
+
+Chrome Dev participates in the shared browser order after Chrome Beta and Canary. It reads profiles from
+`Google/Chrome Dev` and uses Chrome’s existing `Chrome Safe Storage` item. Explicit Chrome selection
+continues to select only Chrome. QuotaKit’s no-UI background and explicit prompt gates still apply.

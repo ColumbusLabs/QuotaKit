@@ -40,7 +40,7 @@ struct BrowserCookiePromptContractTests {
         interaction: ProviderInteraction,
         preflight: KeychainAccessPreflight.Outcome) throws -> Int
     {
-        let browsers: [Browser] = [.chrome, .edge, .brave, .braveOrigin]
+        let browsers: [Browser] = [.chrome, .chromeDev, .edge, .brave, .braveOrigin]
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: home) }
         for browser in browsers {
@@ -290,23 +290,23 @@ struct BrowserCookiePromptContractTests {
         #expect(keychain.interactiveQueries == (museFirst ? 0 : 1))
     }
 
-    @Test
-    func `a failed background read does not impose a denial cooldown`() throws {
+    @Test(arguments: [Browser.chrome, .chromeDev])
+    func `a failed background read does not impose a denial cooldown`(browser: Browser) throws {
         let keychain = FakeKeychain()
         try self.withFakeKeychain {
             try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in .allowed } operation: {
                 ProviderInteractionContext.$current.withValue(.background) {
                     do {
-                        _ = try Self.readKey(for: .chrome, keychain: keychain)
+                        _ = try Self.readKey(for: browser, keychain: keychain)
                         Issue.record("Expected a no-UI read failure")
                     } catch {
                         BrowserCookieAccessGate.recordIfNeeded(error)
                     }
                 }
-                #expect(!BrowserCookieAccessGate.hasActiveDenial(for: .chrome))
+                #expect(!BrowserCookieAccessGate.hasActiveDenial(for: browser))
                 try ProviderInteractionContext.$current.withValue(.userInitiated) {
                     try BrowserCookieAccessGate.withExplicitRetry {
-                        _ = try Self.readKey(for: .chrome, keychain: keychain)
+                        _ = try Self.readKey(for: browser, keychain: keychain)
                     }
                 }
             }
@@ -314,7 +314,7 @@ struct BrowserCookiePromptContractTests {
         #expect(keychain.interactiveQueries == 1)
     }
 
-    @Test(arguments: [Browser.chrome, .claudeDesktop])
+    @Test(arguments: [Browser.chrome, .claudeDesktop, .chromeDev])
     func `an actual interactive denial blocks the next manual action`(browser: Browser) {
         let keychain = FakeKeychain(deniesInteraction: true)
         self.withFakeKeychain {

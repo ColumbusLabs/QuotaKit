@@ -32,6 +32,10 @@ enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(
+                            localized: "Notion personal allowances and optional workspace credits now sync from QuotaKit Mac."),
+                        String(
+                            localized: "TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone."),
+                        String(
                             localized: "Google Developer Program Cloud credits now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "SiliconFlow and Tripo prepaid balances now sync from QuotaKit Mac. Cursor weekly widgets use the shared weekly quota."),

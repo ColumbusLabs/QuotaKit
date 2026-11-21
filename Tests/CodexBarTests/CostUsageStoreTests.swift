@@ -11,6 +11,129 @@ import CSQLite3
 // Store invariants share one fixture/helper vocabulary across focused extensions.
 // swiftlint:disable file_length
 
+extension CostUsageStoreTests {
+    @Test(arguments: [false, true])
+    func `aggregate only Ultrafast unknown prices never become standard prices`(withKnownZero: Bool) async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 1)))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day, calendar: calendar)
+        let key = range.sinceKey
+        var rows: [CostUsageScanner.CodexUsageRow] = [
+            .init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 0,
+                input: 10,
+                cached: 0,
+                output: 0,
+                unpricedTokens: 10,
+                pricingMode: "ultrafast"),
+        ]
+        if withKnownZero {
+            rows.append(.init(
+                day: key,
+                model: "gpt-6.1-sol",
+                turnID: nil,
+                eventIndex: 1,
+                input: 10,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 0,
+                pricingMode: "ultrafast"))
+        }
+        let usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 1,
+            size: 1,
+            days: [key: ["gpt-6.1-sol": [withKnownZero ? 20 : 10, 0, 0]]],
+            parsedBytes: 1,
+            codexRows: rows,
+            codexScanComplete: true)
+        var cache = CostUsageCache()
+        let path = "/rollouts/ultrafast.jsonl"
+        cache.files[path] = usage
+        cache.days = usage.days
+        cache.scanSinceKey = key
+        cache.scanUntilKey = key
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        #expect(store.syncSaveCodexCache(
+            cache, calendar: calendar, requestedScanWindow: (sinceKey: key, untilKey: key)).cacheWasPersisted)
+        await store.reopenCodexScanConnection()
+        let db = try SQLiteTestConnection(url: store.databaseURL)
+        try db.execute("DELETE FROM usage_rows")
+        let restored = store.syncLoadCodexCache(calendar: calendar)
+        let restoredRows = try #require(restored.files[path]?.codexRows)
+        #expect(restoredRows.contains { $0.pricingMode == "ultrafast" && ($0.unpricedTokens ?? 0) > 0 })
+        let report = CostUsageScanner.buildCodexReportFromCache(cache: restored, range: range)
+        #expect(report.data.first?.costUSD == nil)
+    }
+
+    @Test
+    func `schema seven migration retains verified and ordinary aggregates`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let hash = "8ef06fff78a77e26"
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let day = "2026-08-01"
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [day: ["fixture-model": [10, 0, 2]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [.init(
+            day: day,
+            model: "fixture-model",
+            turnID: nil,
+            eventIndex: 0,
+            input: 10,
+            cached: 0,
+            output: 2,
+            knownCostNanos: 500)]
+        var cache = CostUsageCache()
+        cache.files["/rollouts/migration.jsonl"] = usage
+        cache.days = usage.days
+        cache.scanSinceKey = day
+        cache.scanUntilKey = day
+        cache.timeZoneIdentifier = calendar.timeZone.identifier
+        cache.roots = ["/rollouts": 0]
+        #expect(store.syncSaveCodexCache(
+            cache, calendar: calendar, requestedScanWindow: (sinceKey: day, untilKey: day)).cacheWasPersisted)
+        #expect(store.syncRecordVerifiedCodexDay(day: day, calendar: calendar))
+        let before = await store.readSnapshot()
+        let priorProjection = store.syncReadCodexReportProjection(calendar: calendar)
+        #expect(!priorProjection.verifiedDayAggregates.isEmpty)
+        await store.reopenCodexScanConnection()
+        let db = try SQLiteTestConnection(url: store.databaseURL)
+        for table in ["file_day_aggregates", "day_aggregates", "verified_day_aggregates"] {
+            for column in [
+                "ultrafast_input_tokens", "ultrafast_cached_tokens", "ultrafast_output_tokens",
+                "ultrafast_tokens", "ultrafast_authoritative_cost_nanos", "ultrafast_resolved_cost_nanos",
+                "ultrafast_unresolved_pricing_count",
+            ] {
+                try db.execute("ALTER TABLE \(table) DROP COLUMN \(column)")
+            }
+        }
+        let version = CostUsageStore.combinedSchemaVersion(base: 7, parserHash: hash)
+        try db.execute("UPDATE meta SET value = '\(hash)' WHERE key = 'parser_hash'; PRAGMA user_version = \(version)")
+        let reopened = CostUsageStore(cacheRoot: fixture.root)
+        #expect(await reopened.readSnapshot() == before)
+        let afterProjection = reopened.syncReadCodexReportProjection(calendar: calendar)
+        #expect(afterProjection.verifiedDayAggregates == priorProjection.verifiedDayAggregates)
+        #expect(afterProjection.verifiedDayEvidence == priorProjection.verifiedDayEvidence)
+        #expect(await reopened.rebuildCount == 0)
+        #expect(await reopened.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        for table in ["file_day_aggregates", "day_aggregates", "verified_day_aggregates"] {
+            let count = try db.scalarInt(
+                "SELECT COUNT(*) FROM pragma_table_info('\(table)') WHERE name = 'ultrafast_tokens'")
+            #expect(count == 1)
+        }
+    }
+}
+
 struct CostUsageStoreTests {
     @Test
     func `identical save does not retain a snapshot pruned by SQLite`() async throws {
@@ -2360,6 +2483,8 @@ extension CostUsageStoreTests {
     }
 
     private static let testedPredecessorParserHashes = [
+        "524695b9ecd9f16c",
+        "8ef06fff78a77e26",
         "70daf0906645fd3a",
         "f80230e162d75b65",
         "1a32d8d0c63060d2",
@@ -2474,7 +2599,7 @@ extension CostUsageStoreTests {
         #expect(await predecessor.upsertAccumulator(accumulator))
         #expect(await predecessor.setMetadata(metadata))
         var before = await predecessor.readSnapshot()
-        // All predecessor reports predate Terra and Luna Fast repricing.
+        // Compatible predecessors retain saved rows but invalidate cached reports after repricing.
         before.metadata.previousReportPayload = nil
 
         let current = CostUsageStore(cacheRoot: fixture.root)

@@ -48,6 +48,30 @@ extension SyncCoordinatorTests {
     }
 
     @Test
+    func `notion personal pool labels sync without legacy lane names`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let provider = try await self.syncedProvider(
+            .notion,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 10,
+                    windowMinutes: 44640,
+                    resetsAt: now,
+                    resetDescription: nil,
+                    title: "Standard"),
+                secondary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 44640,
+                    resetsAt: now,
+                    resetDescription: nil,
+                    title: "Select"),
+                updatedAt: now),
+            suite: "SyncCoord-notion-personal-labels")
+        #expect(provider.rateWindows.map(\.label) == ["Standard", "Select"])
+        #expect(provider.rateWindows.allSatisfy { $0.identity == nil })
+    }
+
+    @Test
     func `amp subscription sync uses dynamic usage lane labels`() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let provider = try await self.syncedProvider(

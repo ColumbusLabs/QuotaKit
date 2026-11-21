@@ -5,6 +5,13 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-21)
+
+- Add TrustedRouter API key limits; extend MiMo quota, Grok prepaid balance, OpenAI credit balance, Amp enterprise workspaces, and Notion allowance reporting.
+- Keep Claude account tabs and usage charts aligned with the displayed account, and add details to plugin charts.
+- Preserve native Ultrafast usage and pricing, limit retained Codex reports to the selected period, and read Cursor Tokscale JSON cost caches.
+- Improve quota-only CLI dashboards and refresh compatible dependencies while preserving explicit credential access gates.
+
 ## Unreleased upstream integration (2026-11-15)
 
 - Track the Google Developer Program monthly Cloud grant on Mac and iPhone, including grants awaiting activation.

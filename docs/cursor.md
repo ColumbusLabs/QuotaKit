@@ -1,7 +1,7 @@
 ---
 summary: "Cursor provider data sources, external-browser account switching, and cursor.com APIs."
 
-The local CSV fallback supports legacy, Kind, and cloud-agent exports, including trailing billing columns. Large exports are parsed incrementally.
+The local fallback reads Tokscale canonical JSON or legacy, Kind, and cloud-agent CSV exports.
 read_when:
   - Debugging Cursor usage parsing
   - Updating Cursor cookie import or session storage
@@ -113,6 +113,8 @@ When **Settings -> Advanced -> Track provider local storage** is enabled on macO
 The storage detail lists measured paths and their sizes. QuotaKit does not delete Cursor data.
 
 ## Token cost (dashboard API)
+
+In Automatic mode, the local fallback prefers Tokscale's canonical `usage.json`. It deduplicates event snapshots and validates owner and generation metadata when present. It never combines canonical JSON with migration CSVs or reads other account JSON files. Malformed, unreadable, empty, or out-of-window canonical JSON blocks CSV fallback; if JSON is absent, CSV remains supported. Rejected rows mark usable JSON history partial and withhold its Cursor-metered total. Local data is machine-local and cannot prove the identity of a selected credential, so Manual mode does not use this fallback.
 The cost summary's Cursor section is opt-in: it only fetches when **Show cost summary** is enabled and the Cursor provider is on.
 Unlike Claude and Codex cost (scanned from local session logs on this machine), Cursor cost is remote, account-wide data from the cursor.com dashboard, so it covers usage from every machine on the account.
 

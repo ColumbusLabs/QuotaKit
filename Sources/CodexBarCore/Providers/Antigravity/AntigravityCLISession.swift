@@ -1242,7 +1242,7 @@ final class AntigravityFileCLISessionRecordStore: AntigravityCLISessionRecordSto
 }
 
 final class AntigravityFileCLISessionLaunchLock: AntigravityCLISessionLaunchLocking, @unchecked Sendable {
-    private let fileURL: URL
+    let fileURL: URL
     private let fileManager: FileManager
 
     init(

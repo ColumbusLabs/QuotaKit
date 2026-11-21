@@ -1137,7 +1137,10 @@ extension StatusItemController {
         if self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
            self.menuBarMetricWindow(for: provider, snapshot: snapshot, now: now) == nil,
            !ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuBarBalanceUsesPrepaidCost,
-           let balance = MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
+           let balance = MenuBarLayoutBalanceResolver.legacyBalance(
+               provider: provider,
+               snapshot: snapshot,
+               showsOptionalCredits: self.settings.showOptionalCreditsAndExtraUsage)
         {
             return balance
         }

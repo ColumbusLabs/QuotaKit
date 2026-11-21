@@ -8,6 +8,56 @@ import Testing
 @Suite(.serialized)
 struct SyncCoordinatorProviderDetailsTests {
     @Test
+    func `Notion sync exports only personal and workspace credit amounts`() {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [
+                .makeSection(title: "Personal credits", rows: [
+                    .makeRow(label: "Standard remaining", value: "1,365.331 credits"),
+                    .makeRow(label: "Select remaining", value: "500 credits", secondaryValue: "private"),
+                    .makeRow(label: "Account", value: "person@example.com"),
+                ]),
+                .makeSection(title: "Notion Credits", rows: [
+                    .makeRow(label: "Remaining credits", value: "-300"),
+                    .makeRow(label: "Workspace", value: "secret"),
+                ]),
+            ],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .notion, snapshot: snapshot) == [
+            .init(title: "Personal credits", rows: [
+                .init(label: "Standard remaining", value: "1,365.331 credits"),
+                .init(label: "Select remaining", value: "500 credits"),
+            ]),
+            .init(title: "Notion Credits", rows: [.init(label: "Remaining credits", value: "-300")]),
+        ])
+        #expect(SyncCoordinator.mapProviderDetails(provider: .notion, snapshot: nil) == nil)
+    }
+
+    @Test
+    func `TrustedRouter sync exports only validated dollar details`() {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Usage", rows: [
+                .makeRow(label: "Remaining", value: "$0.00"),
+                .makeRow(label: "Limit", value: "$10.00"),
+                .makeRow(label: "Today", value: "$1.25"),
+                .makeRow(label: "This week", value: "private@example.com"),
+                .makeRow(label: "API key", value: "secret"),
+            ])],
+            updatedAt: Date())
+        #expect(SyncCoordinator.mapProviderDetails(provider: .trustedrouter, snapshot: snapshot) == [
+            .init(title: "Usage", rows: [
+                .init(label: "Remaining", value: "$0.00"),
+                .init(label: "Limit", value: "$10.00"),
+                .init(label: "Today", value: "$1.25"),
+            ]),
+        ])
+        #expect(SyncCoordinator.mapProviderDetails(provider: .trustedrouter, snapshot: nil) == nil)
+    }
+
+    @Test
     func `xAI sync exports only the live estimate and clears it when unavailable`() {
         let withEstimate = UsageSnapshot(
             primary: nil,

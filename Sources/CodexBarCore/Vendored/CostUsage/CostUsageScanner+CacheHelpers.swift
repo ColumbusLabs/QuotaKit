@@ -112,113 +112,6 @@ extension CostUsageScanner {
         return out
     }
 
-    struct CodexRowCostBreakdown {
-        var standardCostUSD: Double = 0
-        var priorityCostUSD: Double = 0
-        var standardTokens: Int = 0
-        var priorityTokens: Int = 0
-        var sawStandardCost = false
-        var sawPriorityCost = false
-        var hasUnstableTokenRows = false
-        var hasTokenOverflow = false
-        var hasIncompletePricing = false
-        /// Requests with tokens whose cost is known; marked or unresolvable requests are counted separately.
-        var pricedRequestCount = 0
-        var unpricedRequestCount = 0
-
-        var optionalStandardCostUSD: Double? {
-            self.sawStandardCost ? self.standardCostUSD : nil
-        }
-
-        var optionalPriorityCostUSD: Double? {
-            self.sawPriorityCost ? self.priorityCostUSD : nil
-        }
-
-        var optionalStandardTokens: Int? {
-            self.standardTokens > 0 ? self.standardTokens : nil
-        }
-
-        var optionalPriorityTokens: Int? {
-            self.priorityTokens > 0 ? self.priorityTokens : nil
-        }
-
-        var totalCostUSD: Double? {
-            guard self.sawStandardCost || self.sawPriorityCost else { return nil }
-            return self.standardCostUSD + self.priorityCostUSD
-        }
-
-        var hasModeSplit: Bool {
-            self.sawPriorityCost || self.priorityTokens > 0
-        }
-
-        /// The rows account for exactly the group's billed tokens, so their per-request costs describe it.
-        func coversGroup(canonicalTotalTokens: Int) -> Bool {
-            let (rowTokenTotal, overflow) = self.standardTokens.addingReportingOverflow(self.priorityTokens)
-            return !self.hasUnstableTokenRows
-                && !self.hasTokenOverflow
-                && !overflow
-                && rowTokenTotal == canonicalTotalTokens
-        }
-    }
-
-    static func codexRowCostBreakdown(
-        rows: [CodexUsageRow],
-        priorityTurns: [String: CodexPriorityTurnMetadata],
-        modelsDevCatalog: ModelsDevCatalog?,
-        modelsDevCacheRoot: URL?,
-        customPricing: CostUsageCustomPricing? = nil,
-        pricingResolver: CostUsagePricing.CodexResolver? = nil) -> CodexRowCostBreakdown
-    {
-        var breakdown = CodexRowCostBreakdown()
-        for row in rows {
-            let (tokenCount, tokenOverflow) = max(0, row.input).addingReportingOverflow(max(0, row.output))
-            let hasTokens = row.input > 0 || row.cached > 0 || row.output > 0
-            if tokenOverflow {
-                breakdown.hasTokenOverflow = true
-            }
-            if hasTokens, row.eventIndex == nil {
-                breakdown.hasUnstableTokenRows = true
-            }
-            let isMarkedUnpriced = (row.unpricedTokens ?? 0) > 0
-            if isMarkedUnpriced {
-                breakdown.hasIncompletePricing = true
-            }
-            let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
-            let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
-            if isPriority {
-                let (total, overflow) = breakdown.priorityTokens.addingReportingOverflow(tokenCount)
-                breakdown.priorityTokens = overflow ? breakdown.priorityTokens : total
-                breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
-            } else {
-                let (total, overflow) = breakdown.standardTokens.addingReportingOverflow(tokenCount)
-                breakdown.standardTokens = overflow ? breakdown.standardTokens : total
-                breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
-            }
-            // Retained history without proven pricing stays unknown; current list prices are not its price.
-            guard !isMarkedUnpriced, let cost = self.codexResolvedCostUSD(
-                for: row,
-                priorityTurns: priorityTurns,
-                modelsDevCatalog: modelsDevCatalog,
-                modelsDevCacheRoot: modelsDevCacheRoot,
-                customPricing: customPricing,
-                pricingResolver: pricingResolver)
-            else {
-                breakdown.hasIncompletePricing = breakdown.hasIncompletePricing || hasTokens
-                if hasTokens { breakdown.unpricedRequestCount += 1 }
-                continue
-            }
-            if hasTokens { breakdown.pricedRequestCount += 1 }
-            if isPriority {
-                breakdown.priorityCostUSD += cost
-                breakdown.sawPriorityCost = true
-            } else {
-                breakdown.standardCostUSD += cost
-                breakdown.sawStandardCost = true
-            }
-        }
-        return breakdown
-    }
-
     // MARK: - File cache construction
 
     static func makeFileUsage(
@@ -338,7 +231,8 @@ extension CostUsageScanner {
         let hasPriorityTokens = !(usage.codexPriorityTokens?.isEmpty ?? true)
 
         // Token maps are also the completion marker for models with no known pricing.
-        guard hasStandardTokens || hasPriorityTokens else { return true }
+        guard hasStandardTokens || hasPriorityTokens
+            || usage.codexRows?.contains(where: { $0.pricingMode == "ultrafast" }) == true else { return true }
         return (hasStandardCost && !hasStandardTokens) || (hasPriorityCost && !hasPriorityTokens)
     }
 
@@ -407,7 +301,8 @@ extension CostUsageScanner {
     {
         rows.map { row in
             let retained = retainedPricing?(row)
-            let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
+            let isUltrafast = row.pricingMode == "ultrafast" || retained?.pricingMode == "ultrafast"
+            let priorityMetadata = isUltrafast ? nil : row.turnID.flatMap { priorityTurns[$0] }
             // Saved Priority can originate from an authoritative trace that is no longer available.
             // Without persisted provenance, do not downgrade it based on a later Standard observation.
             let isPriority = priorityMetadata != nil
@@ -431,7 +326,7 @@ extension CostUsageScanner {
                 knownCostNanos: row.knownCostNanos,
                 unpricedTokens: row.unpricedTokens,
                 pricingModel: pricedModel,
-                pricingMode: isPriority ? "priority" : "standard",
+                pricingMode: isUltrafast ? "ultrafast" : (isPriority ? "priority" : "standard"),
                 responseID: row.responseID,
                 requestMirrorKeys: row.requestMirrorKeys)
         }
@@ -477,6 +372,7 @@ extension CostUsageScanner {
             guard CostUsageDayRange.isInRange(dayKey: row.day, since: range.sinceKey, until: range.untilKey)
             else { continue }
 
+            guard row.pricingMode != "ultrafast" else { continue }
             guard let tokenCount = CheckedSum.integers([row.input, row.output]) else { return (nil, nil) }
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
             let isPriority = priorityMetadata != nil || row.pricingMode == "priority"

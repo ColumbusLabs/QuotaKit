@@ -74,6 +74,7 @@ extension CostUsageScanner {
             $0.model == canonical.model && $0.input == canonical.input
                 && $0.cached == canonical.cached && $0.output == canonical.output
                 && ($0.knownCostNanos != nil || $0.unpricedTokens != nil || $0.pricingMode == "priority"
+                    || $0.pricingMode == "ultrafast"
                     || ($0.pricingModel != nil && $0.pricingModel != $0.model))
         } ?? canonical
         return CodexUsageRow(
@@ -167,6 +168,7 @@ extension CostUsageScanner {
                   target.cached == source.cached, target.output == source.output,
                   target.knownCostNanos == nil, target.unpricedTokens == nil,
                   source.knownCostNanos != nil || source.unpricedTokens != nil || source.pricingMode == "priority"
+                  || source.pricingMode == "ultrafast"
                   || (source.pricingModel != nil && source.pricingModel != source.model)
             else { return }
             var targets = replacements[location.path] ?? cache.files[location.path]?.codexRows ?? []

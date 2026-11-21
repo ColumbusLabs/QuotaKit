@@ -113,7 +113,8 @@
     "opendesign",
     "siliconflow",
     "tripo",
-    "googledeveloper"
+    "googledeveloper",
+    "trustedrouter"
   ],
   "order": [
     "codex",
@@ -229,7 +230,8 @@
     "opendesign",
     "siliconflow",
     "tripo",
-    "googledeveloper"
+    "googledeveloper",
+    "trustedrouter"
   ],
   "providers": [
     {

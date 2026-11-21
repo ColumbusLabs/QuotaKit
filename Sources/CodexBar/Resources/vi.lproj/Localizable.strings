@@ -2907,6 +2907,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Không tìm thấy cookie phiên TypeSafe. Đăng nhập tại console.typesafe.ai/billing hoặc dán tiêu đề Cookie.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Hiển thị mức sử dụng TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter đang giới hạn tần suất yêu cầu. Hãy thử lại sau.";
+"TrustedRouter request failed. Try refreshing later." = "Yêu cầu TrustedRouter không thành công. Hãy thử làm mới sau.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter trả về phản hồi không nhận dạng được. Hãy cập nhật QuotaKit rồi thử lại.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Ủy quyền mã thiết bị GitHub để lưu tài khoản mã thông báo Copilot.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Cung cấp mã thông báo GitHub được API mức sử dụng Copilot chấp nhận.";
@@ -2961,3 +2967,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow đã từ chối truy cập số dư bảng điều khiển (HTTP 403). Mở cloud.siliconflow.cn, kiểm tra tài khoản này có thể xem thanh toán, rồi làm mới.";
 "Credits per million tokens" = "Tín dụng trên một triệu mã thông báo";
 "Paused during grace period" = "Tạm dừng trong thời gian gia hạn";
+
+"Skip cost refresh" = "Bỏ qua làm mới chi phí";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo trả về phản hồi không nhận dạng được. Hãy cập nhật QuotaKit rồi thử lại.";
+"China mainland" = "Trung Quốc đại lục";
+"Singapore" = "Singapore";
+"MiMo is rate limiting requests. Try again later." = "MiMo đang giới hạn tần suất yêu cầu. Hãy thử lại sau.";
+"MiMo request failed. Try refreshing later." = "Yêu cầu MiMo không thành công. Hãy thử làm mới sau.";
+"Personal credits" = "Tín dụng cá nhân";
+"Standard remaining" = "Standard còn lại";
+"Select remaining" = "Select còn lại";
+"Remaining credits" = "Tín dụng còn lại";
+"Notion Credits" = "Tín dụng Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion không cung cấp hạn mức AI cá nhân khả dụng cho không gian làm việc này. Hãy kiểm tra mức sử dụng AI của không gian làm việc đã chọn trong Notion, rồi làm mới QuotaKit lần nữa.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

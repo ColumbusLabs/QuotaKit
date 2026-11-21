@@ -754,7 +754,7 @@ struct DashboardSnapshotBuilderTests {
             credits: nil) == nil)
     }
 
-    private func identityPayload(email: String) -> ProviderPayload {
+    private func identityPayload(email: String, primary: RateWindow? = nil) -> ProviderPayload {
         ProviderPayload(
             provider: .claude,
             account: nil,
@@ -762,7 +762,7 @@ struct DashboardSnapshotBuilderTests {
             source: "web",
             status: nil,
             usage: UsageSnapshot(
-                primary: nil,
+                primary: primary,
                 secondary: nil,
                 tertiary: nil,
                 updatedAt: Date(timeIntervalSince1970: 0),
@@ -913,6 +913,37 @@ extension DashboardSnapshotBuilderTests {
         #expect(!json.contains(privateNotice))
         #expect(!json.contains("private@example.test"))
         #expect(!json.contains("/Users/private"))
+    }
+}
+
+extension DashboardSnapshotBuilderTests {
+    @Test
+    func `quota only dashboard never invokes cost collection`() async throws {
+        let recorder = DashboardCostConfigRecorder()
+        let usage = self.identityPayload(
+            email: "synthetic@example.com",
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil))
+        let producer = DashboardSnapshotProducer(
+            collectUsage: { _ in
+                var output = UsageCommandOutput()
+                output.payload = [usage]
+                return output
+            },
+            collectCost: { providers, config in
+                await recorder.record(providers: providers, config: config)
+                return []
+            },
+            now: { Date(timeIntervalSince1970: 1_800_000_000) })
+
+        let result = try await producer.collect(
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            refreshInterval: 0,
+            codexBarVersion: "0.0.0-test",
+            includeCost: false)
+
+        #expect(await recorder.call() == nil)
+        #expect(result.payload.providers.first?.windows.isEmpty == false)
+        #expect(result.payload.providers.first?.cost == nil)
     }
 }
 

@@ -2908,6 +2908,12 @@
 
 "No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "No s'han trobat galetes de sessió de TypeSafe. Inicia sessió a console.typesafe.ai/billing o enganxa una capçalera Cookie.";
 
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Mostra l’ús de TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter limita la freqüència de les sol·licituds. Torna-ho a provar més tard.";
+"TrustedRouter request failed. Try refreshing later." = "La sol·licitud a TrustedRouter ha fallat. Torna a actualitzar més tard.";
+"TrustedRouter returned an unrecognized response. Update QuotaKit and try again." = "TrustedRouter ha retornat una resposta desconeguda. Actualitza QuotaKit i torna-ho a provar.";
+
 /* Provider setup guidance. */
 "Authorize GitHub's device code to save a Copilot token account." = "Autoritza el codi de dispositiu de GitHub per desar un compte amb testimoni de Copilot.";
 "Supply a GitHub token accepted by the Copilot usage API." = "Proporciona un testimoni de GitHub acceptat per l’API d’ús de Copilot.";
@@ -2962,3 +2968,18 @@
 "SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow ha denegat l'accés al saldo de la consola (HTTP 403). Obre cloud.siliconflow.cn, comprova que aquest compte pot veure la facturació i actualitza.";
 "Credits per million tokens" = "Crèdits per milió de tokens";
 "Paused during grace period" = "En pausa durant el període de gràcia";
+
+"Skip cost refresh" = "Omet l’actualització dels costos";
+"MiMo returned an unrecognized response. Update QuotaKit and try again." = "MiMo ha retornat una resposta desconeguda. Actualitza QuotaKit i torna-ho a provar.";
+"China mainland" = "Xina continental";
+"Singapore" = "Singapur";
+"MiMo is rate limiting requests. Try again later." = "MiMo limita la freqüència de les sol·licituds. Torna-ho a provar més tard.";
+"MiMo request failed. Try refreshing later." = "La sol·licitud a MiMo ha fallat. Torna a actualitzar més tard.";
+"Personal credits" = "Crèdits personals";
+"Standard remaining" = "Standard restant";
+"Select remaining" = "Select restant";
+"Remaining credits" = "Crèdits restants";
+"Notion Credits" = "Crèdits de Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage in Notion, then refresh QuotaKit." = "Notion no ha proporcionat quotes personals d'IA utilitzables per a aquest espai de treball. Comprova l'ús d'IA de l'espai seleccionat a Notion i torna a actualitzar QuotaKit.";
+"Select" = "Select";
+"Enterprise" = "Enterprise";

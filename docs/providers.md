@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 114 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 115 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -80,6 +80,7 @@ complete when the available scan window covers fewer days.
 | Azure OpenAI | API key + endpoint + deployment probe (`api`) for deployment status validation. |
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`); Linux tries readable OAuth credentials before the CLI. |
 | Gemini | Gemini CLI OAuth quotas (`auto`/`api`, default), or opt-in Gemini app 5-hour/weekly limits via cookies (`web`). |
+| [TrustedRouter](trustedrouter.md) | API key → key limit and spend (`api`). |
 | [Google Developer Program](googledeveloper.md) | Browser or manual Google session → current monthly Gen AI & Cloud credit grant. |
 | GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
 | Helmcode | Supported-browser or manual tenant cookies → Cloud/NaN billing-period credits or legacy model quotas and premium tiers (`web`). |
@@ -113,7 +114,7 @@ complete when the available scan window covers fewer days.
 | Synthetic | API key from config/env → quota API (`api`). |
 | OpenRouter | API token (config, overrides env) → credits API (`api`). |
 | Perplexity | Browser cookies/manual cookie/env session token → credits API (`web`). |
-| Xiaomi MiMo | Browser cookies → balance/token plan endpoints (`web`). |
+| Xiaomi MiMo | Token Plan API key (`api`); browser cookies → balance/token plan endpoints (`web`). |
 | Doubao | API key from config/env → Volcengine Ark chat-completions probe (`api`). |
 | Sakana AI | Manual Cookie header → billing page parser for 5-hour/weekly quota windows plus a best-effort pay-as-you-go credit balance (`web`). |
 | Abacus AI | Browser cookies → compute points + billing API (`web`). |

@@ -555,3 +555,5 @@ Plugins without a saved menu-bar override inherit the global layout; saved overr
 reset times, and conditional data come from the plugin snapshot. User plugins with approved cookie domains use the
 shared supported-browser order. Their header and session callbacks share a per-fetch cursor; rejecting an expired
 candidate advances to the next without invalidating a newer session. Cookie headers are never persisted by this path.
+
+[TrustedRouter](trustedrouter.md) reads the selected API key limit and spend without requesting completion endpoints. MiMo Token Plan quota uses its dedicated API key and region.

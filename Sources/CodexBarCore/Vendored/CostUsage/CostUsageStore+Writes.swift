@@ -213,7 +213,14 @@ extension CostUsageStore {
             standardResolvedCostNanos: -aggregate.standardResolvedCostNanos,
             priorityResolvedCostNanos: -aggregate.priorityResolvedCostNanos,
             standardUnresolvedPricingCount: -aggregate.standardUnresolvedPricingCount,
-            priorityUnresolvedPricingCount: -aggregate.priorityUnresolvedPricingCount)
+            priorityUnresolvedPricingCount: -aggregate.priorityUnresolvedPricingCount,
+            ultrafastInputTokens: -aggregate.ultrafastInputTokens,
+            ultrafastCachedTokens: -aggregate.ultrafastCachedTokens,
+            ultrafastOutputTokens: -aggregate.ultrafastOutputTokens,
+            ultrafastTokens: -aggregate.ultrafastTokens,
+            ultrafastAuthoritativeCostNanos: -aggregate.ultrafastAuthoritativeCostNanos,
+            ultrafastResolvedCostNanos: -aggregate.ultrafastResolvedCostNanos,
+            ultrafastUnresolvedPricingCount: -aggregate.ultrafastUnresolvedPricingCount)
     }
 
     static func deleteUsageRowsByIndices(
@@ -262,10 +269,13 @@ extension CostUsageStore {
                     priority_input_tokens, priority_cached_tokens, priority_output_tokens,
                     standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                     priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-                    priority_unresolved_pricing_count
+                    priority_unresolved_pricing_count,
+                    ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+                    ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos,
+                    ultrafast_unresolved_pricing_count
                 ) VALUES (
                     (SELECT id FROM files WHERE path = ? AND home = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 """)
                 defer { sqlite3_finalize(insert) }
@@ -309,6 +319,8 @@ extension CostUsageStore {
             "standard_output_tokens", "priority_input_tokens", "priority_cached_tokens", "priority_output_tokens",
             "standard_tokens", "priority_tokens", "standard_resolved_cost_nanos", "priority_resolved_cost_nanos",
             "standard_unresolved_pricing_count", "priority_unresolved_pricing_count",
+            "ultrafast_input_tokens", "ultrafast_cached_tokens", "ultrafast_output_tokens", "ultrafast_tokens",
+            "ultrafast_authoritative_cost_nanos", "ultrafast_resolved_cost_nanos", "ultrafast_unresolved_pricing_count",
         ]
         let table = path == nil ? "day_aggregates" : "file_day_aggregates"
         let keys = (path == nil ? ["home"] : ["file_id"]) + ["day", "model"]
@@ -419,8 +431,10 @@ extension CostUsageStore {
             priority_input_tokens, priority_cached_tokens, priority_output_tokens,
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-            priority_unresolved_pricing_count, home
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            priority_unresolved_pricing_count,
+            ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+            ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count, home
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
         defer { sqlite3_finalize(statement) }
         for aggregate in aggregates {
@@ -429,7 +443,7 @@ extension CostUsageStore {
             self.bind(aggregate.day, to: statement, at: 1)
             self.bind(aggregate.model, to: statement, at: 2)
             self.bindAggregateValues(aggregate, to: statement, startingAt: 3)
-            self.bind(home, to: statement, at: 24)
+            self.bind(home, to: statement, at: 31)
             try self.stepDone(statement, database: database)
         }
     }
@@ -723,6 +737,13 @@ extension CostUsageStore {
             aggregate.priorityResolvedCostNanos,
             aggregate.standardUnresolvedPricingCount,
             aggregate.priorityUnresolvedPricingCount,
+            aggregate.ultrafastInputTokens,
+            aggregate.ultrafastCachedTokens,
+            aggregate.ultrafastOutputTokens,
+            aggregate.ultrafastTokens,
+            aggregate.ultrafastAuthoritativeCostNanos,
+            aggregate.ultrafastResolvedCostNanos,
+            aggregate.ultrafastUnresolvedPricingCount,
         ]
         for (offset, value) in values.enumerated() {
             sqlite3_bind_int64(statement, index + Int32(offset), value)

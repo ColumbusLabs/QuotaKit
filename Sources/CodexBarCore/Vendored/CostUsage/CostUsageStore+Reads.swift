@@ -1201,7 +1201,9 @@ extension CostUsageStore {
                priority_input_tokens, priority_cached_tokens, priority_output_tokens,
                standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-               priority_unresolved_pricing_count
+               priority_unresolved_pricing_count,
+               ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+               ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
         FROM day_aggregates
         """
         var clauses: [String] = []
@@ -1247,7 +1249,14 @@ extension CostUsageStore {
                 standardResolvedCostNanos: sqlite3_column_int64(statement, 19),
                 priorityResolvedCostNanos: sqlite3_column_int64(statement, 20),
                 standardUnresolvedPricingCount: sqlite3_column_int64(statement, 21),
-                priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 22)))
+                priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 22),
+                ultrafastInputTokens: sqlite3_column_int64(statement, 23),
+                ultrafastCachedTokens: sqlite3_column_int64(statement, 24),
+                ultrafastOutputTokens: sqlite3_column_int64(statement, 25),
+                ultrafastTokens: sqlite3_column_int64(statement, 26),
+                ultrafastAuthoritativeCostNanos: sqlite3_column_int64(statement, 27),
+                ultrafastResolvedCostNanos: sqlite3_column_int64(statement, 28),
+                ultrafastUnresolvedPricingCount: sqlite3_column_int64(statement, 29)))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
@@ -1269,7 +1278,10 @@ extension CostUsageStore {
                a.priority_input_tokens, a.priority_cached_tokens, a.priority_output_tokens,
                a.standard_tokens, a.priority_tokens, a.standard_resolved_cost_nanos,
                a.priority_resolved_cost_nanos, a.standard_unresolved_pricing_count,
-               a.priority_unresolved_pricing_count
+               a.priority_unresolved_pricing_count,
+               a.ultrafast_input_tokens, a.ultrafast_cached_tokens, a.ultrafast_output_tokens, a.ultrafast_tokens,
+               a.ultrafast_authoritative_cost_nanos, a.ultrafast_resolved_cost_nanos,
+               a.ultrafast_unresolved_pricing_count
         """
         // A source-specific window starts from its file key and uses the aggregate
         // table's (file_id, day, model) index. Preserve the existing native full scan.
@@ -1330,7 +1342,14 @@ extension CostUsageStore {
                     standardResolvedCostNanos: sqlite3_column_int64(statement, 20),
                     priorityResolvedCostNanos: sqlite3_column_int64(statement, 21),
                     standardUnresolvedPricingCount: sqlite3_column_int64(statement, 22),
-                    priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 23))))
+                    priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 23),
+                    ultrafastInputTokens: sqlite3_column_int64(statement, 24),
+                    ultrafastCachedTokens: sqlite3_column_int64(statement, 25),
+                    ultrafastOutputTokens: sqlite3_column_int64(statement, 26),
+                    ultrafastTokens: sqlite3_column_int64(statement, 27),
+                    ultrafastAuthoritativeCostNanos: sqlite3_column_int64(statement, 28),
+                    ultrafastResolvedCostNanos: sqlite3_column_int64(statement, 29),
+                    ultrafastUnresolvedPricingCount: sqlite3_column_int64(statement, 30))))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }

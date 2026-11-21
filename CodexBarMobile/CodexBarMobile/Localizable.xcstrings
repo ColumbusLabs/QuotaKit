@@ -1,6 +1,62 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Notion personal allowances and optional workspace credits now sync from QuotaKit Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notion personal allowances and optional workspace credits now sync from QuotaKit Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notion の個人向け利用枠と任意のワークスペースクレジットが QuotaKit Mac から同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notion 个人用量额度和可选工作区积分现可从 QuotaKit Mac 同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notion 個人用量額度和選用的工作區點數現在可從 QuotaKit Mac 同步。"
+          }
+        }
+      }
+    },
+    "TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter key limits and usage details now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter のキー上限と使用状況の詳細が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter 密钥限额和用量详情现可从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TrustedRouter 金鑰額度和用量詳細資訊現在可從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Not applied": {
       "localizations": {
         "en": {

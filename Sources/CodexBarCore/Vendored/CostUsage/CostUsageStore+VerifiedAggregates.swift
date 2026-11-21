@@ -432,7 +432,9 @@ extension CostUsageStore {
                priority_input_tokens, priority_cached_tokens, priority_output_tokens,
                standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-               priority_unresolved_pricing_count
+               priority_unresolved_pricing_count,
+               ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+               ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
         FROM verified_day_aggregates
         WHERE home = ?1
         """
@@ -476,7 +478,14 @@ extension CostUsageStore {
                 standardResolvedCostNanos: sqlite3_column_int64(statement, 19),
                 priorityResolvedCostNanos: sqlite3_column_int64(statement, 20),
                 standardUnresolvedPricingCount: sqlite3_column_int64(statement, 21),
-                priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 22)))
+                priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 22),
+                ultrafastInputTokens: sqlite3_column_int64(statement, 23),
+                ultrafastCachedTokens: sqlite3_column_int64(statement, 24),
+                ultrafastOutputTokens: sqlite3_column_int64(statement, 25),
+                ultrafastTokens: sqlite3_column_int64(statement, 26),
+                ultrafastAuthoritativeCostNanos: sqlite3_column_int64(statement, 27),
+                ultrafastResolvedCostNanos: sqlite3_column_int64(statement, 28),
+                ultrafastUnresolvedPricingCount: sqlite3_column_int64(statement, 29)))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
@@ -498,10 +507,13 @@ extension CostUsageStore {
             priority_input_tokens, priority_cached_tokens, priority_output_tokens,
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-            priority_unresolved_pricing_count, home
+            priority_unresolved_pricing_count,
+            ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+            ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count,
+            home
         ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-            ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+            ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31)
         ON CONFLICT(home, day, model) DO UPDATE SET
             input_tokens = excluded.input_tokens,
             cached_tokens = excluded.cached_tokens,
@@ -523,7 +535,14 @@ extension CostUsageStore {
             standard_resolved_cost_nanos = excluded.standard_resolved_cost_nanos,
             priority_resolved_cost_nanos = excluded.priority_resolved_cost_nanos,
             standard_unresolved_pricing_count = excluded.standard_unresolved_pricing_count,
-            priority_unresolved_pricing_count = excluded.priority_unresolved_pricing_count
+            priority_unresolved_pricing_count = excluded.priority_unresolved_pricing_count,
+            ultrafast_input_tokens = excluded.ultrafast_input_tokens,
+            ultrafast_cached_tokens = excluded.ultrafast_cached_tokens,
+            ultrafast_output_tokens = excluded.ultrafast_output_tokens,
+            ultrafast_tokens = excluded.ultrafast_tokens,
+            ultrafast_authoritative_cost_nanos = excluded.ultrafast_authoritative_cost_nanos,
+            ultrafast_resolved_cost_nanos = excluded.ultrafast_resolved_cost_nanos,
+            ultrafast_unresolved_pricing_count = excluded.ultrafast_unresolved_pricing_count
         """)
         defer { sqlite3_finalize(statement) }
         for aggregate in aggregates {
@@ -532,7 +551,7 @@ extension CostUsageStore {
             Self.bind(aggregate.day, to: statement, at: 1)
             Self.bind(aggregate.model, to: statement, at: 2)
             Self.bindAggregateValues(aggregate, to: statement, startingAt: 3)
-            Self.bind(home, to: statement, at: 24)
+            Self.bind(home, to: statement, at: 31)
             try Self.stepDone(statement, database: database)
         }
     }
@@ -967,6 +986,13 @@ extension CostUsageStore {
                 priority_resolved_cost_nanos INTEGER NOT NULL,
                 standard_unresolved_pricing_count INTEGER NOT NULL,
                 priority_unresolved_pricing_count INTEGER NOT NULL,
+                ultrafast_input_tokens INTEGER NOT NULL DEFAULT 0,
+                ultrafast_cached_tokens INTEGER NOT NULL DEFAULT 0,
+                ultrafast_output_tokens INTEGER NOT NULL DEFAULT 0,
+                ultrafast_tokens INTEGER NOT NULL DEFAULT 0,
+                ultrafast_authoritative_cost_nanos INTEGER NOT NULL DEFAULT 0,
+                ultrafast_resolved_cost_nanos INTEGER NOT NULL DEFAULT 0,
+                ultrafast_unresolved_pricing_count INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY(home, day, model)
             )
             """)
@@ -1000,7 +1026,10 @@ extension CostUsageStore {
                            priority_input_tokens, priority_cached_tokens, priority_output_tokens,
                            standard_tokens, priority_tokens, standard_resolved_cost_nanos,
                            priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-                           priority_unresolved_pricing_count
+                           priority_unresolved_pricing_count,
+                           ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens,
+                           ultrafast_tokens, ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos,
+                           ultrafast_unresolved_pricing_count
                     FROM day_aggregates WHERE home = ?1
                     """)
                     defer { sqlite3_finalize(copy) }
@@ -1170,6 +1199,13 @@ extension CostUsageStore {
         current.priorityResolvedCostNanos += incoming.priorityResolvedCostNanos
         current.standardUnresolvedPricingCount += incoming.standardUnresolvedPricingCount
         current.priorityUnresolvedPricingCount += incoming.priorityUnresolvedPricingCount
+        current.ultrafastInputTokens += incoming.ultrafastInputTokens
+        current.ultrafastCachedTokens += incoming.ultrafastCachedTokens
+        current.ultrafastOutputTokens += incoming.ultrafastOutputTokens
+        current.ultrafastTokens += incoming.ultrafastTokens
+        current.ultrafastAuthoritativeCostNanos += incoming.ultrafastAuthoritativeCostNanos
+        current.ultrafastResolvedCostNanos += incoming.ultrafastResolvedCostNanos
+        current.ultrafastUnresolvedPricingCount += incoming.ultrafastUnresolvedPricingCount
         values[key] = current
     }
 

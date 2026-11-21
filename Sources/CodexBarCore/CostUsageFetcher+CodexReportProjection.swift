@@ -231,7 +231,7 @@ enum CostUsageCodexReportProjectionBuilder {
                 let unresolved = max(
                     aggregate.unpricedRequestCount,
                     aggregate.standardUnresolvedPricingCount + aggregate
-                        .priorityUnresolvedPricingCount)
+                        .priorityUnresolvedPricingCount + aggregate.ultrafastUnresolvedPricingCount)
                 if unresolved > 0 {
                     count += Self.int(unresolved)
                 } else if pair.1.costUSD == nil {
@@ -309,6 +309,8 @@ enum CostUsageCodexReportProjectionBuilder {
         let priorityKnown = Double(aggregate.priorityAuthoritativeCostNanos) / 1_000_000_000
         let standardResolved = Double(aggregate.standardResolvedCostNanos) / 1_000_000_000
         let priorityResolved = Double(aggregate.priorityResolvedCostNanos) / 1_000_000_000
+        let ultrafastCost = Double(aggregate.ultrafastAuthoritativeCostNanos + aggregate.ultrafastResolvedCostNanos)
+            / 1_000_000_000
         let standardHasEvidence = aggregate.standardTokens > 0
             || aggregate.standardCachedTokens > 0
             || aggregate.standardAuthoritativeCostNanos != 0
@@ -322,27 +324,31 @@ enum CostUsageCodexReportProjectionBuilder {
         let pricingComplete = aggregate.unpricedRequestCount == 0
             && aggregate.standardUnresolvedPricingCount == 0
             && aggregate.priorityUnresolvedPricingCount == 0
+            && aggregate.ultrafastUnresolvedPricingCount == 0
         let standardCost = pricingComplete ? standardKnown + standardResolved : nil
         let priorityCost = pricingComplete ? priorityKnown + priorityResolved : nil
         // A partial subtotal is trustworthy only when the persisted rows cover the canonical group.
         // Use saved monetary evidence; the omitted requests never acquire current list prices.
         let (rowTokens, rowOverflow) = aggregate.standardTokens.addingReportingOverflow(aggregate.priorityTokens)
+        let (allRowTokens, ultraOverflow) = rowTokens.addingReportingOverflow(aggregate.ultrafastTokens)
         let (canonicalTokens, canonicalOverflow) = aggregate.inputTokens.addingReportingOverflow(aggregate.outputTokens)
         let unpriced = max(
             aggregate.unpricedRequestCount,
-            aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount)
+            aggregate.standardUnresolvedPricingCount + aggregate.priorityUnresolvedPricingCount
+                + aggregate.ultrafastUnresolvedPricingCount)
         let hasPricedRequests = aggregate.requestCount > unpriced
         let partialIsCovered = aggregate.partialPricingIsSafe != false
-            && !rowOverflow && !canonicalOverflow && rowTokens == canonicalTokens
+            && !rowOverflow && !ultraOverflow && !canonicalOverflow && allRowTokens == canonicalTokens
             && hasPricedRequests
         let totalCost = if pricingComplete {
-            (standardCost ?? 0) + (priorityCost ?? 0)
+            (standardCost ?? 0) + (priorityCost ?? 0) + ultrafastCost
         } else if partialIsCovered {
-            standardKnown + standardResolved + priorityKnown + priorityResolved
+            standardKnown + standardResolved + priorityKnown + priorityResolved + ultrafastCost
         } else {
             nil as Double?
         }
-        let hasModeSplit = pricingComplete && priorityHasEvidence
+        let hasModeSplit = pricingComplete && priorityHasEvidence && aggregate.ultrafastTokens == 0
+            && aggregate.ultrafastAuthoritativeCostNanos == 0 && aggregate.ultrafastResolvedCostNanos == 0
         return CostUsageDailyReport.ModelBreakdown(
             modelName: model,
             costUSD: totalCost,
@@ -567,5 +573,12 @@ extension CostUsageStoreDayAggregate {
         self.priorityResolvedCostNanos += other.priorityResolvedCostNanos
         self.standardUnresolvedPricingCount += other.standardUnresolvedPricingCount
         self.priorityUnresolvedPricingCount += other.priorityUnresolvedPricingCount
+        self.ultrafastInputTokens += other.ultrafastInputTokens
+        self.ultrafastCachedTokens += other.ultrafastCachedTokens
+        self.ultrafastOutputTokens += other.ultrafastOutputTokens
+        self.ultrafastTokens += other.ultrafastTokens
+        self.ultrafastAuthoritativeCostNanos += other.ultrafastAuthoritativeCostNanos
+        self.ultrafastResolvedCostNanos += other.ultrafastResolvedCostNanos
+        self.ultrafastUnresolvedPricingCount += other.ultrafastUnresolvedPricingCount
     }
 }

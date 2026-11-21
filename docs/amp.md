@@ -68,3 +68,5 @@ Log in to Amp in a supported browser (Safari or Chromium-based), then refresh in
 ### “Amp session cookie expired”
 
 Sign out and back in at `https://ampcode.com/settings`, then refresh.
+
+Enterprise-paid workspaces are recognized without inventing a credit balance.

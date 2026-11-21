@@ -7,13 +7,11 @@ extension StatusItemController {
         captureMenu: NSMenu,
         context: MenuCardContext)
     {
+        defer { self.addAccountAgnosticCostMenuSection(to: menu, context: context) }
         let accounts = self.store.claudeSwapAccountSnapshots
-        let display = ClaudeSwapAccountMenuDisplay(
-            accounts: accounts,
-            layout: self.settings.multiAccountMenuLayout,
-            switchingAccountID: self.store.claudeSwapTransientState.switchingAccountID,
-            errorAccountID: self.store.claudeSwapTransientState.lastErrorAccountID,
-            inspectedAccountID: self.claudeSwapInspectedAccountID)
+        guard let display = self.store.claudeSwapMenuDisplay(
+            for: .claude, inspectedAccountID: self.claudeSwapInspectedAccountID)
+        else { return }
         if display.showsSwitcher {
             let switcherHeading = NSMenuItem(
                 title: L("Switch Claude Code account"),

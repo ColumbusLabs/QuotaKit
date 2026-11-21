@@ -11,6 +11,7 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "opendesign") == "ProviderIcon-opendesign")
         #expect(ProviderBrandAsset.assetName(for: "siliconflow") == "ProviderIcon-siliconflow")
         #expect(ProviderBrandAsset.assetName(for: "googledeveloper") == "ProviderIcon-googledeveloper")
+        #expect(ProviderBrandAsset.assetName(for: "trustedrouter") == "ProviderIcon-trustedrouter")
         #expect(ProviderBrandAsset.assetName(for: "tripo") == "ProviderIcon-tripo")
         #expect(ProviderBrandAsset.assetName(for: "chatbox") == "ProviderIcon-chatbox")
         #expect(ProviderBrandAsset.assetName(for: "Chatbox AI") == "ProviderIcon-chatbox")

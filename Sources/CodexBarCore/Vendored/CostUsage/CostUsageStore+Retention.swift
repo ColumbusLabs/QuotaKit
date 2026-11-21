@@ -811,7 +811,9 @@ extension CostUsageStore {
             priority_input_tokens, priority_cached_tokens, priority_output_tokens,
             standard_tokens, priority_tokens, standard_resolved_cost_nanos,
             priority_resolved_cost_nanos, standard_unresolved_pricing_count,
-            priority_unresolved_pricing_count
+            priority_unresolved_pricing_count,
+            ultrafast_input_tokens, ultrafast_cached_tokens, ultrafast_output_tokens, ultrafast_tokens,
+            ultrafast_authoritative_cost_nanos, ultrafast_resolved_cost_nanos, ultrafast_unresolved_pricing_count
         )
         SELECT f.home, a.day, a.model, SUM(input_tokens), SUM(cached_tokens), SUM(output_tokens),
                SUM(reasoning_tokens), SUM(request_count), SUM(unpriced_request_count),
@@ -821,7 +823,10 @@ extension CostUsageStore {
                SUM(priority_input_tokens), SUM(priority_cached_tokens), SUM(priority_output_tokens),
                SUM(standard_tokens), SUM(priority_tokens),
                SUM(standard_resolved_cost_nanos), SUM(priority_resolved_cost_nanos),
-               SUM(standard_unresolved_pricing_count), SUM(priority_unresolved_pricing_count)
+               SUM(standard_unresolved_pricing_count), SUM(priority_unresolved_pricing_count),
+               SUM(ultrafast_input_tokens), SUM(ultrafast_cached_tokens), SUM(ultrafast_output_tokens),
+               SUM(ultrafast_tokens), SUM(ultrafast_authoritative_cost_nanos), SUM(ultrafast_resolved_cost_nanos),
+               SUM(ultrafast_unresolved_pricing_count)
         FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
         WHERE f.home = ?
         GROUP BY f.home, a.day, a.model
