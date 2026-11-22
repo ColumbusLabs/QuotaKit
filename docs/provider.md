@@ -87,6 +87,12 @@ selections remain isolated. Public exhaustive import APIs retain their array ret
 lazy candidates instead. The shared candidate retry runner checks cancellation before reading candidates and
 before attempts, so a cancelled refresh stops traversal even after a retryable authentication failure.
 
+Snapshot-backed spend sources keep a current-config publication even when a successful provider fetch explicitly
+reports unavailable analytics. Overview and Usage & Spend keep that unavailable status distinct from confirmed
+zero spend and reuse it when filling missing data. Repeated unavailable results leave the recovery revision
+unchanged. Missing publications, changed credentials or account scope, and failed refreshes that clear their
+publication still need a fetch.
+
 ### Provider architecture gatekeeper threat model
 
 `ProviderArchitectureGatekeeperTests` is a drift tripwire against honest architecture mistakes by future contributors

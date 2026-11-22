@@ -14,6 +14,7 @@ struct CurrentProviderConfigTokenPublication: Sendable, Equatable {
     let publicationRevision: UInt64
     let semanticFingerprint: String?
     let accounting: PiSnapshotAccounting?
+    var isUnavailable = false
 }
 
 struct TokenSnapshotPublication: Sendable, Equatable {
@@ -24,6 +25,7 @@ struct TokenSnapshotPublication: Sendable, Equatable {
     let scopeSignature: String
     let semanticFingerprint: String?
     let accounting: PiSnapshotAccounting?
+    var isUnavailable = false
 }
 
 extension UsageStore {
@@ -300,7 +302,8 @@ extension UsageStore {
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
             semanticFingerprint: publication.semanticFingerprint,
-            accounting: publication.accounting)
+            accounting: publication.accounting,
+            isUnavailable: publication.isUnavailable)
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -461,6 +464,8 @@ extension UsageStore {
         guard provider != .opencodego || snapshot.opencodegoUsage?.localHistoryPending != true else { return }
         if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider) {
             self.installCachedTokenSnapshot(tokenSnapshot, for: provider)
+        } else if ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.isUsageUnavailable(snapshot) {
+            self.installUnavailableProviderTokenSnapshot(for: provider)
         } else {
             self.clearTokenSnapshot(for: provider)
         }
@@ -475,12 +480,27 @@ extension UsageStore {
         if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider) {
             self.publishTokenSnapshot(tokenSnapshot, for: provider)
         } else if ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.isUsageUnavailable(snapshot) {
-            self.clearTokenSnapshot(for: provider)
+            self.installUnavailableProviderTokenSnapshot(for: provider)
+            self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
         } else {
             self.publishConfirmedEmptyTokenSnapshot(for: provider)
         }
         self.tokenErrors[provider.instanceID] = nil
         self.tokenFailureGates[provider.instanceID]?.recordSuccess()
+    }
+
+    private func installUnavailableProviderTokenSnapshot(for provider: UsageProvider) {
+        self.tokenSnapshots.removeValue(forKey: provider.instanceID)
+        // Settled unavailability counts as a completed fetch without marking spend as recovered.
+        self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
+            dashboardFingerprint: nil,
+            snapshot: nil,
+            publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
+            providerConfigRevision: self.settings.providerConfigRevision(for: provider),
+            scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
+            semanticFingerprint: nil,
+            accounting: nil,
+            isUnavailable: true)
     }
 
     func resetProviderDerivedTokenSnapshot(for provider: UsageProvider) {

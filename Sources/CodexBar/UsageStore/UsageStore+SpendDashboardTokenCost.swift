@@ -28,7 +28,8 @@ extension UsageStore {
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
             semanticFingerprint: publication.semanticFingerprint,
-            accounting: publication.accounting)
+            accounting: publication.accounting,
+            isUnavailable: publication.isUnavailable)
     }
 
     func spendDashboardTokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {

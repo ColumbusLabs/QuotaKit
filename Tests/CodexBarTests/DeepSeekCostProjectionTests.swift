@@ -78,11 +78,13 @@ struct DeepSeekCostProjectionTests {
             from: UsageSnapshot(primary: nil, secondary: nil, costUsage: cost, updatedAt: now),
             for: .deepseek)
         #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.snapshot != nil)
+        let availableRevision = store.tokenSnapshotPublicationRevision(for: .deepseek)
 
         store.publishProviderDerivedTokenSnapshot(
             from: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
             for: .deepseek)
-        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek) == nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.snapshot == nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.isUnavailable == true)
 
         store._test_providerFetchOutcomeOverride = { _ in
             ProviderFetchOutcome(result: .success(ProviderFetchResult(
@@ -95,7 +97,16 @@ struct DeepSeekCostProjectionTests {
         }
         await store.refreshProvider(.deepseek, allowDisabled: true)
         #expect(store.snapshots[.deepseek]?.updatedAt == now)
-        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek) == nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.snapshot == nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.isUnavailable == true)
+        #expect(store.tokenSnapshots[.deepseek] == nil)
+        #expect(store.tokenSnapshotPublicationRevision(for: .deepseek) == availableRevision)
+
+        store.publishProviderDerivedTokenSnapshot(
+            from: UsageSnapshot(primary: nil, secondary: nil, costUsage: cost, updatedAt: now),
+            for: .deepseek)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .deepseek)?.isUnavailable == false)
+        #expect(store.tokenSnapshotPublicationRevision(for: .deepseek) == availableRevision + 1)
     }
 
     @MainActor

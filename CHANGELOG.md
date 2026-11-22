@@ -5,6 +5,10 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased upstream integration (2026-11-22)
+
+- Avoid duplicate DeepSeek and xAI fetches in Usage & Spend when the provider reports unavailable spend analytics.
+
 ## Unreleased upstream integration (2026-11-21)
 
 - Add TrustedRouter API key limits; extend MiMo quota, Grok prepaid balance, OpenAI credit balance, Amp enterprise workspaces, and Notion allowance reporting.
